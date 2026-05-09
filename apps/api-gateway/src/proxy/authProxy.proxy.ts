@@ -3,7 +3,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 
 const authUrl = process.env.AUTH_SERVICE_URL || "http://localhost:3001";
 
-export const proxyMiddleware = createProxyMiddleware<Request, Response>({
+export const authProxy = createProxyMiddleware<Request, Response>({
   target: authUrl,
   changeOrigin: true,
   pathRewrite: {

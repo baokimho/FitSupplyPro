@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { proxyMiddleware } from "./proxy/authProxy.proxy";
+import { authProxy } from "./proxy/authProxy.proxy";
+import { catalogProxy } from "./proxy/catalogProxy.proxy";
+import { orderProxy } from "./proxy/orderProxy.proxy";
 
 dotenv.config();
 
@@ -9,7 +11,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/auth", proxyMiddleware);
+app.use("/auth", authProxy);
+app.use("/catalog", catalogProxy);
+app.use("/order", orderProxy);
 
 app.get("/health", (req, res) => {
   res.json({
