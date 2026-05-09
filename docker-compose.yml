@@ -6,10 +6,20 @@ services:
     environment:
       PORT: 3000
       AUTH_SERVICE_URL: http://auth-service:3001
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
     ports:
       - "3000:3000"
+    volumes:
+      - ./apps/api-gateway/src:/app/src
+      - /app/node_modules  
+    command: npm run dev
+    stdin_open: true
+    tty: true
     depends_on:
       - auth-service
+      - catalog-service
+      - order-service
 
   auth-service:
     build:
@@ -17,8 +27,18 @@ services:
     container_name: auth-service
     environment:
       PORT: 3001
+      DATABASE_URL: postgres://fitsupply:fitsupply@postgres:5432/auth_db
     ports:
       - "3001:3001"
+    volumes:
+      - ./apps/auth-service/src:/app/src
+      - /app/node_modules  
+    command: npm run dev
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
@@ -29,8 +49,15 @@ services:
       POSTGRES_PASSWORD: fitsupply
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fitsupply -d fitsupply"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-multiple-dbs.sql:/docker-entrypoint-initdb.d/init-multiple-dbs.sql
 
   catalog-service:
     build:
@@ -38,11 +65,19 @@ services:
     container_name: catalog-service
     environment:
       PORT: 3002
-      DATABASE_URL: postgres://fitsupply:fitsupply@postgres:5432/fitsupply
+      DATABASE_URL: postgres://fitsupply:fitsupply@postgres:5432/catalog_db
     ports:
       - "3002:3002"
+    volumes:
+      - ./apps/catalog-service/src:/app/src
+      - /app/node_modules  
+    command: npm run dev
+    stdin_open: true
+    tty: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
 
   order-service:
     build:
@@ -50,11 +85,18 @@ services:
     container_name: order-service
     environment:
       PORT: 3003
-      DATABASE_URL: postgres://fitsupply:fitsupply@postgres:5432/fitsupply
+      DATABASE_URL: postgres://fitsupply:fitsupply@postgres:5432/order_db
     ports:
       - "3003:3003"
+    volumes:
+      - ./apps/order-service/src:/app/src
+      - /app/node_modules  
+    command: npm run dev
+    stdin_open: true
+    tty: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
