@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import prisma from "./config/db";
+import { connectDb } from "./config/connect-db";
 
 dotenv.config();
 
@@ -19,23 +20,32 @@ app.get("/health", (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
-  console.log(`Auth service running on port ${PORT}`);
-});
+async function bootstrap() {
+  await connectDb();
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, shutting down gracefully...");
-  server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
+  const server = app.listen(PORT, () => {
+    console.log(`Auth service running on port ${PORT}`);
   });
-});
 
-process.on("SIGINT", async () => {
-  console.log("SIGINT received, shutting down gracefully...");
-  server.close(async () => {
-    await prisma.$disconnect();
-    process.exit(0);
+  // Graceful shutdown
+  process.on("SIGTERM", async () => {
+    console.log("SIGTERM received, shutting down gracefully...");
+    server.close(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
   });
+
+  process.on("SIGINT", async () => {
+    console.log("SIGINT received, shutting down gracefully...");
+    server.close(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
+  });
+}
+
+bootstrap().catch((error) => {
+  console.error("Failed to start auth service:", error);
+  process.exit(1);
 });

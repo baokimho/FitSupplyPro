@@ -32,6 +32,7 @@ services:
       - "3001:3001"
     volumes:
       - ./apps/auth-service/src:/app/src
+      - auth-service-prisma:/app/src/generated/prisma
       - /app/node_modules  
     command: npm run dev
     stdin_open: true
@@ -100,3 +101,4 @@ services:
 
 volumes:
   postgres_data:
+  auth-service-prisma:
