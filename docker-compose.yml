@@ -32,9 +32,9 @@ services:
       - "3001:3001"
     volumes:
       - ./apps/auth-service/src:/app/src
-      - auth-service-prisma:/app/src/generated/prisma
+      - ./apps/auth-service/prisma:/app/prisma
       - /app/node_modules  
-    command: npm run dev
+    command: sh -c "npx prisma generate && npm run dev"
     stdin_open: true
     tty: true
     depends_on:
@@ -101,4 +101,3 @@ services:
 
 volumes:
   postgres_data:
-  auth-service-prisma:
