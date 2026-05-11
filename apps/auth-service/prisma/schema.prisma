@@ -14,6 +14,8 @@ model User {
   name         String
   role         Role     @default(CUSTOMER)
 
+  refreshTokens RefreshToken[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -21,4 +23,19 @@ model User {
 enum Role {
   CUSTOMER
   ADMIN
+}
+
+model RefreshToken {
+  id                String        @id @default(uuid())
+  tokenHash         String        @unique
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt         DateTime
+  createdAt         DateTime      @default(now())
+  revokedAt         DateTime?
+  replacedByTokenId String?       @unique
+  replacedByToken   RefreshToken? @relation("TokenRotation", fields: [replacedByTokenId], references: [id])
+  replacesToken     RefreshToken? @relation("TokenRotation")
+
+  @@index([userId])
 }

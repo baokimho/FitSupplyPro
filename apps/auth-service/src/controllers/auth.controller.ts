@@ -3,7 +3,11 @@ import prisma from "../config/db";
 import {
   comparePassword,
   createAuthToken,
+  findActiveRefreshToken,
   hashPassword,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  saveRefreshToken,
   sanitizeUser,
   verifyAuthToken,
 } from "../utils/auth";
@@ -55,6 +59,7 @@ export async function register(req: Request, res: Response) {
   });
 
   const tokens = getAuthTokens(user);
+  await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
   return res.status(201).json({
     message: "User registered successfully",
@@ -88,6 +93,7 @@ export async function login(req: Request, res: Response) {
   }
 
   const tokens = getAuthTokens(user);
+  await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
   return res.status(200).json({
     message: "Login successful",
@@ -109,6 +115,19 @@ export async function refreshToken(req: Request, res: Response) {
 
   try {
     const payload = verifyAuthToken(refreshToken, "refresh");
+    const activeToken = await findActiveRefreshToken(prisma, refreshToken);
+
+    if (!activeToken) {
+      return res.status(401).json({
+        message: "Invalid or revoked refresh token",
+      });
+    }
+
+    if (activeToken.userId !== payload.sub) {
+      return res.status(401).json({
+        message: "Invalid or revoked refresh token",
+      });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
@@ -121,6 +140,7 @@ export async function refreshToken(req: Request, res: Response) {
     }
 
     const tokens = getAuthTokens(user);
+    await rotateRefreshToken(prisma, refreshToken, user.id, tokens.refreshToken);
 
     return res.status(200).json({
       message: "Token refreshed successfully",
@@ -150,6 +170,18 @@ export async function logout(req: Request, res: Response) {
     return res.status(401).json({
       message: "Unauthorized",
     });
+  }
+
+  const { refreshToken } = req.body as {
+    refreshToken?: unknown;
+  };
+
+  if (typeof refreshToken === "string" && refreshToken.trim().length > 0) {
+    try {
+      await revokeRefreshToken(prisma, refreshToken);
+    } catch {
+      // Keep logout idempotent even if the token was already missing.
+    }
   }
 
   return res.status(200).json({
