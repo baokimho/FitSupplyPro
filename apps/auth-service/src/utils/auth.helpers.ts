@@ -6,6 +6,7 @@ import type { User } from "@prisma/client";
 const ACCESS_TOKEN_EXPIRES_IN = "15m";
 const REFRESH_TOKEN_EXPIRES_IN = "7d";
 const JWT_ALGORITHM = "RS256";
+const REFRESH_TOKEN_CLEANUP_AFTER_DAYS = 14;
 
 function normalizeKey(value: string): string {
   return value.replace(/\\n/g, "\n").trim();
@@ -163,6 +164,33 @@ export async function revokeRefreshToken(
     where: { tokenHash },
     data: { revokedAt: new Date() },
   });
+}
+
+export async function cleanupRefreshTokens(
+  prisma: PrismaClientOrTx,
+): Promise<number> {
+  const cleanupThreshold = new Date(
+    Date.now() - REFRESH_TOKEN_CLEANUP_AFTER_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  const result = await prisma.refreshToken.deleteMany({
+    where: {
+      OR: [
+        {
+          revokedAt: {
+            lt: cleanupThreshold,
+          },
+        },
+        {
+          expiresAt: {
+            lt: cleanupThreshold,
+          },
+        },
+      ],
+    },
+  });
+
+  return result.count;
 }
 
 export async function rotateRefreshToken(

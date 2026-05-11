@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import prisma from "./config/db";
 import { connectDb } from "./config/connect-db";
+import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup";
 import authRoutes from "./routes/auth.routes";
 
 dotenv.config();
@@ -21,9 +22,11 @@ app.get("/health", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+let refreshTokenCleanupJob: NodeJS.Timeout | null = null;
 
 async function bootstrap() {
   await connectDb();
+  refreshTokenCleanupJob = startRefreshTokenCleanupJob();
 
   const server = app.listen(PORT, () => {
     console.log(`Auth service running on port ${PORT}`);
@@ -33,6 +36,10 @@ async function bootstrap() {
   process.on("SIGTERM", async () => {
     console.log("SIGTERM received, shutting down gracefully...");
     server.close(async () => {
+      if (refreshTokenCleanupJob) {
+        clearInterval(refreshTokenCleanupJob);
+      }
+
       await prisma.$disconnect();
       process.exit(0);
     });
@@ -41,6 +48,10 @@ async function bootstrap() {
   process.on("SIGINT", async () => {
     console.log("SIGINT received, shutting down gracefully...");
     server.close(async () => {
+      if (refreshTokenCleanupJob) {
+        clearInterval(refreshTokenCleanupJob);
+      }
+
       await prisma.$disconnect();
       process.exit(0);
     });
