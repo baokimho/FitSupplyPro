@@ -1,0 +1,42 @@
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+### Register
+POST {{baseUrl}}/register
+Content-Type: {{contentType}}
+
+{
+  "email": "customer1e@example.com",
+  "password": "Password123!",
+  "name": "Customer One"
+}
+
+### Login
+POST {{baseUrl}}/login
+Content-Type: {{contentType}}
+
+{
+  "email": "customer1@example.com",
+  "password": "Password123!"
+}
+
+### Refresh token
+POST {{baseUrl}}/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "paste_refresh_token_here"
+}
+
+### Me
+GET {{baseUrl}}/me
+Authorization: Bearer paste_access_token_here
+
+### Logout
+POST {{baseUrl}}/logout
+Content-Type: {{contentType}}
+Authorization: Bearer paste_access_token_here
+
+{
+  "refreshToken": "paste_refresh_token_here"
+}
