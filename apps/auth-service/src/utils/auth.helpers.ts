@@ -1,7 +1,9 @@
 import crypto from "crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import type { AuthTokenPayload, AuthTokenType, AuthUser, PrismaClientOrTx } from "../types/auth";
+import type { AuthTokenPayload, AuthTokenType, AuthUser, PrismaClientOrTx } from "../types/auth.js";
 import type { User } from "@prisma/client";
+import { importJWK, JWK, CryptoKey } from "jose";
+import { readFileSync } from "fs";
 
 const ACCESS_TOKEN_EXPIRES_IN = "15m";
 const REFRESH_TOKEN_EXPIRES_IN = "7d";
@@ -12,14 +14,18 @@ function normalizeKey(value: string): string {
   return value.replace(/\\n/g, "\n").trim();
 }
 
-function getPrivateKey(): string {
-  const privateKey = process.env.JWT_PRIVATE_KEY;
+let cachedPrivateKey: CryptoKey | null = null;
+async function getPrivateKey(): Promise<CryptoKey> {
+  if (cachedPrivateKey) return cachedPrivateKey;
+  const privateJWK = await readFileSync('../keys/private.json', 'utf-8');
+  const privateKey = JSON.parse(privateJWK);
 
   if (!privateKey) {
     throw new Error("JWT_PRIVATE_KEY is required");
   }
 
-  return normalizeKey(privateKey);
+  cachedPrivateKey = await importJWK(privateKey as JWK, 'RS256') as CryptoKey;
+  return cachedPrivateKey 
 }
 
 function getPublicKey(): string {
