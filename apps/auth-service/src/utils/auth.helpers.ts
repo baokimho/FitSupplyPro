@@ -1,48 +1,63 @@
 import crypto from "crypto";
-import jwt, { type SignOptions } from "jsonwebtoken";
-import type { AuthTokenPayload, AuthTokenType, AuthUser, PrismaClientOrTx } from "../types/auth.js";
+import path from "path";
+import type { AuthTokenPayload, AuthTokenType, AuthUser, PrismaClientOrTx, JWKSResponse } from "../types/auth.js";
 import type { User } from "@prisma/client";
-import { importJWK, JWK, CryptoKey } from "jose";
+import { importJWK, JWK, CryptoKey, SignJWT, jwtVerify } from "jose";
 import { readFileSync } from "fs";
 
 const ACCESS_TOKEN_EXPIRES_IN = "15m";
 const REFRESH_TOKEN_EXPIRES_IN = "7d";
 const JWT_ALGORITHM = "RS256";
 const REFRESH_TOKEN_CLEANUP_AFTER_DAYS = 14;
+const JWT_ISSUER = 'fitsupply-auth-service';
+const JWT_AUDIENCE = 'fitsupply-api';
 
-function normalizeKey(value: string): string {
-  return value.replace(/\\n/g, "\n").trim();
-}
+const privateKeyPath = path.resolve(process.cwd(), 'apps/auth-service/keys/private.json')
+const publicKeyPath = path.resolve(process.cwd(), 'apps/auth-service/keys/public.json')
 
+let cachedPrivateJWK: JWK | null = null 
 let cachedPrivateKey: CryptoKey | null = null;
 async function getPrivateKey(): Promise<CryptoKey> {
   if (cachedPrivateKey) return cachedPrivateKey;
-  const privateJWK = await readFileSync('../keys/private.json', 'utf-8');
-  const privateKey = JSON.parse(privateJWK);
+  if (!cachedPrivateJWK) {
+  const privateJWK = readFileSync(privateKeyPath, 'utf-8');
+  cachedPrivateJWK = JSON.parse(privateJWK) as JWK;
+  }
 
-  if (!privateKey) {
+  if (!cachedPrivateJWK) {
     throw new Error("JWT_PRIVATE_KEY is required");
   }
 
-  cachedPrivateKey = await importJWK(privateKey as JWK, 'RS256') as CryptoKey;
+  cachedPrivateKey = await importJWK(cachedPrivateJWK, 'RS256') as CryptoKey;
   return cachedPrivateKey 
 }
 
-function getPublicKey(): string {
-  const publicKey = process.env.JWT_PUBLIC_KEY;
+let cachedJWKS: JWKSResponse | null = null;
+export async function getJWKS(): Promise<JWKSResponse> {
+  if (cachedJWKS) return cachedJWKS;
+  const publicJWK = readFileSync(publicKeyPath, 'utf-8');
+  const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
-    throw new Error("JWT_PUBLIC_KEY is required");
+    throw new Error("JWY_PUBLIC_KEY is required");
   }
-
-  return normalizeKey(publicKey);
+  cachedJWKS = {
+    keys: [publicKey as JWK],
+  }
+  return cachedJWKS!
 }
 
-function getTokenOptions(type: AuthTokenType): SignOptions {
-  return {
-    algorithm: JWT_ALGORITHM,
-    expiresIn: type === "refresh" ? REFRESH_TOKEN_EXPIRES_IN : ACCESS_TOKEN_EXPIRES_IN,
-  };
+let cachedPublicKey: CryptoKey | null = null;
+export async function getPublicKey(): Promise<CryptoKey> {
+  if (cachedPublicKey) return cachedPublicKey;
+  const publicJWK = readFileSync(publicKeyPath, 'utf-8');
+  const publicKey = JSON.parse(publicJWK);
+
+  if (!publicKey) {
+    throw new Error("JWY_PUBLIC_KEY is required");
+  }
+  cachedPublicKey = await importJWK(publicKey as JWK, 'RS256') as CryptoKey
+  return cachedPublicKey
 }
 
 export function hashPassword(password: string): string {
@@ -71,28 +86,40 @@ export function comparePassword(password: string, passwordHash: string): boolean
   );
 }
 
-export function createAuthToken(
+export async function createAuthToken(
   user: User,
   type: AuthTokenType = "access",
-): string {
-  const payload: AuthTokenPayload = {
-    sub: user.id,
+) {
+  const privateKey = await getPrivateKey()
+  return await new SignJWT({
     email: user.email,
     name: user.name,
     role: user.role,
     type,
-  };
-
-  return jwt.sign(payload, getPrivateKey(), getTokenOptions(type));
+  })
+    .setProtectedHeader({
+      alg: 'RS256', 
+      typ: 'JWT',
+      kid: cachedPrivateJWK?.kid
+    })
+    .setSubject(String(user.id))
+    .setIssuedAt()
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE)
+    .setExpirationTime(type === 'access' ? '15m' : '7d')
+    .sign(privateKey)
 }
 
-export function verifyAuthToken(
+export async function verifyAuthToken(
   token: string,
   expectedType?: AuthTokenType,
-): AuthTokenPayload {
-  const payload = jwt.verify(token, getPublicKey(), {
-    algorithms: [JWT_ALGORITHM],
-  }) as AuthTokenPayload;
+): Promise<AuthTokenPayload> {
+  const publicKey = await getPublicKey()
+  const { payload } = await jwtVerify<AuthTokenPayload>(token, publicKey, {
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+    algorithms: ['RS256']
+  });
 
   if (expectedType && payload.type !== expectedType) {
     throw new Error("Invalid token type");
@@ -122,32 +149,44 @@ export async function saveRefreshToken(
   token: string,
 ): Promise<{ id: string }> {
   const tokenHash = hashRefreshToken(token);
-  const decoded = verifyAuthToken(token, "refresh");
-  const expiresAt = typeof decoded.exp === "number"
-    ? new Date(decoded.exp * 1000)
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  try{
+    const decoded = await verifyAuthToken(token, "refresh");
+    if (typeof decoded.exp !== 'number') {
+      throw new Error("Refresh token missing exp")
+    };
+    const expiresAt = new Date(decoded.exp * 1000)
 
-  return prisma.refreshToken.create({
-    data: {
-      tokenHash,
-      userId,
-      expiresAt,
-    },
-  });
+    return prisma.refreshToken.create({
+      data: {
+        tokenHash,
+        userId,
+        expiresAt,
+      },
+    });
+  } catch {
+    throw new Error('Invalid refresh token')
+  }
+
 }
 
 export async function findActiveRefreshToken(
   prisma: PrismaClientOrTx,
   token: string,
 ): Promise<{ id: string; userId: string } | null> {
+  await verifyAuthToken(token, "refresh")
   const tokenHash = hashRefreshToken(token);
 
   const refreshToken = await prisma.refreshToken.findUnique({
     where: { tokenHash },
   });
 
-  if (!refreshToken || refreshToken.revokedAt) {
-    return null;
+  if (!refreshToken) {
+    return null 
+  }
+
+  if (refreshToken.revokedAt) {
+    await revokeAllActiveRefreshTokens(refreshToken.userId, prisma)
+    throw new Error("Refresh token reuse detected")
   }
 
   if (new Date() > refreshToken.expiresAt) {
@@ -158,6 +197,16 @@ export async function findActiveRefreshToken(
     id: refreshToken.id,
     userId: refreshToken.userId,
   };
+}
+
+export async function revokeAllActiveRefreshTokens(userId: string, prisma: PrismaClientOrTx) {
+  await prisma.refreshToken.updateMany({
+    where: { 
+      userId,
+      revokedAt: null
+    },
+    data: { revokedAt: new Date() }
+  })
 }
 
 export async function revokeRefreshToken(

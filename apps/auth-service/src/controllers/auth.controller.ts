@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import prisma from "../config/db";
+import prisma from "../config/db.js";
 import {
   comparePassword,
   createAuthToken,
@@ -10,7 +10,8 @@ import {
   saveRefreshToken,
   sanitizeUser,
   verifyAuthToken,
-} from "../utils/auth";
+  getJWKS
+} from "../utils/auth.js";
 import { Role } from "@prisma/client";
 
 function isString(value: unknown): value is string {
@@ -22,6 +23,10 @@ function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
     accessToken: createAuthToken(user, "access"),
     refreshToken: createAuthToken(user, "refresh"),
   };
+}
+
+export async function getPublic(req: Request, res: Response) {
+  getJWKS()
 }
 
 export async function register(req: Request, res: Response) {
@@ -153,17 +158,6 @@ export async function refreshToken(req: Request, res: Response) {
   }
 }
 
-export async function me(req: Request, res: Response) {
-  if (!req.user) {
-    return res.status(401).json({
-      message: "Unauthorized",
-    });
-  }
-
-  return res.status(200).json({
-    user: req.user,
-  });
-}
 
 export async function logout(req: Request, res: Response) {
   if (!req.user) {

@@ -1,2 +1,2 @@
-export * from "./auth.helpers";
-export type * from "../types/auth";
+export * from "./auth.helpers.js";
+export type * from "../types/auth.js";
