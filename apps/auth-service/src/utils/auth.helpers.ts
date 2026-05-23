@@ -92,6 +92,7 @@ export async function createAuthToken(
 ) {
   const privateKey = await getPrivateKey()
   return await new SignJWT({
+    sub: user.id,
     email: user.email,
     name: user.name,
     role: user.role,

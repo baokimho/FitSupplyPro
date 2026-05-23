@@ -18,10 +18,10 @@ function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
+async function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
   return {
-    accessToken: createAuthToken(user, "access"),
-    refreshToken: createAuthToken(user, "refresh"),
+    accessToken: await createAuthToken(user, "access"),
+    refreshToken: await createAuthToken(user, "refresh"),
   };
 }
 
@@ -63,7 +63,7 @@ export async function register(req: Request, res: Response) {
     },
   });
 
-  const tokens = getAuthTokens(user);
+  const tokens = await getAuthTokens(user);
   await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
   return res.status(201).json({
@@ -97,7 +97,7 @@ export async function login(req: Request, res: Response) {
     });
   }
 
-  const tokens = getAuthTokens(user);
+  const tokens = await getAuthTokens(user);
   await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
   return res.status(200).json({
@@ -128,14 +128,14 @@ export async function refreshToken(req: Request, res: Response) {
       });
     }
 
-    if (activeToken.userId !== payload.sub) {
+    if (activeToken.userId !== (await payload).sub) {
       return res.status(401).json({
         message: "Invalid or revoked refresh token",
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: (await payload).sub },
     });
 
     if (!user) {
@@ -144,7 +144,7 @@ export async function refreshToken(req: Request, res: Response) {
       });
     }
 
-    const tokens = getAuthTokens(user);
+    const tokens = await getAuthTokens(user);
     await rotateRefreshToken(prisma, refreshToken, user.id, tokens.refreshToken);
 
     return res.status(200).json({

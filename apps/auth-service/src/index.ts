@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import prisma from "./config/db";
-import { connectDb } from "./config/connect-db";
-import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup";
-import authRoutes from "./routes/auth.routes";
+import prisma from "./config/db.js";
+import { connectDb } from "./config/connect-db.js";
+import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
+import authRoutes from "./routes/auth.routes.js";
 
 dotenv.config();
 
