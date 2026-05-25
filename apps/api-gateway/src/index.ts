@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { authProxy } from "./proxy/authProxy.proxy";
-import { catalogProxy } from "./proxy/catalogProxy.proxy";
-import { orderProxy } from "./proxy/orderProxy.proxy";
+import { authProxy } from "./proxy/authProxy.proxy.js";
+import { catalogProxy } from "./proxy/catalogProxy.proxy.js";
+import { orderProxy } from "./proxy/orderProxy.proxy.js";
 
 dotenv.config();
 
