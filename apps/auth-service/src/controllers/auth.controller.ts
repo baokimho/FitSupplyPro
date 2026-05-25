@@ -26,7 +26,7 @@ async function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
 }
 
 export async function getPublic(req: Request, res: Response) {
-  getJWKS()
+  return res.status(200).json(await getJWKS());
 }
 
 export async function register(req: Request, res: Response) {
@@ -160,11 +160,6 @@ export async function refreshToken(req: Request, res: Response) {
 
 
 export async function logout(req: Request, res: Response) {
-  if (!req.user) {
-    return res.status(401).json({
-      message: "Unauthorized",
-    });
-  }
 
   const { refreshToken } = req.body as {
     refreshToken?: unknown;

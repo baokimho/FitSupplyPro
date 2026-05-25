@@ -5,41 +5,39 @@ import type { User } from "@prisma/client";
 import { importJWK, JWK, CryptoKey, SignJWT, jwtVerify } from "jose";
 import { readFileSync } from "fs";
 
-const ACCESS_TOKEN_EXPIRES_IN = "15m";
-const REFRESH_TOKEN_EXPIRES_IN = "7d";
-const JWT_ALGORITHM = "RS256";
+
 const REFRESH_TOKEN_CLEANUP_AFTER_DAYS = 14;
 const JWT_ISSUER = 'fitsupply-auth-service';
 const JWT_AUDIENCE = 'fitsupply-api';
 
-const privateKeyPath = path.resolve(process.cwd(), 'apps/auth-service/keys/private.json')
-const publicKeyPath = path.resolve(process.cwd(), 'apps/auth-service/keys/public.json')
+const privateKeyPath = path.resolve(process.cwd(), "keys/private.json");
+const publicKeyPath = path.resolve(process.cwd(), "keys/public.json");
 
 let cachedPrivateJWK: JWK | null = null 
 let cachedPrivateKey: CryptoKey | null = null;
 async function getPrivateKey(): Promise<CryptoKey> {
   if (cachedPrivateKey) return cachedPrivateKey;
   if (!cachedPrivateJWK) {
-  const privateJWK = readFileSync(privateKeyPath, 'utf-8');
-  cachedPrivateJWK = JSON.parse(privateJWK) as JWK;
+    const privateJWK = readFileSync(privateKeyPath, "utf-8");
+    cachedPrivateJWK = JSON.parse(privateJWK) as JWK;
   }
 
   if (!cachedPrivateJWK) {
     throw new Error("JWT_PRIVATE_KEY is required");
   }
 
-  cachedPrivateKey = await importJWK(cachedPrivateJWK, 'RS256') as CryptoKey;
-  return cachedPrivateKey 
+  cachedPrivateKey = (await importJWK(cachedPrivateJWK, "RS256")) as CryptoKey;
+  return cachedPrivateKey;
 }
 
 let cachedJWKS: JWKSResponse | null = null;
 export async function getJWKS(): Promise<JWKSResponse> {
   if (cachedJWKS) return cachedJWKS;
-  const publicJWK = readFileSync(publicKeyPath, 'utf-8');
+  const publicJWK = readFileSync(publicKeyPath, "utf-8");
   const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
-    throw new Error("JWY_PUBLIC_KEY is required");
+    throw new Error("JWT_PUBLIC_KEY is required");
   }
   cachedJWKS = {
     keys: [publicKey as JWK],
@@ -50,14 +48,14 @@ export async function getJWKS(): Promise<JWKSResponse> {
 let cachedPublicKey: CryptoKey | null = null;
 export async function getPublicKey(): Promise<CryptoKey> {
   if (cachedPublicKey) return cachedPublicKey;
-  const publicJWK = readFileSync(publicKeyPath, 'utf-8');
+  const publicJWK = readFileSync(publicKeyPath, "utf-8");
   const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
-    throw new Error("JWY_PUBLIC_KEY is required");
+    throw new Error("JWT_PUBLIC_KEY is required");
   }
-  cachedPublicKey = await importJWK(publicKey as JWK, 'RS256') as CryptoKey
-  return cachedPublicKey
+  cachedPublicKey = (await importJWK(publicKey as JWK, "RS256")) as CryptoKey;
+  return cachedPublicKey;
 }
 
 export function hashPassword(password: string): string {
@@ -90,7 +88,7 @@ export async function createAuthToken(
   user: User,
   type: AuthTokenType = "access",
 ) {
-  const privateKey = await getPrivateKey()
+  const privateKey = await getPrivateKey();
   return await new SignJWT({
     sub: user.id,
     email: user.email,
@@ -99,16 +97,16 @@ export async function createAuthToken(
     type,
   })
     .setProtectedHeader({
-      alg: 'RS256', 
-      typ: 'JWT',
-      kid: cachedPrivateJWK?.kid
+      alg: "RS256",
+      typ: "JWT",
+      kid: cachedPrivateJWK?.kid,
     })
     .setSubject(String(user.id))
     .setIssuedAt()
     .setIssuer(JWT_ISSUER)
     .setAudience(JWT_AUDIENCE)
-    .setExpirationTime(type === 'access' ? '15m' : '7d')
-    .sign(privateKey)
+    .setExpirationTime(type === "access" ? "15m" : "7d")
+    .sign(privateKey);
 }
 
 export async function verifyAuthToken(
@@ -119,7 +117,7 @@ export async function verifyAuthToken(
   const { payload } = await jwtVerify<AuthTokenPayload>(token, publicKey, {
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
-    algorithms: ['RS256']
+    algorithms: ["RS256"],
   });
 
   if (expectedType && payload.type !== expectedType) {

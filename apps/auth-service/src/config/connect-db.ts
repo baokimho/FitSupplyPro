@@ -1,4 +1,4 @@
-import prisma from "./db";
+import prisma from "./db.js";
 
 export async function connectDb(): Promise<void> {
   await prisma.$connect();
