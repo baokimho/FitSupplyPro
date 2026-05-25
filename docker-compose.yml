@@ -12,7 +12,6 @@ services:
       - "3000:3000"
     volumes:
       - ./apps/api-gateway/src:/app/src
-      - /app/node_modules  
     command: npm run dev
     stdin_open: true
     tty: true
@@ -32,7 +31,6 @@ services:
     volumes:
       - ./apps/auth-service/src:/app/src
       - ./apps/auth-service/prisma:/app/prisma
-      - /app/node_modules  
     command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run dev"
     stdin_open: true
     tty: true
@@ -70,7 +68,6 @@ services:
       - "3002:3002"
     volumes:
       - ./apps/catalog-service/src:/app/src
-      - /app/node_modules  
     command: npm run dev
     stdin_open: true
     tty: true
@@ -90,7 +87,6 @@ services:
       - "3003:3003"
     volumes:
       - ./apps/order-service/src:/app/src
-      - /app/node_modules  
     command: npm run dev
     stdin_open: true
     tty: true
