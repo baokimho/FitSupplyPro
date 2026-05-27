@@ -4,16 +4,16 @@ import {
   logout,
   refreshToken,
   register,
-  getPublic
+  getPublic,
 } from "../controllers/auth.controller.js";
-
+import { wrapAsync } from "../middleware/asyncHandler.js";
 
 const router = Router();
 
-router.get("/jwks", getPublic)
-router.post("/register", register);
-router.post("/login", login);
-router.post("/refresh-token", refreshToken);
-router.post("/logout", logout);
+router.get("/jwks", wrapAsync(getPublic));
+router.post("/register", wrapAsync(register));
+router.post("/login", wrapAsync(login));
+router.post("/refresh-token", wrapAsync(refreshToken));
+router.post("/logout", wrapAsync(logout));
 
 export default router;

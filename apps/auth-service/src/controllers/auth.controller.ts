@@ -10,9 +10,10 @@ import {
   saveRefreshToken,
   sanitizeUser,
   verifyAuthToken,
-  getJWKS
+  getJWKS,
 } from "../utils/auth.js";
 import { Role } from "@prisma/client";
+import { BadRequestError, ConflictError, UnauthorizedError } from "../errors/httpErrors.js";
 
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -37,9 +38,7 @@ export async function register(req: Request, res: Response) {
   };
 
   if (!isString(email) || !isString(password) || !isString(name)) {
-    return res.status(400).json({
-      message: "email, password and name are required",
-    });
+    throw new BadRequestError("email, password and name are required");
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -49,9 +48,7 @@ export async function register(req: Request, res: Response) {
   });
 
   if (existingUser) {
-    return res.status(409).json({
-      message: "Email already exists",
-    });
+    throw new ConflictError("Email already exists");
   }
 
   const user = await prisma.user.create({
@@ -80,9 +77,7 @@ export async function login(req: Request, res: Response) {
   };
 
   if (!isString(email) || !isString(password)) {
-    return res.status(400).json({
-      message: "email and password are required",
-    });
+    throw new BadRequestError("email and password are required");
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -92,9 +87,7 @@ export async function login(req: Request, res: Response) {
   });
 
   if (!user || !comparePassword(password, user.passwordHash)) {
-    return res.status(401).json({
-      message: "Invalid email or password",
-    });
+    throw new UnauthorizedError("Invalid email or password");
   }
 
   const tokens = await getAuthTokens(user);
@@ -113,49 +106,35 @@ export async function refreshToken(req: Request, res: Response) {
   };
 
   if (!isString(refreshToken)) {
-    return res.status(400).json({
-      message: "refreshToken is required",
-    });
+    throw new BadRequestError("refreshToken is required");
   }
 
-  try {
-    const payload = verifyAuthToken(refreshToken, "refresh");
-    const activeToken = await findActiveRefreshToken(prisma, refreshToken);
+  const payload = await verifyAuthToken(refreshToken, "refresh");
+  const activeToken = await findActiveRefreshToken(prisma, refreshToken);
 
-    if (!activeToken) {
-      return res.status(401).json({
-        message: "Invalid or revoked refresh token",
-      });
-    }
-
-    if (activeToken.userId !== (await payload).sub) {
-      return res.status(401).json({
-        message: "Invalid or revoked refresh token",
-      });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: (await payload).sub },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        message: "User not found",
-      });
-    }
-
-    const tokens = await getAuthTokens(user);
-    await rotateRefreshToken(prisma, refreshToken, user.id, tokens.refreshToken);
-
-    return res.status(200).json({
-      message: "Token refreshed successfully",
-      ...tokens,
-    });
-  } catch {
-    return res.status(401).json({
-      message: "Invalid or expired refresh token",
-    });
+  if (!activeToken) {
+    throw new UnauthorizedError("Invalid or revoked refresh token");
   }
+
+  if (activeToken.userId !== payload.sub) {
+    throw new UnauthorizedError("Invalid or revoked refresh token");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+  });
+
+  if (!user) {
+    throw new UnauthorizedError("User not found");
+  }
+
+  const tokens = await getAuthTokens(user);
+  await rotateRefreshToken(prisma, refreshToken, user.id, tokens.refreshToken);
+
+  return res.status(200).json({
+    message: "Token refreshed successfully",
+    ...tokens,
+  });
 }
 
 

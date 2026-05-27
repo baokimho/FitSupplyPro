@@ -5,6 +5,7 @@ import prisma from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
 import authRoutes from "./routes/auth.routes.js";
+import errorHandler from "./middleware/error.handler.js";
 
 dotenv.config();
 
@@ -57,6 +58,8 @@ async function bootstrap() {
     });
   });
 }
+
+app.use(errorHandler);
 
 bootstrap().catch((error) => {
   console.error("Failed to start auth service:", error);
