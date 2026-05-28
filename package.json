@@ -1,0 +1,8 @@
+{
+  "name": "fit-supply-pro",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

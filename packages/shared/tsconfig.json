@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"declaration": true,
+		"declarationMap": true,
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"strict": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true
+	},
+	"include": [
+		"src/index.ts",
+		"src/auth/**/*.ts",
+		"src/errors/**/*.ts",
+		"src/middleware/asyncHandler.ts",
+		"src/middleware/error.handler.ts"
+	],
+	"exclude": ["node_modules", "dist"]
+}
