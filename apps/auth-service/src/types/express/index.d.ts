@@ -1,9 +1,9 @@
-import type { AuthUser } from "../../utils/auth";
+import type { AuthSessionUser } from "@shared/utils";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: AuthUser;
+      user?: AuthSessionUser;
     }
   }
 }

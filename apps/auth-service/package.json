@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate --schema prisma/schema.prisma && npm --prefix ../../packages/shared run build && tsc",
     "start": "node dist/index.js"
   },
   "keywords": [],
@@ -21,7 +21,8 @@
     "fs": "^0.0.1-security",
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "@shared/utils": "*"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

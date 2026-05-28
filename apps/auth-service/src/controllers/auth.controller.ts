@@ -9,11 +9,11 @@ import {
   revokeRefreshToken,
   saveRefreshToken,
   sanitizeUser,
-  verifyAuthToken,
   getJWKS,
+  getPublicKey,
 } from "../utils/auth.js";
 import { Role } from "@prisma/client";
-import { BadRequestError, ConflictError, UnauthorizedError } from "../errors/httpErrors.js";
+import { BadRequestError, ConflictError, UnauthorizedError, verifyAuthToken } from "@shared/utils";
 
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -109,7 +109,7 @@ export async function refreshToken(req: Request, res: Response) {
     throw new BadRequestError("refreshToken is required");
   }
 
-  const payload = await verifyAuthToken(refreshToken, "refresh");
+  const payload = await verifyAuthToken(refreshToken, await getPublicKey(), "refresh");
   const activeToken = await findActiveRefreshToken(prisma, refreshToken);
 
   if (!activeToken) {

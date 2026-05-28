@@ -6,7 +6,7 @@ import {
   register,
   getPublic,
 } from "../controllers/auth.controller.js";
-import { wrapAsync } from "../middleware/asyncHandler.js";
+import { wrapAsync } from "@shared/utils";
 
 const router = Router();
 

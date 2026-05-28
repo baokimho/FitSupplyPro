@@ -1,8 +1,10 @@
 import crypto from "crypto";
 import path from "path";
-import type { AuthTokenPayload, AuthTokenType, AuthUser, PrismaClientOrTx, JWKSResponse } from "../types/auth.js";
+import { verifyAuthToken } from "@shared/utils";
+import type { AuthTokenType, AuthUser, JWKSResponse } from "@shared/utils";
+import type { PrismaClientOrTx } from "../types/db.type.js";
 import type { User } from "@prisma/client";
-import { importJWK, JWK, CryptoKey, SignJWT, jwtVerify } from "jose";
+import { importJWK, JWK, CryptoKey, SignJWT } from "jose";
 import { readFileSync } from "fs";
 
 
@@ -45,17 +47,14 @@ export async function getJWKS(): Promise<JWKSResponse> {
   return cachedJWKS!
 }
 
-let cachedPublicKey: CryptoKey | null = null;
 export async function getPublicKey(): Promise<CryptoKey> {
-  if (cachedPublicKey) return cachedPublicKey;
   const publicJWK = readFileSync(publicKeyPath, "utf-8");
   const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
     throw new Error("JWT_PUBLIC_KEY is required");
   }
-  cachedPublicKey = (await importJWK(publicKey as JWK, "RS256")) as CryptoKey;
-  return cachedPublicKey;
+  return (await importJWK(publicKey as JWK, "RS256")) as CryptoKey;
 }
 
 export function hashPassword(password: string): string {
@@ -109,24 +108,6 @@ export async function createAuthToken(
     .sign(privateKey);
 }
 
-export async function verifyAuthToken(
-  token: string,
-  expectedType?: AuthTokenType,
-): Promise<AuthTokenPayload> {
-  const publicKey = await getPublicKey()
-  const { payload } = await jwtVerify<AuthTokenPayload>(token, publicKey, {
-    issuer: JWT_ISSUER,
-    audience: JWT_AUDIENCE,
-    algorithms: ["RS256"],
-  });
-
-  if (expectedType && payload.type !== expectedType) {
-    throw new Error("Invalid token type");
-  }
-
-  return payload;
-}
-
 export function sanitizeUser(user: User): AuthUser {
   return {
     id: user.id,
@@ -149,7 +130,7 @@ export async function saveRefreshToken(
 ): Promise<{ id: string }> {
   const tokenHash = hashRefreshToken(token);
   try{
-    const decoded = await verifyAuthToken(token, "refresh");
+    const decoded = await verifyAuthToken(token, await getPublicKey(), "refresh");
     if (typeof decoded.exp !== 'number') {
       throw new Error("Refresh token missing exp")
     };
@@ -172,7 +153,7 @@ export async function findActiveRefreshToken(
   prisma: PrismaClientOrTx,
   token: string,
 ): Promise<{ id: string; userId: string } | null> {
-  await verifyAuthToken(token, "refresh")
+  await verifyAuthToken(token, await getPublicKey(), "refresh")
   const tokenHash = hashRefreshToken(token);
 
   const refreshToken = await prisma.refreshToken.findUnique({
