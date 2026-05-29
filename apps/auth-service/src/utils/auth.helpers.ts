@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import path from "path";
-import { verifyAuthToken } from "@shared/utils";
+import { UnauthorizedError, verifyAuthToken, BadRequestError, ServiceUnavailableError } from "@shared/utils";
 import type { AuthTokenType, AuthUser, JWKSResponse } from "@shared/utils";
 import type { PrismaClientOrTx } from "../types/db.type.js";
 import type { User } from "@prisma/client";
@@ -25,7 +25,7 @@ async function getPrivateKey(): Promise<CryptoKey> {
   }
 
   if (!cachedPrivateJWK) {
-    throw new Error("JWT_PRIVATE_KEY is required");
+    throw new ServiceUnavailableError("JWT_PRIVATE_KEY is required");
   }
 
   cachedPrivateKey = (await importJWK(cachedPrivateJWK, "RS256")) as CryptoKey;
@@ -39,7 +39,7 @@ export async function getJWKS(): Promise<JWKSResponse> {
   const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
-    throw new Error("JWT_PUBLIC_KEY is required");
+    throw new ServiceUnavailableError("JWT_PUBLIC_KEY is required");
   }
   cachedJWKS = {
     keys: [publicKey as JWK],
@@ -52,7 +52,7 @@ export async function getPublicKey(): Promise<CryptoKey> {
   const publicKey = JSON.parse(publicJWK);
 
   if (!publicKey) {
-    throw new Error("JWT_PUBLIC_KEY is required");
+    throw new ServiceUnavailableError("JWT_PUBLIC_KEY is required");
   }
   return (await importJWK(publicKey as JWK, "RS256")) as CryptoKey;
 }
@@ -132,7 +132,7 @@ export async function saveRefreshToken(
   try{
     const decoded = await verifyAuthToken(token, await getPublicKey(), "refresh");
     if (typeof decoded.exp !== 'number') {
-      throw new Error("Refresh token missing exp")
+      throw new BadRequestError("Refresh token missing exp")
     };
     const expiresAt = new Date(decoded.exp * 1000)
 
@@ -144,7 +144,7 @@ export async function saveRefreshToken(
       },
     });
   } catch {
-    throw new Error('Invalid refresh token')
+    throw new BadRequestError('Invalid refresh token')
   }
 
 }
@@ -166,7 +166,7 @@ export async function findActiveRefreshToken(
 
   if (refreshToken.revokedAt) {
     await revokeAllActiveRefreshTokens(refreshToken.userId, prisma)
-    throw new Error("Refresh token reuse detected")
+    throw new UnauthorizedError("Refresh token reuse detected")
   }
 
   if (new Date() > refreshToken.expiresAt) {
@@ -241,7 +241,7 @@ export async function rotateRefreshToken(
     });
 
     if (!current) {
-      throw new Error("Refresh token not found");
+      throw new UnauthorizedError("Refresh token not found");
     }
 
     const created = await saveRefreshToken(tx, userId, nextToken);

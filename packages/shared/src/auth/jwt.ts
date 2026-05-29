@@ -1,4 +1,5 @@
 import { jwtVerify, type CryptoKey, type JWTPayload, type JWK } from "jose";
+import { UnauthorizedError } from "../errors/httpErrors.js";
 
 export type AuthTokenType = "access" | "refresh";
 
@@ -43,7 +44,7 @@ export async function verifyAuthToken(
   });
 
   if (expectedType && payload.type !== expectedType) {
-    throw new Error("Invalid token type");
+    throw new UnauthorizedError("Invalid token type");
   }
 
   return payload;
