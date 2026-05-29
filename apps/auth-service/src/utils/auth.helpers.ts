@@ -14,18 +14,39 @@ const JWT_AUDIENCE = 'fitsupply-api';
 
 const privateKeyPath = path.resolve(process.cwd(), "keys/private.json");
 const publicKeyPath = path.resolve(process.cwd(), "keys/public.json");
+const privateKeyEnvVar = "JWT_PRIVATE_KEY_BASE64";
+const publicKeyEnvVar = "JWT_PUBLIC_KEY_BASE64";
 
 let cachedPrivateJWK: JWK | null = null 
 let cachedPrivateKey: CryptoKey | null = null;
+
+function loadJWKFromEnvOrFile(envVar: string, filePath: string, missingMessage: string): JWK {
+  const encodedKey = process.env[envVar];
+
+  if (encodedKey) {
+    try {
+      return JSON.parse(Buffer.from(encodedKey, "base64").toString("utf-8")) as JWK;
+    } catch {
+      throw new ServiceUnavailableError(`Invalid ${envVar} value`);
+    }
+  }
+
+  try {
+    const keyJson = readFileSync(filePath, "utf-8");
+    return JSON.parse(keyJson) as JWK;
+  } catch {
+    throw new ServiceUnavailableError(missingMessage);
+  }
+}
+
 async function getPrivateKey(): Promise<CryptoKey> {
   if (cachedPrivateKey) return cachedPrivateKey;
   if (!cachedPrivateJWK) {
-    const privateJWK = readFileSync(privateKeyPath, "utf-8");
-    cachedPrivateJWK = JSON.parse(privateJWK) as JWK;
-  }
-
-  if (!cachedPrivateJWK) {
-    throw new ServiceUnavailableError("JWT_PRIVATE_KEY is required");
+    cachedPrivateJWK = loadJWKFromEnvOrFile(
+      privateKeyEnvVar,
+      privateKeyPath,
+      "JWT_PRIVATE_KEY_BASE64 or keys/private.json is required",
+    );
   }
 
   cachedPrivateKey = (await importJWK(cachedPrivateJWK, "RS256")) as CryptoKey;
@@ -35,26 +56,26 @@ async function getPrivateKey(): Promise<CryptoKey> {
 let cachedJWKS: JWKSResponse | null = null;
 export async function getJWKS(): Promise<JWKSResponse> {
   if (cachedJWKS) return cachedJWKS;
-  const publicJWK = readFileSync(publicKeyPath, "utf-8");
-  const publicKey = JSON.parse(publicJWK);
+  const publicKey = loadJWKFromEnvOrFile(
+    publicKeyEnvVar,
+    publicKeyPath,
+    "JWT_PUBLIC_KEY_BASE64 or keys/public.json is required",
+  );
 
-  if (!publicKey) {
-    throw new ServiceUnavailableError("JWT_PUBLIC_KEY is required");
-  }
   cachedJWKS = {
-    keys: [publicKey as JWK],
+    keys: [publicKey],
   }
   return cachedJWKS!
 }
 
 export async function getPublicKey(): Promise<CryptoKey> {
-  const publicJWK = readFileSync(publicKeyPath, "utf-8");
-  const publicKey = JSON.parse(publicJWK);
+  const publicKey = loadJWKFromEnvOrFile(
+    publicKeyEnvVar,
+    publicKeyPath,
+    "JWT_PUBLIC_KEY_BASE64 or keys/public.json is required",
+  );
 
-  if (!publicKey) {
-    throw new ServiceUnavailableError("JWT_PUBLIC_KEY is required");
-  }
-  return (await importJWK(publicKey as JWK, "RS256")) as CryptoKey;
+  return (await importJWK(publicKey, "RS256")) as CryptoKey;
 }
 
 export function hashPassword(password: string): string {
