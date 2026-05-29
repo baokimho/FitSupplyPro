@@ -22,7 +22,8 @@ services:
 
   auth-service:
     build:
-      context: ./apps/auth-service
+      context: .
+      dockerfile: ./apps/auth-service/Dockerfile
     container_name: auth-service
     env_file:
       - ./apps/auth-service/.env
@@ -31,7 +32,7 @@ services:
     volumes:
       - ./apps/auth-service/src:/app/src
       - ./apps/auth-service/prisma:/app/prisma
-    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && npm --prefix apps/auth-service run dev"
     stdin_open: true
     tty: true
     depends_on:
