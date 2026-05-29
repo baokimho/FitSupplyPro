@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import HttpError from "../errors/httpErrors.js";
+import { ZodError } from "zod";
+import { BadRequestError } from "../errors/httpErrors.js";
 
 type PrismaLikeError = {
   code?: string;
@@ -29,6 +31,11 @@ export default function errorHandler(
     console.error("Error handled:", err);
   } catch {
     // ignore
+  }
+
+  if (err instanceof ZodError) {
+    const bad = new BadRequestError("Validation error", err.issues);
+    return res.status(bad.status).json({ message: bad.message, details: bad.details });
   }
 
   if (err instanceof HttpError) {

@@ -15,6 +15,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@shared/utils": "*",
     "@types/jsonwebtoken": "^9.0.10",
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -22,7 +23,7 @@
     "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
-    "@shared/utils": "*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

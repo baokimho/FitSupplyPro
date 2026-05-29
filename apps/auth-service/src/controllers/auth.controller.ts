@@ -14,9 +14,12 @@ import {
 } from "../utils/auth.js";
 import { Role } from "@prisma/client";
 import { BadRequestError, ConflictError, UnauthorizedError, verifyAuthToken } from "@shared/utils";
+import type { RegisterInput, LoginInput } from "@shared/utils";
 
-function isString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+function getTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim();
+  return t.length > 0 ? t : null;
 }
 
 async function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
@@ -31,15 +34,7 @@ export async function getPublic(req: Request, res: Response) {
 }
 
 export async function register(req: Request, res: Response) {
-  const { email, password, name } = req.body as {
-    email?: unknown;
-    password?: unknown;
-    name?: unknown;
-  };
-
-  if (!isString(email) || !isString(password) || !isString(name)) {
-    throw new BadRequestError("email, password and name are required");
-  }
+  const { email, password, name } = req.body as RegisterInput;
 
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -71,14 +66,7 @@ export async function register(req: Request, res: Response) {
 }
 
 export async function login(req: Request, res: Response) {
-  const { email, password } = req.body as {
-    email?: unknown;
-    password?: unknown;
-  };
-
-  if (!isString(email) || !isString(password)) {
-    throw new BadRequestError("email and password are required");
-  }
+  const { email, password } = req.body as LoginInput;
 
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -105,12 +93,13 @@ export async function refreshToken(req: Request, res: Response) {
     refreshToken?: unknown;
   };
 
-  if (!isString(refreshToken)) {
+  const token = getTrimmedString(refreshToken);
+  if (!token) {
     throw new BadRequestError("refreshToken is required");
   }
 
-  const payload = await verifyAuthToken(refreshToken, await getPublicKey(), "refresh");
-  const activeToken = await findActiveRefreshToken(prisma, refreshToken);
+  const payload = await verifyAuthToken(token, await getPublicKey(), "refresh");
+  const activeToken = await findActiveRefreshToken(prisma, token);
 
   if (!activeToken) {
     throw new UnauthorizedError("Invalid or revoked refresh token");
@@ -129,7 +118,7 @@ export async function refreshToken(req: Request, res: Response) {
   }
 
   const tokens = await getAuthTokens(user);
-  await rotateRefreshToken(prisma, refreshToken, user.id, tokens.refreshToken);
+  await rotateRefreshToken(prisma, token, user.id, tokens.refreshToken);
 
   return res.status(200).json({
     message: "Token refreshed successfully",
@@ -144,9 +133,10 @@ export async function logout(req: Request, res: Response) {
     refreshToken?: unknown;
   };
 
-  if (typeof refreshToken === "string" && refreshToken.trim().length > 0) {
+  const token = getTrimmedString(refreshToken);
+  if (token) {
     try {
-      await revokeRefreshToken(prisma, refreshToken);
+      await revokeRefreshToken(prisma, token);
     } catch {
       // Keep logout idempotent even if the token was already missing.
     }
