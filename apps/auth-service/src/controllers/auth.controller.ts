@@ -33,6 +33,42 @@ export async function getPublic(req: Request, res: Response) {
   return res.status(200).json(await getJWKS());
 }
 
+export async function getMe(req: Request, res: Response) {
+  const rawUser = req.headers["x-user"];
+  const userHeader = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
+  if (!userHeader) {
+    throw new UnauthorizedError("Unauthorized");
+  }
+
+  let userId: string | undefined;
+
+  try {
+    const user = JSON.parse(userHeader) as { id?: unknown };
+    if (typeof user.id === "string") {
+      userId = user.id;
+    }
+  } catch {
+    throw new UnauthorizedError("Unauthorized");
+  }
+
+  if (!userId) {
+    throw new UnauthorizedError("Unauthorized");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new UnauthorizedError("User not found");
+  }
+
+  return res.status(200).json({
+    user: sanitizeUser(user),
+  });
+}
+
 export async function register(req: Request, res: Response) {
   const { email, password, name } = req.body as RegisterInput;
 
