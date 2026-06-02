@@ -15,6 +15,7 @@ import {
 import { Role } from "@prisma/client";
 import { BadRequestError, ConflictError, UnauthorizedError, verifyAuthToken } from "@shared/utils";
 import type { RegisterInput, LoginInput } from "@shared/utils";
+import { getHeaderValue } from "@shared/utils";
 
 function getTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -34,23 +35,7 @@ export async function getPublic(req: Request, res: Response) {
 }
 
 export async function getMe(req: Request, res: Response) {
-  const rawUser = req.headers["x-user"];
-  const userHeader = Array.isArray(rawUser) ? rawUser[0] : rawUser;
-
-  if (!userHeader) {
-    throw new UnauthorizedError("Unauthorized");
-  }
-
-  let userId: string | undefined;
-
-  try {
-    const user = JSON.parse(userHeader) as { id?: unknown };
-    if (typeof user.id === "string") {
-      userId = user.id;
-    }
-  } catch {
-    throw new UnauthorizedError("Unauthorized");
-  }
+  const userId = getHeaderValue(req.headers["x-user-id"]);
 
   if (!userId) {
     throw new UnauthorizedError("Unauthorized");
