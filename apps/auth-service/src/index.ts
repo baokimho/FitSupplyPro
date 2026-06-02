@@ -4,15 +4,21 @@ import dotenv from "dotenv";
 import prisma from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
+import { requireGatewaySecret } from "@shared/utils";
 import authRoutes from "./routes/auth.routes.js";
 import { errorHandler } from "@shared/utils";
 
 dotenv.config();
 
+if (!process.env.GATEWAY_SECRET) {
+  throw new Error("GATEWAY_SECRET is not set");
+}
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(requireGatewaySecret);
 app.use(authRoutes);
 
 app.get("/health", (req, res) => {

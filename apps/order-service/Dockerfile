@@ -2,14 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
+COPY apps/order-service/package.json ./apps/order-service/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 RUN npm install
 
-COPY tsconfig.json ./
-COPY src ./src
-
-RUN npm run build
+COPY apps/order-service/tsconfig.json ./apps/order-service/tsconfig.json
+COPY apps/order-service/src ./apps/order-service/src
+COPY packages/shared ./packages/shared
 
 EXPOSE 3003
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "--prefix", "apps/order-service", "run", "dev"]

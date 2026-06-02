@@ -10,6 +10,11 @@ type GatewayRequest = Request & {
 
 export function attachUserHeaders(proxyReq: ClientRequest, req: Request) {
   const gatewayRequest = req as GatewayRequest;
+  const internalSecret = process.env.GATEWAY_SECRET;
+
+  if (internalSecret) {
+    proxyReq.setHeader("x-internal-secret", internalSecret);
+  }
 
   if (!gatewayRequest.user) {
     return;

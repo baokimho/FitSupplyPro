@@ -2,14 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
+COPY apps/catalog-service/package.json ./apps/catalog-service/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 RUN npm install
 
-COPY tsconfig.json ./
-COPY src ./src
-
-RUN npm run build
+COPY apps/catalog-service/tsconfig.json ./apps/catalog-service/tsconfig.json
+COPY apps/catalog-service/src ./apps/catalog-service/src
+COPY packages/shared ./packages/shared
 
 EXPOSE 3002
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "--prefix", "apps/catalog-service", "run", "dev"]

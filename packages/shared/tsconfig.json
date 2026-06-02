@@ -16,7 +16,8 @@
 		"src/auth/**/*.ts",
 		"src/errors/**/*.ts",
 		"src/middleware/asyncHandler.ts",
-		"src/middleware/error.handler.ts"
+		"src/middleware/error.handler.ts",
+		"src/middleware/internalGateway.middleware.ts"
 	],
 	"exclude": ["node_modules", "dist"]
 }
