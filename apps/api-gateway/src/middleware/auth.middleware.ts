@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import { wrapAsync, verifyAuthToken, getPublicKey } from "@shared/utils";
 import type { AuthSessionUser } from "@shared/utils";
 
+export type GatewayUser = AuthSessionUser;
+
 
 export const authMiddleware = wrapAsync(async (req: Request, res: Response, next: NextFunction) => {
 	const authorization = req.headers.authorization;
@@ -29,7 +31,6 @@ export const authMiddleware = wrapAsync(async (req: Request, res: Response, next
 	};
 
 	req.user = user;
-	req.headers["x-user"] = JSON.stringify(user);
 
 	return next();
 });
