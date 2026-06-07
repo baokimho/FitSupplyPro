@@ -1,4 +1,4 @@
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { Request, RequestHandler, Response } from "express";
 
 type AuthenticatedRequest = Request & {
@@ -18,12 +18,13 @@ const standardRateLimitOptions = {
   },
 } as const;
 
-const clientIpKeyGenerator = (req: Request) => req.ip || req.socket.remoteAddress || "unknown";
+const clientIpKeyGenerator = (req: Request) => {
+  return ipKeyGenerator(req.ip ?? "")
+};
 
 const authenticatedUserKeyGenerator = (req: Request) => {
-  const authenticatedRequest = req as AuthenticatedRequest;
-
-  return authenticatedRequest.user?.id || req.ip || req.socket.remoteAddress || "unknown";
+  const authenticatedRequest = req as AuthenticatedRequest
+  return authenticatedRequest.user?.id || clientIpKeyGenerator(req)
 };
 
 function createLimiter(windowMs: number, limit: number, keyGenerator: (req: Request) => string): RequestHandler {

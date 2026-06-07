@@ -12,7 +12,6 @@ export function requireGatewaySecret(req: Request, res: Response, next: NextFunc
   }
 
   const receivedSecret = req.get(INTERNAL_SECRET_HEADER);
-
   if (receivedSecret !== expectedSecret) {
     return res.status(403).json({
       message: "Forbidden",

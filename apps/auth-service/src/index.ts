@@ -5,7 +5,7 @@ import prisma from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
 import { requireGatewaySecret } from "@shared/utils";
-import authRoutes from "./routes/auth.routes.js";
+import authRoutes from "./auth.routes.js";
 import { errorHandler } from "@shared/utils";
 
 dotenv.config();
@@ -19,6 +19,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(requireGatewaySecret);
+app.use((req, _res, next) => {
+  console.log("[AUTH SERVICE]", req.method, req.url);
+  next();
+});
 app.use(authRoutes);
 
 app.get("/health", (req, res) => {

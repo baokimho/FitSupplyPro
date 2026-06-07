@@ -6,9 +6,9 @@ import {
   refreshToken,
   register,
   getPublic,
-} from "../controllers/auth.controller.js";
+} from "./controllers/auth.controller.js";
 import { wrapAsync } from "@shared/utils";
-import { validateRequest } from "../middleware/validate.middleware.js";
+import { validateRequest } from "./middleware/validate.middleware.js";
 import { loginSchema, registerSchema } from "@shared/utils"
 
 const router = Router();

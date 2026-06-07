@@ -20,11 +20,12 @@ router.get("/health", (req, res) => {
   });
 });
 
-router.use("/auth/login", authLimiter, authProxy);
-router.use("/auth/register", authLimiter, authProxy);
-router.use("/auth/forgot-password", authLimiter, authProxy);
-router.use("/auth/refresh", refreshTokenLimiter, authProxy);
-router.use("/auth/me", authMiddleware, authProxy);
+router.use("/auth/login", authLimiter);
+router.use("/auth/register", authLimiter);
+router.use("/auth/forgot-password", authLimiter);
+router.use("/auth/refresh-token", refreshTokenLimiter);
+router.use("/auth/refresh", refreshTokenLimiter);
+router.use("/auth/me", authMiddleware);
 router.use("/auth", authProxy);
 router.use("/catalog", authMiddleware, catalogLimiter, catalogProxy);
 router.use("/order", authMiddleware, orderLimiter, orderProxy);

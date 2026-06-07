@@ -11,7 +11,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc --watch"
   },
   "dependencies": {
     "jose": "^6.2.3",

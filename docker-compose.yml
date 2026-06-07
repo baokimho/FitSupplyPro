@@ -1,7 +1,18 @@
 services:
+  shared-watcher:
+      image: node:20-alpine
+      container_name: shared-watcher
+      working_dir: /app/packages/shared
+      volumes:
+        - ./:/app
+      command: npm run watch
+      stdin_open: true
+      tty: true
+
   api-gateway:
     build:
-      context: ./apps/api-gateway
+      context: .
+      dockerfile: ./apps/api-gateway/Dockerfile
     container_name: api-gateway
     env_file:
       - ./apps/api-gateway/.env
@@ -9,13 +20,15 @@ services:
       - "3000:3000"
     volumes:
       - ./apps/api-gateway/src:/app/src
-    command: npm run dev
+      - ./packages/shared:/app/packages/shared
+    command: npm --prefix apps/api-gateway run dev
     stdin_open: true
     tty: true
     depends_on:
       - auth-service
       - catalog-service
       - order-service
+      - shared-watcher
 
   auth-service:
     build:
@@ -29,12 +42,15 @@ services:
     volumes:
       - ./apps/auth-service/src:/app/src
       - ./apps/auth-service/prisma:/app/prisma
+      - ./packages/shared:/app/packages/shared
     command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && npm --prefix apps/auth-service run dev"
     stdin_open: true
     tty: true
     depends_on:
       postgres:
         condition: service_healthy
+      shared-watcher:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine
@@ -64,13 +80,15 @@ services:
       - "3002"
     volumes:
       - ./apps/catalog-service/src:/app/src
-    command: npm run dev
+      - ./packages/shared:/app/packages/shared
+    command: npm --prefix apps/catalog-service run dev
     stdin_open: true
     tty: true
     depends_on:
       postgres:
         condition: service_healthy
-
+      shared-watcher:
+        condition: service_started
 
   order-service:
     build:
@@ -83,12 +101,15 @@ services:
       - "3003"
     volumes:
       - ./apps/order-service/src:/app/src
-    command: npm run dev
+      - ./packages/shared:/app/packages/shared
+    command: npm --prefix apps/order-service run dev
     stdin_open: true
     tty: true
     depends_on:
       postgres:
         condition: service_healthy
+      shared-watcher:
+        condition: service_started
 
 volumes:
   postgres_data:
