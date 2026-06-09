@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { requireGatewaySecret } from "@shared/utils";
+import catalogRoutes from "./routes.js";
+import { connectDb } from "./config/connect-db.js";
 
 dotenv.config();
 
@@ -10,17 +12,11 @@ if (!process.env.GATEWAY_SECRET) {
 }
 
 const app = express();
-
+await connectDb()
 app.use(cors());
 app.use(express.json());
 app.use(requireGatewaySecret);
-
-app.get("/health", (req, res) => {
-  res.json({
-    service: "catalog-service",
-    status: "ok",
-  });
-});
+app.use(catalogRoutes)
 
 const PORT = process.env.PORT || 3002;
 
