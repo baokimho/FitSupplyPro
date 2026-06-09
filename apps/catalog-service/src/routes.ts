@@ -1,8 +1,17 @@
 import { Router } from "express";
 
 import { validateRequest, wrapAsync } from "@shared/utils";
-import { createCategorySchema } from "./validations/category.schema.js";
-import { createCatalog } from "./controllers/catalog.controller.js";
+import {
+  createCategorySchema,
+  updateCategorySchema,
+} from "./validations/category.schema.js";
+import {
+  createCategory,
+  deleteCategory,
+  getAllCategories,
+  getCategoryById,
+  updateCategory,
+} from "./controllers/catalog.controller.js";
 
 const router = Router();
 
@@ -13,6 +22,18 @@ router.get("/health", (req, res) => {
   });
 });
 
-router.post("/", validateRequest(createCategorySchema), wrapAsync(createCatalog))
+router.post(
+  "/categories",
+  validateRequest(createCategorySchema),
+  wrapAsync(createCategory),
+);
+router.get("/categories", wrapAsync(getAllCategories));
+router.get("/categories/:id", wrapAsync(getCategoryById));
+router.put(
+  "/categories/:id",
+  validateRequest(updateCategorySchema),
+  wrapAsync(updateCategory),
+);
+router.delete("/categories/:id", wrapAsync(deleteCategory));
 
 export default router;
