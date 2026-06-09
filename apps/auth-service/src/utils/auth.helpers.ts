@@ -3,7 +3,7 @@ import path from "path";
 import { UnauthorizedError, verifyAuthToken, BadRequestError, ServiceUnavailableError } from "@shared/utils";
 import type { AuthTokenType, AuthUser, JWKSResponse } from "@shared/utils";
 import type { PrismaClientOrTx } from "../types/db.type.js";
-import type { User } from "@prisma/client";
+import type { User } from "../generated/prisma/index.js";
 import { importJWK, JWK, CryptoKey, SignJWT } from "jose";
 import { readFileSync } from "fs";
 

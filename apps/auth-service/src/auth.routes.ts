@@ -7,9 +7,8 @@ import {
   register,
   getPublic,
 } from "./controllers/auth.controller.js";
-import { wrapAsync } from "@shared/utils";
-import { validateRequest } from "./middleware/validate.middleware.js";
-import { loginSchema, registerSchema } from "@shared/utils"
+import { validateRequest, wrapAsync } from "@shared/utils";
+import { loginSchema, registerSchema } from "./validations/auth.schema.js"
 
 const router = Router();
 

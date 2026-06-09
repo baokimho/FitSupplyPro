@@ -12,9 +12,9 @@ import {
   getJWKS,
   getPublicKey,
 } from "../utils/auth.js";
-import { Role } from "@prisma/client";
+import { Role } from "../generated/prisma/index.js";
 import { BadRequestError, ConflictError, UnauthorizedError, verifyAuthToken } from "@shared/utils";
-import type { RegisterInput, LoginInput } from "@shared/utils";
+import type { RegisterInput, LoginInput } from "../validations/auth.schema.js";
 import { getHeaderValue } from "@shared/utils";
 
 function getTrimmedString(value: unknown): string | null {
