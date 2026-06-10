@@ -6,7 +6,14 @@ export const createCategorySchema = z.object({
   description: z.string().optional(),
 });
 
-export const updateCategorySchema = createCategorySchema.partial();
+export const updateCategorySchema = createCategorySchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0,
+  {
+    message: "At least one field must be provided"
+  }  
+)
+;
 
 export type CategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;

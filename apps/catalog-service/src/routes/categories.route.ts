@@ -4,14 +4,14 @@ import { validateRequest, wrapAsync } from "@shared/utils";
 import {
   createCategorySchema,
   updateCategorySchema,
-} from "./validations/category.schema.js";
+} from "../validations/category.schema.js";
 import {
   createCategory,
   deleteCategory,
   getAllCategories,
   getCategoryById,
   updateCategory,
-} from "./controllers/catalog.controller.js";
+} from "../controllers/catalog.controller.js";
 
 const router = Router();
 

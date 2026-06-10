@@ -1,27 +1,26 @@
 import { Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
 
-import { NotFoundError } from "@shared/utils";
-import prisma from "../config/db.js";
-import type { CategoryInput } from "../validations/category.schema.js";
+import {
+  createCategoryService,
+  deleteCategoryService,
+  getAllCategoriesService,
+  getCategoryByIdService,
+  updateCategoryService,
+} from "../services/categories.service.js";
+import { getParam } from "../utils/getParam.js";
 
 export const createCategory = async (req: Request, res: Response) => {
-  const body = req.body as CategoryInput;
-  const category = await prisma.category.create({
-    data: body,
-  });
+  const category = await createCategoryService(req.body);
 
-  res.status(201).json({
+  res.status(StatusCodes.CREATED).json({
     success: true,
     data: category,
   });
 };
 
 export const getAllCategories = async (req: Request, res: Response) => {
-  const categories = await prisma.category.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  const categories = await getAllCategoriesService();
 
   res.json({
     success: true,
@@ -30,15 +29,8 @@ export const getAllCategories = async (req: Request, res: Response) => {
 };
 
 export const getCategoryById = async (req: Request, res: Response) => {
-  const category = await prisma.category.findUnique({
-    where: {
-      id: req.params.id,
-    },
-  });
-
-  if (!category) {
-    throw new NotFoundError("Category not found");
-  }
+  const id = getParam(req, "id");
+  const category = await getCategoryByIdService(id);
 
   res.json({
     success: true,
@@ -47,22 +39,8 @@ export const getCategoryById = async (req: Request, res: Response) => {
 };
 
 export const updateCategory = async (req: Request, res: Response) => {
-  const category = await prisma.category.findUnique({
-    where: {
-      id: req.params.id,
-    },
-  });
-
-  if (!category) {
-    throw new NotFoundError("Category not found");
-  }
-
-  const updated = await prisma.category.update({
-    where: {
-      id: req.params.id,
-    },
-    data: req.body,
-  });
+  const id = getParam(req, "id");
+  const updated = await updateCategoryService(id, req.body);
 
   res.json({
     success: true,
@@ -71,21 +49,8 @@ export const updateCategory = async (req: Request, res: Response) => {
 };
 
 export const deleteCategory = async (req: Request, res: Response) => {
-  const category = await prisma.category.findUnique({
-    where: {
-      id: req.params.id,
-    },
-  });
-
-  if (!category) {
-    throw new NotFoundError("Category not found");
-  }
-
-  await prisma.category.delete({
-    where: {
-      id: req.params.id,
-    },
-  });
+  const id = getParam(req, "id");
+  await deleteCategoryService(id);
 
   res.json({
     success: true,

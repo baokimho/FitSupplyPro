@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { requireGatewaySecret } from "@shared/utils";
-import catalogRoutes from "./routes.js";
+import catalogRoutes from "./routes/categories.route.js";
 import { connectDb } from "./config/connect-db.js";
 
 dotenv.config();
