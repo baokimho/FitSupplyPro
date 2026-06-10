@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
 import prisma from "../config/db.js";
 import {
   comparePassword,
@@ -31,7 +32,7 @@ async function getAuthTokens(user: Parameters<typeof createAuthToken>[0]) {
 }
 
 export async function getPublic(req: Request, res: Response) {
-  return res.status(200).json(await getJWKS());
+  return res.status(StatusCodes.OK).json(await getJWKS());
 }
 
 export async function getMe(req: Request, res: Response) {
@@ -49,7 +50,7 @@ export async function getMe(req: Request, res: Response) {
     throw new UnauthorizedError("User not found");
   }
 
-  return res.status(200).json({
+  return res.status(StatusCodes.OK).json({
     user: sanitizeUser(user),
   });
 }
@@ -79,7 +80,7 @@ export async function register(req: Request, res: Response) {
   const tokens = await getAuthTokens(user);
   await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
-  return res.status(201).json({
+  return res.status(StatusCodes.CREATED).json({
     message: "User registered successfully",
     user: sanitizeUser(user),
     ...tokens,
@@ -102,7 +103,7 @@ export async function login(req: Request, res: Response) {
   const tokens = await getAuthTokens(user);
   await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
-  return res.status(200).json({
+  return res.status(StatusCodes.OK).json({
     message: "Login successful",
     user: sanitizeUser(user),
     ...tokens,
@@ -141,7 +142,7 @@ export async function refreshToken(req: Request, res: Response) {
   const tokens = await getAuthTokens(user);
   await rotateRefreshToken(prisma, token, user.id, tokens.refreshToken);
 
-  return res.status(200).json({
+  return res.status(StatusCodes.OK).json({
     message: "Token refreshed successfully",
     ...tokens,
   });
@@ -163,7 +164,7 @@ export async function logout(req: Request, res: Response) {
     }
   }
 
-  return res.status(200).json({
+  return res.status(StatusCodes.OK).json({
     message: "Logout successful",
   });
 }

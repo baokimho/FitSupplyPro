@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
@@ -21,7 +22,7 @@ export const authProxy = createProxyMiddleware<Request, Response>({
       if (response.headersSent) {
         return;
       }
-      response.status(503).json({
+      response.status(StatusCodes.SERVICE_UNAVAILABLE).json({
         message: "Service unavailable",
       });
     },

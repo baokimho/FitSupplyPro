@@ -1,5 +1,6 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { Request, RequestHandler, Response } from "express";
+import { StatusCodes } from "http-status-codes";
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -12,7 +13,7 @@ const standardRateLimitOptions = {
   legacyHeaders: false,
   skip: (req: Request) => req.method === "OPTIONS",
   handler: (_req: Request, res: Response) => {
-    res.status(429).json({
+    res.status(StatusCodes.TOO_MANY_REQUESTS).json({
       message: "Too many requests",
     });
   },
