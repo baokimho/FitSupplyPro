@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { requireGatewaySecret } from "@shared/utils";
-import catalogRoutes from "./routes/categories.route.js";
+import categoryRoutes from "./routes/categories.route.js";
+import productRoutes from "./routes/products.route.js";
 import { connectDb } from "./config/connect-db.js";
 
 dotenv.config();
@@ -16,7 +17,8 @@ await connectDb()
 app.use(cors());
 app.use(express.json());
 app.use(requireGatewaySecret);
-app.use(catalogRoutes)
+app.use(categoryRoutes);
+app.use(productRoutes);
 
 const PORT = process.env.PORT || 3002;
 
