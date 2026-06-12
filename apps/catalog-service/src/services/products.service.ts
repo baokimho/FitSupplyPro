@@ -1,4 +1,4 @@
-import { NotFoundError } from "@shared/utils";
+import { ConflictError, NotFoundError } from "@shared/utils";
 
 import prisma from "../config/db.js";
 import type {
@@ -7,6 +7,25 @@ import type {
 } from "../validations/product.schema.js";
 
 export const createProductService = async (body: ProductInput) => {
+  const existingProduct = await prisma.product.findFirst({
+    where: {
+      OR: [{ slug: body.slug }, { sku: body.sku }],
+    },
+    select: {
+      id: true,
+      slug: true,
+      sku: true,
+    },
+  });
+
+  if (existingProduct) {
+    const field = existingProduct.slug === body.slug ? "slug" : "sku";
+    throw new ConflictError(`Product ${field} already exists`, {
+      field,
+      value: field === "slug" ? body.slug : body.sku,
+    });
+  }
+
   return prisma.product.create({
     data: body,
   });
@@ -73,6 +92,33 @@ export const updateProductService = async (
 
   if (!product) {
     throw new NotFoundError("Product not found");
+  }
+
+  if (data.slug || data.sku) {
+    const existingProduct = await prisma.product.findFirst({
+      where: {
+        id: {
+          not: id,
+        },
+        OR: [
+          ...(data.slug ? [{ slug: data.slug }] : []),
+          ...(data.sku ? [{ sku: data.sku }] : []),
+        ],
+      },
+      select: {
+        id: true,
+        slug: true,
+        sku: true,
+      },
+    });
+
+    if (existingProduct) {
+      const field = data.slug && existingProduct.slug === data.slug ? "slug" : "sku";
+      throw new ConflictError(`Product ${field} already exists`, {
+        field,
+        value: field === "slug" ? data.slug : data.sku,
+      });
+    }
   }
 
   return prisma.product.update({
