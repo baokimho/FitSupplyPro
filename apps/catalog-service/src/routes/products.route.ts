@@ -3,6 +3,7 @@ import { Router } from "express";
 import { validateRequest, wrapAsync } from "@shared/utils";
 import {
   createProductSchema,
+  productParamsSchema,
   updateProductSchema,
   getProductQuerySchema
 } from "../validations/product.schema.js";
@@ -18,16 +19,17 @@ const router = Router();
 
 router.post(
   "/products",
-  validateRequest(createProductSchema),
+  validateRequest("body", createProductSchema),
   wrapAsync(createProduct),
 );
-router.get("/products", validateRequest(getProductQuerySchema), wrapAsync(getAllProducts));
-router.get("/products/:id", wrapAsync(getProductById));
+router.get("/products", validateRequest("query", getProductQuerySchema), wrapAsync(getAllProducts));
+router.get("/products/:id", validateRequest("params", productParamsSchema), wrapAsync(getProductById));
 router.put(
   "/products/:id",
-  validateRequest(updateProductSchema),
+  validateRequest("body", updateProductSchema),
+  validateRequest("params", productParamsSchema),
   wrapAsync(updateProduct),
 );
-router.delete("/products/:id", wrapAsync(deleteProduct));
+router.delete("/products/:id", validateRequest("params", productParamsSchema), wrapAsync(deleteProduct));
 
 export default router;

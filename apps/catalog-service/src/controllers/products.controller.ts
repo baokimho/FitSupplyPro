@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
 import {
@@ -9,8 +9,14 @@ import {
   updateProductService,
 } from "../services/products.service.js";
 import { getParam } from "../utils/getParam.js";
+import type { ProductInput, UpdateProductInput, ProductQuery, ProductParams } from "../validations/product.schema.js";
 
-export const createProduct = async (req: Request, res: Response) => {
+
+
+export const createProduct = async (
+  req: Request<{}, {}, ProductInput>,
+  res: Response,
+) => {
   const product = await createProductService(req.body);
 
   res.status(StatusCodes.CREATED).json({
@@ -19,10 +25,12 @@ export const createProduct = async (req: Request, res: Response) => {
   });
 };
 
-export const getAllProducts = async (req: Request, res: Response) => {
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 20;
-  const results = await getAllProductsService();
+export const getAllProducts = async (
+  req: Request<{}, {}, {}, ProductQuery>,
+  res: Response,
+) => {
+  const { page = 1, limit = 20 } = req.query;
+  const results = await getAllProductsService(page, limit);
   
   res.json({
     success: true,
@@ -31,7 +39,10 @@ export const getAllProducts = async (req: Request, res: Response) => {
   });
 };
 
-export const getProductById = async (req: Request, res: Response) => {
+export const getProductById = async (
+  req: Request<ProductParams>,
+  res: Response,
+) => {
   const id = getParam(req, "id");
   const product = await getProductByIdService(id);
 
@@ -41,7 +52,10 @@ export const getProductById = async (req: Request, res: Response) => {
   });
 };
 
-export const updateProduct = async (req: Request, res: Response) => {
+export const updateProduct = async (
+  req: Request<ProductParams, unknown, UpdateProductInput>,
+  res: Response,
+) => {
   const id = getParam(req, "id");
   const updated = await updateProductService(id, req.body);
 
@@ -51,7 +65,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   });
 };
 
-export const deleteProduct = async (req: Request, res: Response) => {
+export const deleteProduct = async (req: Request<ProductParams>, res: Response) => {
   const id = getParam(req, "id");
   await deleteProductService(id);
 

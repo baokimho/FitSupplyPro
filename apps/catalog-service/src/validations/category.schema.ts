@@ -15,5 +15,10 @@ export const updateCategorySchema = createCategorySchema
 )
 ;
 
+export const categoryParamsSchema = z.object({
+  id: z.string().min(1, "Category id is required"),
+});
+
 export type CategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type CategoryParams = z.infer<typeof categoryParamsSchema>;

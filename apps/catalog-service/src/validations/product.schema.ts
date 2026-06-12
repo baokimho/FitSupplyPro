@@ -22,5 +22,11 @@ export const getProductQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
+export const productParamsSchema = z.object({
+  id: z.string().min(1, "Product id is required"),
+});
+
 export type ProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type ProductQuery = z.infer<typeof getProductQuerySchema>;
+export type ProductParams = z.infer<typeof productParamsSchema>;

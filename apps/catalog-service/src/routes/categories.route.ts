@@ -3,6 +3,7 @@ import { Router } from "express";
 import { validateRequest, wrapAsync } from "@shared/utils";
 import {
   createCategorySchema,
+  categoryParamsSchema,
   updateCategorySchema,
 } from "../validations/category.schema.js";
 import {
@@ -24,16 +25,17 @@ router.get("/health", (req, res) => {
 
 router.post(
   "/categories",
-  validateRequest(createCategorySchema),
+  validateRequest("body", createCategorySchema),
   wrapAsync(createCategory),
 );
 router.get("/categories", wrapAsync(getAllCategories));
-router.get("/categories/:id", wrapAsync(getCategoryById));
+router.get("/categories/:id", validateRequest("params", categoryParamsSchema), wrapAsync(getCategoryById));
 router.put(
   "/categories/:id",
-  validateRequest(updateCategorySchema),
+  validateRequest("body", updateCategorySchema),
+  validateRequest("params", categoryParamsSchema),
   wrapAsync(updateCategory),
 );
-router.delete("/categories/:id", wrapAsync(deleteCategory));
+router.delete("/categories/:id", validateRequest("params", categoryParamsSchema), wrapAsync(deleteCategory));
 
 export default router;

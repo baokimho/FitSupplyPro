@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { ParamsDictionary } from "express-serve-static-core";
 import { StatusCodes } from "http-status-codes";
 import prisma from "../config/db.js";
 import {
@@ -55,8 +56,11 @@ export async function getMe(req: Request, res: Response) {
   });
 }
 
-export async function register(req: Request, res: Response) {
-  const { email, password, name } = req.body as RegisterInput;
+export async function register(
+  req: Request<ParamsDictionary, unknown, RegisterInput>,
+  res: Response,
+) {
+  const { email, password, name } = req.body;
 
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -87,8 +91,11 @@ export async function register(req: Request, res: Response) {
   });
 }
 
-export async function login(req: Request, res: Response) {
-  const { email, password } = req.body as LoginInput;
+export async function login(
+  req: Request<ParamsDictionary, unknown, LoginInput>,
+  res: Response,
+) {
+  const { email, password } = req.body;
 
   const normalizedEmail = email.trim().toLowerCase();
 
