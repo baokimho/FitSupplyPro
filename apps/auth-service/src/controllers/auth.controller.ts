@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import type { ParamsDictionary } from "express-serve-static-core";
 import { StatusCodes } from "http-status-codes";
 import prisma from "../config/db.js";
 import {
@@ -13,7 +12,7 @@ import {
   sanitizeUser,
   getJWKS,
   getPublicKey,
-} from "../utils/auth.js";
+} from "../services/auth.service.js";
 import { Role } from "../generated/prisma/index.js";
 import { BadRequestError, ConflictError, UnauthorizedError, verifyAuthToken } from "@shared/utils";
 import type { RegisterInput, LoginInput } from "../validations/auth.schema.js";
@@ -57,7 +56,7 @@ export async function getMe(req: Request, res: Response) {
 }
 
 export async function register(
-  req: Request<ParamsDictionary, unknown, RegisterInput>,
+  req: Request<{}, {}, RegisterInput>,
   res: Response,
 ) {
   const { email, password, name } = req.body;
@@ -92,7 +91,7 @@ export async function register(
 }
 
 export async function login(
-  req: Request<ParamsDictionary, unknown, LoginInput>,
+  req: Request<{}, {}, LoginInput>,
   res: Response,
 ) {
   const { email, password } = req.body;

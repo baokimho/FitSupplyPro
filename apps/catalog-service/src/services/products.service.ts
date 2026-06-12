@@ -1,9 +1,10 @@
 import { ConflictError, NotFoundError } from "@shared/utils";
-
+import type { Prisma } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import type {
   ProductInput,
   UpdateProductInput,
+  ProductQueryInput
 } from "../validations/product.schema.js";
 
 export const createProductService = async (body: ProductInput) => {
@@ -32,23 +33,76 @@ export const createProductService = async (body: ProductInput) => {
 };
 
 export const getAllProductsService = async (
+  {  
   page = 1,
-  limit = 20
+  limit = 20, 
+  categoryId, 
+  search, 
+  isPublished, 
+  sort
+  }: ProductQueryInput
 ) => {
   const skip = (page - 1) * limit;
 
+  const where: Prisma.ProductWhereInput = {
+    ...(categoryId ? { categoryId } : {}),
+
+    ...(typeof isPublished === "boolean" ? { isPublished } : {}),
+
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { sku: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  let orderBy: Prisma.ProductOrderByWithRelationInput;
+
+  switch(sort){
+    case "price_asc":
+      orderBy = {
+        price: "asc"
+      };
+      break
+    case "price_desc":
+      orderBy = {
+        price: "desc"
+      };
+      break
+    case "oldest":
+      orderBy = {
+        createdAt: "asc"
+      };
+      break
+    default: 
+      orderBy = {
+        createdAt: "desc"
+      };
+  }
+
   const [products, totals] = await Promise.all([
     prisma.product.findMany({
+      where,
       skip,
       take: limit,
-      orderBy: {
-        createdAt: "desc"
-      },
+      orderBy,
       include: {
-        category: true
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
       },
     }),
-    prisma.product.count()
+    prisma.product.count(
+      {where}
+    )
   ])
 
   return {
@@ -143,6 +197,24 @@ export const deleteProductService = async (id: string) => {
   await prisma.product.delete({
     where: {
       id,
+    },
+  });
+};
+
+export const publishProductService = async (id: string) => {
+  return prisma.product.update({
+    where: { id },
+    data: {
+      isPublished: true,
+    },
+  });
+};
+
+export const unpublishProductService = async (id: string) => {
+  return prisma.product.update({
+    where: { id },
+    data: {
+      isPublished: false,
     },
   });
 };

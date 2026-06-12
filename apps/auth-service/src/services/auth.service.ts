@@ -1,23 +1,27 @@
 import crypto from "crypto";
 import path from "path";
-import { UnauthorizedError, verifyAuthToken, BadRequestError, ServiceUnavailableError } from "@shared/utils";
+import { readFileSync } from "fs";
+import { importJWK, JWK, CryptoKey, SignJWT } from "jose";
+import {
+  UnauthorizedError,
+  verifyAuthToken,
+  BadRequestError,
+  ServiceUnavailableError,
+} from "@shared/utils";
 import type { AuthTokenType, AuthUser, JWKSResponse } from "@shared/utils";
 import type { PrismaClientOrTx } from "../types/db.type.js";
 import type { User } from "../generated/prisma/index.js";
-import { importJWK, JWK, CryptoKey, SignJWT } from "jose";
-import { readFileSync } from "fs";
-
 
 const REFRESH_TOKEN_CLEANUP_AFTER_DAYS = 14;
-const JWT_ISSUER = 'fitsupply-auth-service';
-const JWT_AUDIENCE = 'fitsupply-api';
+const JWT_ISSUER = "fitsupply-auth-service";
+const JWT_AUDIENCE = "fitsupply-api";
 
 const privateKeyPath = path.resolve(process.cwd(), "keys/private.json");
 const publicKeyPath = path.resolve(process.cwd(), "keys/public.json");
 const privateKeyEnvVar = "JWT_PRIVATE_KEY_BASE64";
 const publicKeyEnvVar = "JWT_PUBLIC_KEY_BASE64";
 
-let cachedPrivateJWK: JWK | null = null 
+let cachedPrivateJWK: JWK | null = null;
 let cachedPrivateKey: CryptoKey | null = null;
 
 function loadJWKFromEnvOrFile(envVar: string, filePath: string, missingMessage: string): JWK {
@@ -64,8 +68,8 @@ export async function getJWKS(): Promise<JWKSResponse> {
 
   cachedJWKS = {
     keys: [publicKey],
-  }
-  return cachedJWKS!
+  };
+  return cachedJWKS;
 }
 
 export async function getPublicKey(): Promise<CryptoKey> {
@@ -98,16 +102,10 @@ export function comparePassword(password: string, passwordHash: string): boolean
     return false;
   }
 
-  return crypto.timingSafeEqual(
-    Buffer.from(storedHash, "hex"),
-    Buffer.from(derived, "hex"),
-  );
+  return crypto.timingSafeEqual(Buffer.from(storedHash, "hex"), Buffer.from(derived, "hex"));
 }
 
-export async function createAuthToken(
-  user: User,
-  type: AuthTokenType = "access",
-) {
+export async function createAuthToken(user: User, type: AuthTokenType = "access") {
   const privateKey = await getPrivateKey();
   return await new SignJWT({
     sub: user.id,
@@ -150,12 +148,12 @@ export async function saveRefreshToken(
   token: string,
 ): Promise<{ id: string }> {
   const tokenHash = hashRefreshToken(token);
-  try{
+  try {
     const decoded = await verifyAuthToken(token, await getPublicKey(), "refresh");
-    if (typeof decoded.exp !== 'number') {
-      throw new BadRequestError("Refresh token missing exp")
-    };
-    const expiresAt = new Date(decoded.exp * 1000)
+    if (typeof decoded.exp !== "number") {
+      throw new BadRequestError("Refresh token missing exp");
+    }
+    const expiresAt = new Date(decoded.exp * 1000);
 
     return prisma.refreshToken.create({
       data: {
@@ -165,16 +163,15 @@ export async function saveRefreshToken(
       },
     });
   } catch {
-    throw new BadRequestError('Invalid refresh token')
+    throw new BadRequestError("Invalid refresh token");
   }
-
 }
 
 export async function findActiveRefreshToken(
   prisma: PrismaClientOrTx,
   token: string,
 ): Promise<{ id: string; userId: string } | null> {
-  await verifyAuthToken(token, await getPublicKey(), "refresh")
+  await verifyAuthToken(token, await getPublicKey(), "refresh");
   const tokenHash = hashRefreshToken(token);
 
   const refreshToken = await prisma.refreshToken.findUnique({
@@ -182,12 +179,12 @@ export async function findActiveRefreshToken(
   });
 
   if (!refreshToken) {
-    return null 
+    return null;
   }
 
   if (refreshToken.revokedAt) {
-    await revokeAllActiveRefreshTokens(refreshToken.userId, prisma)
-    throw new UnauthorizedError("Refresh token reuse detected")
+    await revokeAllActiveRefreshTokens(refreshToken.userId, prisma);
+    throw new UnauthorizedError("Refresh token reuse detected");
   }
 
   if (new Date() > refreshToken.expiresAt) {
@@ -202,18 +199,15 @@ export async function findActiveRefreshToken(
 
 export async function revokeAllActiveRefreshTokens(userId: string, prisma: PrismaClientOrTx) {
   await prisma.refreshToken.updateMany({
-    where: { 
+    where: {
       userId,
-      revokedAt: null
+      revokedAt: null,
     },
-    data: { revokedAt: new Date() }
-  })
+    data: { revokedAt: new Date() },
+  });
 }
 
-export async function revokeRefreshToken(
-  prisma: PrismaClientOrTx,
-  token: string,
-): Promise<void> {
+export async function revokeRefreshToken(prisma: PrismaClientOrTx, token: string): Promise<void> {
   const tokenHash = hashRefreshToken(token);
 
   await prisma.refreshToken.updateMany({
@@ -222,9 +216,7 @@ export async function revokeRefreshToken(
   });
 }
 
-export async function cleanupRefreshTokens(
-  prisma: PrismaClientOrTx,
-): Promise<number> {
+export async function cleanupRefreshTokens(prisma: PrismaClientOrTx): Promise<number> {
   const cleanupThreshold = new Date(
     Date.now() - REFRESH_TOKEN_CLEANUP_AFTER_DAYS * 24 * 60 * 60 * 1000,
   );

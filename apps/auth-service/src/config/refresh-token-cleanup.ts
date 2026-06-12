@@ -1,5 +1,5 @@
 import prisma from "./db.js";
-import { cleanupRefreshTokens } from "../utils/auth.helpers.js";
+import { cleanupRefreshTokens } from "../services/auth.service.js";
 
 const REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 

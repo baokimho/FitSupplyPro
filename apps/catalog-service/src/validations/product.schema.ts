@@ -20,6 +20,12 @@ export const updateProductSchema = createProductSchema
 export const getProductQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
+  categoryId: z.string().optional(),
+  search: z.string().optional(),
+  isPublished: z.coerce.boolean().optional(),
+  sort: z
+  .enum(["price_asc", "price_desc", "newest", "oldest"])
+  .optional()
 })
 
 export const productParamsSchema = z.object({
@@ -28,5 +34,5 @@ export const productParamsSchema = z.object({
 
 export type ProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
-export type ProductQuery = z.infer<typeof getProductQuerySchema>;
-export type ProductParams = z.infer<typeof productParamsSchema>;
+export type ProductQueryInput = z.infer<typeof getProductQuerySchema>;
+export type ProductParamsInput = z.infer<typeof productParamsSchema>;

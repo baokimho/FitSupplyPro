@@ -13,6 +13,8 @@ import {
   getAllProducts,
   getProductById,
   updateProduct,
+  publishProduct,
+  unpublishProduct
 } from "../controllers/products.controller.js";
 
 const router = Router();
@@ -31,5 +33,7 @@ router.put(
   wrapAsync(updateProduct),
 );
 router.delete("/products/:id", validateRequest("params", productParamsSchema), wrapAsync(deleteProduct));
+router.patch("/products/:id/publish", wrapAsync(publishProduct))
+router.patch("/products/:id/unpublish", wrapAsync(unpublishProduct))
 
 export default router;

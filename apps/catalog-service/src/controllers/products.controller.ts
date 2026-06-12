@@ -7,9 +7,11 @@ import {
   getAllProductsService,
   getProductByIdService,
   updateProductService,
+  publishProductService,
+  unpublishProductService
 } from "../services/products.service.js";
 import { getParam } from "../utils/getParam.js";
-import type { ProductInput, UpdateProductInput, ProductQuery, ProductParams } from "../validations/product.schema.js";
+import type { ProductInput, UpdateProductInput, ProductQueryInput, ProductParamsInput } from "../validations/product.schema.js";
 
 
 
@@ -26,11 +28,10 @@ export const createProduct = async (
 };
 
 export const getAllProducts = async (
-  req: Request<{}, {}, {}, ProductQuery>,
+  req: Request<{}, {}, {}, ProductQueryInput>,
   res: Response,
 ) => {
-  const { page = 1, limit = 20 } = req.query;
-  const results = await getAllProductsService(page, limit);
+  const results = await getAllProductsService(req.query);
   
   res.json({
     success: true,
@@ -40,7 +41,7 @@ export const getAllProducts = async (
 };
 
 export const getProductById = async (
-  req: Request<ProductParams>,
+  req: Request<ProductParamsInput>,
   res: Response,
 ) => {
   const id = getParam(req, "id");
@@ -53,7 +54,7 @@ export const getProductById = async (
 };
 
 export const updateProduct = async (
-  req: Request<ProductParams, unknown, UpdateProductInput>,
+  req: Request<ProductParamsInput, unknown, UpdateProductInput>,
   res: Response,
 ) => {
   const id = getParam(req, "id");
@@ -65,7 +66,7 @@ export const updateProduct = async (
   });
 };
 
-export const deleteProduct = async (req: Request<ProductParams>, res: Response) => {
+export const deleteProduct = async (req: Request<ProductParamsInput>, res: Response) => {
   const id = getParam(req, "id");
   await deleteProductService(id);
 
@@ -73,4 +74,26 @@ export const deleteProduct = async (req: Request<ProductParams>, res: Response) 
     success: true,
     message: "Product deleted successfully",
   });
+};
+
+export const publishProduct = async (
+  req: Request<ProductParamsInput>,
+  res: Response,
+) => {
+  const product = await publishProductService(
+    getParam(req, "id")
+  );
+
+  res.status(StatusCodes.OK).json(product);
+};
+
+export const unpublishProduct = async (
+  req: Request<ProductParamsInput>,
+  res: Response,
+) => {
+  const product = await unpublishProductService(
+    getParam(req, "id")
+  );
+
+  res.status(StatusCodes.OK).json(product);
 };
