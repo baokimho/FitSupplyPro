@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { errorHandler, requireGatewaySecret } from "@shared/utils";
 import categoryRoutes from "./routes/categories.route.js";
+import brandRoutes from "./routes/brands.route.js";
 import productRoutes from "./routes/products.route.js";
 import { connectDb } from "./config/connect-db.js";
 
@@ -18,6 +19,7 @@ app.use(cors());
 app.use(express.json());
 app.use(requireGatewaySecret);
 app.use(categoryRoutes);
+app.use(brandRoutes);
 app.use(productRoutes);
 
 app.use((req, res) => {

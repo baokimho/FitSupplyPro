@@ -26,6 +26,21 @@ model Category {
   @@index([slug])
 }
 
+model Brand {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  logoUrl     String?
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
 model Product {
   id          String   @id @default(uuid())
   name        String
@@ -39,10 +54,13 @@ model Product {
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id])
 
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([slug])
   @@index([categoryId])
+  @@index([brandId])
 }

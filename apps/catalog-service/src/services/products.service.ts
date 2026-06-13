@@ -27,8 +27,32 @@ export const createProductService = async (body: ProductInput) => {
     });
   }
 
+  const [category, brand] = await Promise.all([
+    prisma.category.findUnique({ where: { id: body.categoryId }, select: { id: true } }),
+    prisma.brand.findUnique({ where: { id: body.brandId }, select: { id: true } }),
+  ]);
+
+  if (!category) {
+    throw new NotFoundError("Category not found");
+  }
+
+  if (!brand) {
+    throw new NotFoundError("Brand not found");
+  }
+
   return prisma.product.create({
     data: body,
+    include: {
+      category: true,
+      brand: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+        },
+      },
+    },
   });
 };
 
@@ -37,6 +61,7 @@ export const getAllProductsService = async (
   page = 1,
   limit = 20, 
   categoryId, 
+  brandId,
   search, 
   isPublished, 
   sort
@@ -46,6 +71,7 @@ export const getAllProductsService = async (
 
   const where: Prisma.ProductWhereInput = {
     ...(categoryId ? { categoryId } : {}),
+    ...(brandId ? { brandId } : {}),
 
     ...(typeof isPublished === "boolean" ? { isPublished } : {}),
 
@@ -97,6 +123,14 @@ export const getAllProductsService = async (
             name: true,
             slug: true,
           }
+        },
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+          }
         }
       },
     }),
@@ -123,6 +157,14 @@ export const getProductByIdService = async (id: string) => {
     },
     include: {
       category: true,
+      brand: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+        },
+      },
       inventory: true,
     },
   });
@@ -175,11 +217,41 @@ export const updateProductService = async (
     }
   }
 
+  if (data.categoryId || data.brandId) {
+    const [category, brand] = await Promise.all([
+      data.categoryId
+        ? prisma.category.findUnique({ where: { id: data.categoryId }, select: { id: true } })
+        : Promise.resolve(null),
+      data.brandId
+        ? prisma.brand.findUnique({ where: { id: data.brandId }, select: { id: true } })
+        : Promise.resolve(null),
+    ]);
+
+    if (data.categoryId && !category) {
+      throw new NotFoundError("Category not found");
+    }
+
+    if (data.brandId && !brand) {
+      throw new NotFoundError("Brand not found");
+    }
+  }
+
   return prisma.product.update({
     where: {
       id,
     },
     data,
+    include: {
+      category: true,
+      brand: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+        },
+      },
+    },
   });
 };
 

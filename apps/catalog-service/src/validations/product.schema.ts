@@ -9,6 +9,7 @@ export const createProductSchema = z.object({
   images: z.array(z.string().min(1)).default([]),
   isPublished: z.boolean().default(false),
   categoryId: z.string().min(1, "Category is required"),
+  brandId: z.string().min(1, "Brand is required"),
 });
 
 export const updateProductSchema = createProductSchema
@@ -21,6 +22,7 @@ export const getProductQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   categoryId: z.string().optional(),
+  brandId: z.string().optional(),
   search: z.string().optional(),
   isPublished: z.coerce.boolean().optional(),
   sort: z
