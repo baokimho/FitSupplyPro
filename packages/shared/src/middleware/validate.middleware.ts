@@ -12,7 +12,13 @@ export const validateRequest = <T extends z.ZodTypeAny>(
   return wrapAsync(async (req: Request, res: Response, next: NextFunction) => {
     const parsed = await schema.parseAsync(req[inputType]);
 
-    (req as Request & Record<RequestInputType, unknown>)[inputType] = parsed;
+    if (inputType === "body") {
+      (req as Request & { body: unknown }).body = parsed;
+    }
+
+    if (inputType === "query") {
+      res.locals.validatedQuery = parsed;
+    }
 
     next();
   });

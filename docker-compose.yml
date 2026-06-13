@@ -82,7 +82,7 @@ services:
       - ./apps/catalog-service/src:/app/apps/catalog-service/src
       - ./apps/catalog-service/prisma:/app/apps/catalog-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run seed && npm --prefix apps/catalog-service run dev"
     stdin_open: true
     tty: true
     depends_on:

@@ -1,0 +1,105 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+
+### Login via gateway
+# @name login
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "customer123e@example.com",
+  "password": "Password123!"
+}
+
+###
+
+@accessToken = {{login.response.body.accessToken}}
+
+### Gateway health
+GET {{gatewayBaseUrl}}/health
+
+### Catalog health via gateway
+GET {{gatewayBaseUrl}}/catalog/health
+Authorization: Bearer {{accessToken}}
+
+### Get all categories
+GET {{gatewayBaseUrl}}/catalog/categories
+Authorization: Bearer {{accessToken}}
+
+### Create category
+# @name createCategory
+POST {{gatewayBaseUrl}}/catalog/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "preworkout9",
+  "slug": "preworkout9",
+  "description": "preworkout"
+}
+
+###
+
+@categoryId = {{createCategory.response.body.data.id}}
+
+### Get category by id
+GET {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+
+### Update category
+PUT {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": "Updated description for supplements"
+}
+
+### Delete category
+DELETE {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+
+### Get all products
+GET {{gatewayBaseUrl}}/catalog/products?page=1&limit=20
+Authorization: Bearer {{accessToken}}
+
+### Create product
+# @name createProduct
+POST {{gatewayBaseUrl}}/catalog/products
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Whey Protein 2kg",
+  "slug": "whey-protein-2.5kg",
+  "description": "High-protein whey blend for post-workout recovery.",
+  "sku": "SUP-WHEY-2.5KG",
+  "price": 79.9,
+  "images": [
+    "https://picsum.photos/seed/whey-protein-2kg/800/800"
+  ],
+  "isPublished": true,
+  "categoryId": "{{categoryId}}"
+}
+
+###
+
+@productId = {{createProduct.response.body.data.id}}
+
+### Get product by id
+GET {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Update product
+PUT {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "price": 89.9,
+  "isPublished": false
+}
+
+### Delete product
+DELETE {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Authorization: Bearer {{accessToken}}

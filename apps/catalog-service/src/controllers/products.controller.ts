@@ -31,7 +31,7 @@ export const getAllProducts = async (
   req: Request<{}, {}, {}, ProductQueryInput>,
   res: Response,
 ) => {
-  const results = await getAllProductsService(req.query);
+  const results = await getAllProductsService(res.locals.validatedQuery as ProductQueryInput);
   
   res.json({
     success: true,
