@@ -18,6 +18,49 @@ const categories = [
     slug: "apparel",
     description: "Workout clothing and accessories",
   },
+  {
+    name: "Recovery",
+    slug: "recovery",
+    description: "Mobility, recovery, and wellness essentials",
+  },
+  {
+    name: "Accessories",
+    slug: "accessories",
+    description: "Everyday gym accessories and training add-ons",
+  },
+];
+
+const brands = [
+  {
+    name: "OptiFuel",
+    slug: "optifuel",
+    description: "Performance nutrition and recovery supplements",
+    logoUrl: "https://picsum.photos/seed/optifuel-logo/256/256",
+  },
+  {
+    name: "IronForge",
+    slug: "ironforge",
+    description: "Training equipment and strength gear",
+    logoUrl: "https://picsum.photos/seed/ironforge-logo/256/256",
+  },
+  {
+    name: "MoveLab",
+    slug: "movelab",
+    description: "Functional apparel for training and daily wear",
+    logoUrl: "https://picsum.photos/seed/movelab-logo/256/256",
+  },
+  {
+    name: "PulseForm",
+    slug: "pulseform",
+    description: "Recovery tools and mobility essentials",
+    logoUrl: "https://picsum.photos/seed/pulseform-logo/256/256",
+  },
+  {
+    name: "CoreKit",
+    slug: "corekit",
+    description: "Gym accessories for performance and convenience",
+    logoUrl: "https://picsum.photos/seed/corekit-logo/256/256",
+  },
 ];
 
 const products = [
@@ -32,6 +75,7 @@ const products = [
     ],
     isPublished: true,
     categorySlug: "supplements",
+    brandSlug: "optifuel",
   },
   {
     name: "Creatine Monohydrate 500g",
@@ -44,6 +88,20 @@ const products = [
     ],
     isPublished: true,
     categorySlug: "supplements",
+    brandSlug: "optifuel",
+  },
+  {
+    name: "Pre-Workout Citrus",
+    slug: "pre-workout-citrus",
+    sku: "SUP-PWO-CIT",
+    description: "Energy and focus blend for intense training sessions.",
+    price: 29.9,
+    images: [
+      "https://picsum.photos/seed/pre-workout-citrus/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "supplements",
+    brandSlug: "optifuel",
   },
   {
     name: "Adjustable Dumbbell Set",
@@ -56,6 +114,20 @@ const products = [
     ],
     isPublished: true,
     categorySlug: "equipment",
+    brandSlug: "ironforge",
+  },
+  {
+    name: "Resistance Band Set",
+    slug: "resistance-band-set",
+    sku: "EQ-BAND-SET",
+    description: "Progressive resistance bands for warmups and accessory work.",
+    price: 39.9,
+    images: [
+      "https://picsum.photos/seed/resistance-band-set/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "equipment",
+    brandSlug: "ironforge",
   },
   {
     name: "Training T-Shirt",
@@ -68,43 +140,114 @@ const products = [
     ],
     isPublished: false,
     categorySlug: "apparel",
+    brandSlug: "movelab",
+  },
+  {
+    name: "Performance Hoodie",
+    slug: "performance-hoodie",
+    sku: "AP-HOODIE-001",
+    description: "Soft fleece hoodie built for warmups and recovery days.",
+    price: 59.9,
+    images: [
+      "https://picsum.photos/seed/performance-hoodie/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "apparel",
+    brandSlug: "movelab",
+  },
+  {
+    name: "Massage Gun Mini",
+    slug: "massage-gun-mini",
+    sku: "RC-MG-MINI",
+    description: "Compact percussive recovery tool for travel and home use.",
+    price: 89.9,
+    images: [
+      "https://picsum.photos/seed/massage-gun-mini/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "recovery",
+    brandSlug: "pulseform",
+  },
+  {
+    name: "Foam Roller",
+    slug: "foam-roller",
+    sku: "RC-FOAM-001",
+    description: "Textured foam roller for muscle release and mobility work.",
+    price: 27.5,
+    images: [
+      "https://picsum.photos/seed/foam-roller/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "recovery",
+    brandSlug: "pulseform",
+  },
+  {
+    name: "Shaker Bottle",
+    slug: "shaker-bottle",
+    sku: "AC-SHAKER-001",
+    description: "Leak-resistant shaker with measurement markers.",
+    price: 14.9,
+    images: [
+      "https://picsum.photos/seed/shaker-bottle/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "accessories",
+    brandSlug: "corekit",
+  },
+  {
+    name: "Lifting Straps",
+    slug: "lifting-straps",
+    sku: "AC-STRAPS-001",
+    description: "Heavy-duty lifting straps for pulling movements.",
+    price: 18.9,
+    images: [
+      "https://picsum.photos/seed/lifting-straps/800/800",
+    ],
+    isPublished: true,
+    categorySlug: "accessories",
+    brandSlug: "corekit",
   },
 ];
 
 async function main() {
+  await prisma.product.deleteMany();
+  await prisma.brand.deleteMany();
+  await prisma.category.deleteMany();
+
   for (const category of categories) {
-    await prisma.category.upsert({
-      where: { slug: category.slug },
-      update: {
-        name: category.name,
-        description: category.description,
-      },
-      create: category,
+    await prisma.category.create({
+      data: category,
+    });
+  }
+
+  for (const brand of brands) {
+    await prisma.brand.create({
+      data: brand,
     });
   }
 
   for (const product of products) {
-    const category = await prisma.category.findUnique({
-      where: { slug: product.categorySlug },
-      select: { id: true },
-    });
+    const [category, brand] = await Promise.all([
+      prisma.category.findUnique({
+        where: { slug: product.categorySlug },
+        select: { id: true },
+      }),
+      prisma.brand.findUnique({
+        where: { slug: product.brandSlug },
+        select: { id: true },
+      }),
+    ]);
 
     if (!category) {
       throw new Error(`Missing category for product seed: ${product.categorySlug}`);
     }
 
-    await prisma.product.upsert({
-      where: { slug: product.slug },
-      update: {
-        name: product.name,
-        sku: product.sku,
-        description: product.description,
-        price: product.price,
-        images: product.images,
-        isPublished: product.isPublished,
-        categoryId: category.id,
-      },
-      create: {
+    if (!brand) {
+      throw new Error(`Missing brand for product seed: ${product.brandSlug}`);
+    }
+
+    await prisma.product.create({
+      data: {
         name: product.name,
         slug: product.slug,
         sku: product.sku,
@@ -113,6 +256,7 @@ async function main() {
         images: product.images,
         isPublished: product.isPublished,
         categoryId: category.id,
+        brandId: brand.id,
       },
     });
   }
