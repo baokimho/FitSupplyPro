@@ -165,7 +165,6 @@ export const getProductByIdService = async (id: string) => {
           logoUrl: true,
         },
       },
-      inventory: true,
     },
   });
 
