@@ -447,10 +447,3 @@ This is still a development-stage codebase, so security hardening should be cons
 - Add notifications and analytics capabilities
 - Add OpenAPI documentation, CI/CD, and production-ready infrastructure over time
 
-## Portfolio Note
-
-This project is best presented as a **microservices backend in progress for a larger fullstack fitness commerce product**. The product vision is intentionally broader than the current implementation, but the existing code already demonstrates backend architecture, service separation, authentication, catalog APIs, and early inventory workflows.
-
-If you are reviewing this repository as part of a portfolio, the most accurate description today is:
-
-> Backend services partially implemented for a planned fullstack fitness e-commerce and nutrition platform.
