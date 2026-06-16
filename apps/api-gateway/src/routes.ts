@@ -3,11 +3,13 @@ import { authMiddleware } from "./middleware/auth.middleware.js";
 import {
   authLimiter,
   catalogLimiter,
+  inventoryLimiter,
   orderLimiter,
   refreshTokenLimiter,
 } from "./middleware/rateLimit.middleware.js";
 import { authProxy } from "./proxy/authProxy.proxy.js";
 import { catalogProxy } from "./proxy/catalogProxy.proxy.js";
+import { inventoryProxy } from "./proxy/inventoryProxy.proxy.js";
 import { orderProxy } from "./proxy/orderProxy.proxy.js";
 import { errorHandler } from "@shared/utils";
 
@@ -28,6 +30,7 @@ router.use("/auth/refresh", refreshTokenLimiter);
 router.use("/auth/me", authMiddleware);
 router.use("/auth", authProxy);
 router.use("/catalog", authMiddleware, catalogLimiter, catalogProxy);
+router.use("/inventory", authMiddleware, inventoryLimiter, inventoryProxy);
 router.use("/order", authMiddleware, orderLimiter, orderProxy);
 
 router.use(errorHandler);
