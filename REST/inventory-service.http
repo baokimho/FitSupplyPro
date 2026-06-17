@@ -1,5 +1,4 @@
 @gatewayBaseUrl = http://localhost:3000
-@inventoryServiceBaseUrl = http://localhost:3004
 @contentType = application/json
 
 ### Login via gateway
@@ -17,7 +16,7 @@ Content-Type: {{contentType}}
 @accessToken = {{login.response.body.accessToken}}
 
 ### Inventory service health
-GET {{inventoryServiceBaseUrl}}/health
+GET {{gatewayBaseUrl}}/health
 x-internal-secret: FitSupply_Internal_Secret_2026
 
 ### Create inventory via gateway
@@ -63,6 +62,6 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{accessToken}}
 
 {
-  "quantity": 20,
+  "quantity": -20,
   "reason": "RESTOCK"
 }

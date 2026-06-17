@@ -65,6 +65,7 @@ const brands = [
 
 const products = [
   {
+    id: "prod_whey_a",
     name: "Whey Protein 2kg",
     slug: "whey-protein-2kg",
     sku: "SUP-WHEY-2KG",
@@ -78,6 +79,7 @@ const products = [
     brandSlug: "optifuel",
   },
   {
+    id: "prod_creatine_b",
     name: "Creatine Monohydrate 500g",
     slug: "creatine-monohydrate-500g",
     sku: "SUP-CREA-500G",
@@ -91,6 +93,7 @@ const products = [
     brandSlug: "optifuel",
   },
   {
+    id: "prod_preworkout_c",
     name: "Pre-Workout Citrus",
     slug: "pre-workout-citrus",
     sku: "SUP-PWO-CIT",
@@ -104,6 +107,7 @@ const products = [
     brandSlug: "optifuel",
   },
   {
+    id: "prod_adjustable_dumbbell_set",
     name: "Adjustable Dumbbell Set",
     slug: "adjustable-dumbbell-set",
     sku: "EQ-DB-SET",
@@ -117,6 +121,7 @@ const products = [
     brandSlug: "ironforge",
   },
   {
+    id: "prod_resistance_band_set",
     name: "Resistance Band Set",
     slug: "resistance-band-set",
     sku: "EQ-BAND-SET",
@@ -130,6 +135,7 @@ const products = [
     brandSlug: "ironforge",
   },
   {
+    id: "prod_training_tshirt",
     name: "Training T-Shirt",
     slug: "training-t-shirt",
     sku: "AP-TSHIRT-001",
@@ -143,6 +149,7 @@ const products = [
     brandSlug: "movelab",
   },
   {
+    id: "prod_performance_hoodie",
     name: "Performance Hoodie",
     slug: "performance-hoodie",
     sku: "AP-HOODIE-001",
@@ -156,6 +163,7 @@ const products = [
     brandSlug: "movelab",
   },
   {
+    id: "prod_massage_gun_mini",
     name: "Massage Gun Mini",
     slug: "massage-gun-mini",
     sku: "RC-MG-MINI",
@@ -169,6 +177,7 @@ const products = [
     brandSlug: "pulseform",
   },
   {
+    id: "prod_foam_roller",
     name: "Foam Roller",
     slug: "foam-roller",
     sku: "RC-FOAM-001",
@@ -182,6 +191,7 @@ const products = [
     brandSlug: "pulseform",
   },
   {
+    id: "prod_shaker_bottle",
     name: "Shaker Bottle",
     slug: "shaker-bottle",
     sku: "AC-SHAKER-001",
@@ -195,6 +205,7 @@ const products = [
     brandSlug: "corekit",
   },
   {
+    id: "prod_lifting_straps",
     name: "Lifting Straps",
     slug: "lifting-straps",
     sku: "AC-STRAPS-001",
@@ -248,6 +259,7 @@ async function main() {
 
     await prisma.product.create({
       data: {
+        id: product.id,
         name: product.name,
         slug: product.slug,
         sku: product.sku,

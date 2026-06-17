@@ -126,7 +126,7 @@ services:
       - ./apps/inventory-service/src:/app/apps/inventory-service/src
       - ./apps/inventory-service/prisma:/app/apps/inventory-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run seed && npm --prefix apps/inventory-service run dev"
     stdin_open: true
     tty: true
     depends_on:
