@@ -18,6 +18,7 @@
 		"src/middleware/asyncHandler.ts",
 		"src/middleware/error.handler.ts",
 		"src/middleware/internalGateway.middleware.ts"
+		, "src/http/getParam.ts"
 	],
 	"exclude": ["node_modules", "dist"]
 }

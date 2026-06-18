@@ -10,7 +10,7 @@ import {
   publishProductService,
   unpublishProductService
 } from "../services/products.service.js";
-import { getParam } from "../utils/getParam.js";
+import { getParam } from "@shared/utils";
 import type { ProductInput, UpdateProductInput, ProductQueryInput, ProductParamsInput } from "../validations/product.schema.js";
 
 

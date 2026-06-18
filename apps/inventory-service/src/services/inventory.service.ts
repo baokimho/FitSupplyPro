@@ -4,6 +4,8 @@ import type {
   AdjustInventoryInput,
   BatchInventoryInput,
   CreateInventoryInput,
+  ReleaseInventoryInput,
+  ReserveInventoryInput,
   UpdateInventoryInput,
 } from "../validations/inventory.schema.js";
 
@@ -115,6 +117,55 @@ export const adjustInventoryStockService = async (
     where: { productId },
     data: {
       stock: nextStock,
+    },
+  });
+
+  return toInventoryResponse(updated);
+};
+
+export const reserveInventoryStockService = async (
+  productId: string,
+  body: ReserveInventoryInput,
+) => {
+  const inventory = await getInventoryRecordByProductId(productId);
+  const availableStock = inventory.stock - inventory.reservedStock;
+
+  if (availableStock < body.quantity) {
+    throw new BadRequestError("Insufficient stock", {
+      productId,
+      availableStock,
+      requestedQuantity: body.quantity,
+    });
+  }
+
+  const updated = await prisma.inventory.update({
+    where: { productId },
+    data: {
+      reservedStock: inventory.reservedStock + body.quantity,
+    },
+  });
+
+  return toInventoryResponse(updated);
+};
+
+export const releaseInventoryStockService = async (
+  productId: string,
+  body: ReleaseInventoryInput,
+) => {
+  const inventory = await getInventoryRecordByProductId(productId);
+
+  if (inventory.reservedStock < body.quantity) {
+    throw new BadRequestError("Reserved stock is insufficient", {
+      productId,
+      reservedStock: inventory.reservedStock,
+      releaseQuantity: body.quantity,
+    });
+  }
+
+  const updated = await prisma.inventory.update({
+    where: { productId },
+    data: {
+      reservedStock: inventory.reservedStock - body.quantity,
     },
   });
 

@@ -34,8 +34,20 @@ export const adjustInventorySchema = z.object({
   reason: z.string().min(1, "Reason is required"),
 });
 
+export const reserveInventorySchema = z.object({
+  quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+  reason: z.string().min(1, "Reason is required"),
+});
+
+export const releaseInventorySchema = z.object({
+  quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+  reason: z.string().min(1, "Reason is required"),
+});
+
 export type InventoryProductParams = z.infer<typeof inventoryProductParamsSchema>;
 export type CreateInventoryInput = z.infer<typeof createInventorySchema>;
 export type UpdateInventoryInput = z.infer<typeof updateInventorySchema>;
 export type BatchInventoryInput = z.infer<typeof batchInventorySchema>;
 export type AdjustInventoryInput = z.infer<typeof adjustInventorySchema>;
+export type ReserveInventoryInput = z.infer<typeof reserveInventorySchema>;
+export type ReleaseInventoryInput = z.infer<typeof releaseInventorySchema>;

@@ -8,6 +8,8 @@ COPY packages/shared/package.json ./packages/shared/package.json
 RUN npm install
 
 COPY apps/order-service/tsconfig.json ./apps/order-service/tsconfig.json
+COPY apps/order-service/prisma.config.ts ./apps/order-service/prisma.config.ts
+COPY apps/order-service/prisma ./apps/order-service/prisma
 COPY apps/order-service/src ./apps/order-service/src
 COPY packages/shared ./packages/shared
 

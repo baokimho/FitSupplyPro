@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { BadRequestError } from "@shared/utils";
+import { BadRequestError } from "../errors/httpErrors.js";
 
 export const getParam = <T extends Record<string, string>>(
   req: Request<T>,

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { getParam } from "../utils/getParam.js";
+import { getParam } from "@shared/utils";
 import type { BrandInput, UpdateBrandInput, BrandParams } from "../validations/brand.schema.js";
 import {
   createBrandService,

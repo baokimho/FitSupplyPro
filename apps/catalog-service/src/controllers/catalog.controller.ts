@@ -8,7 +8,7 @@ import {
   getCategoryByIdService,
   updateCategoryService,
 } from "../services/categories.service.js";
-import { getParam } from "../utils/getParam.js";
+import { getParam } from "@shared/utils";
 import type { CategoryInput, UpdateCategoryInput, CategoryParams } from "../validations/category.schema.js";
 
 

@@ -102,9 +102,10 @@ services:
     expose:
       - "3003"
     volumes:
-      - ./apps/order-service/src:/app/src
+      - ./apps/order-service/src:/app/apps/order-service/src
+      - ./apps/order-service/prisma:/app/apps/order-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: npm --prefix apps/order-service run dev
+    command: sh -c "npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && npm --prefix apps/order-service run dev"
     stdin_open: true
     tty: true
     depends_on:

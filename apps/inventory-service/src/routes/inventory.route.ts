@@ -5,6 +5,8 @@ import {
   batchInventorySchema,
   createInventorySchema,
   inventoryProductParamsSchema,
+  releaseInventorySchema,
+  reserveInventorySchema,
   updateInventorySchema,
 } from "../validations/inventory.schema.js";
 import {
@@ -12,6 +14,8 @@ import {
   createInventory,
   getInventoriesByProductIds,
   getInventoryByProductId,
+  releaseInventoryStock,
+  reserveInventoryStock,
   updateInventoryByProductId,
 } from "../controllers/inventory.controller.js";
 
@@ -46,6 +50,18 @@ router.post(
   validateRequest("params", inventoryProductParamsSchema),
   validateRequest("body", adjustInventorySchema),
   wrapAsync(adjustInventoryStock),
+);
+router.post(
+  "/products/:productId/reserve",
+  validateRequest("params", inventoryProductParamsSchema),
+  validateRequest("body", reserveInventorySchema),
+  wrapAsync(reserveInventoryStock),
+);
+router.post(
+  "/products/:productId/release",
+  validateRequest("params", inventoryProductParamsSchema),
+  validateRequest("body", releaseInventorySchema),
+  wrapAsync(releaseInventoryStock),
 );
 
 export default router;
