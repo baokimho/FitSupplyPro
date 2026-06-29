@@ -23,6 +23,15 @@ app.get("/health", (_req, res) => {
     status: "ok",
   });
 });
+app.use((req, _res, next) => {
+  console.info("[ORDER SERVICE]", {
+    method: req.method,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    hasUserIdHeader: Boolean(req.get("x-user-id")),
+  });
+  next();
+});
 app.use(attachOrderUser);
 app.use(orderRoutes);
 

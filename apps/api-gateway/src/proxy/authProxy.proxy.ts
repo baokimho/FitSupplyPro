@@ -11,9 +11,6 @@ export const authProxy = createProxyMiddleware<Request, Response>({
   changeOrigin: true,
   timeout: proxyTimeoutMs,
   proxyTimeout: proxyTimeoutMs,
-  pathRewrite: {
-    "^/auth": "",
-  },
   on: {
     proxyReq: attachUserHeaders,
     error: (_err, _req, res) => {

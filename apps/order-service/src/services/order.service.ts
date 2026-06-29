@@ -89,6 +89,13 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
 
   if (!response.ok) {
+    console.error("Order service downstream request failed", {
+      url,
+      method: init?.method ?? "GET",
+      status: response.status,
+      response: data,
+    });
+
     if (response.status >= 500) {
       throw new ServiceUnavailableError("Downstream service unavailable", {
         url,
@@ -226,6 +233,13 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
 
   const productIds = [...aggregatedItems.keys()];
 
+  console.info("Creating order", {
+    userId,
+    productIds,
+    catalogServiceUrl,
+    inventoryServiceUrl,
+  });
+
   const products = await Promise.all(
     productIds.map(async (productId) => {
       try {
@@ -282,27 +296,28 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
       reservedItems.push({ productId, quantity });
     }
 
-    let totalAmount = 0;
-    const itemsToCreate = body.items.map((item) => {
-      const product = productMap.get(item.productId);
+  let totalAmount = 0;
 
-      if (!product) {
-        throw new NotFoundError("Product not found", { productId: item.productId });
-      }
+  const itemsToCreate = [...aggregatedItems.entries()].map(([productId, quantity]) => {
+    const product = productMap.get(productId);
 
-      const unitPrice = Number(product.price);
-      const subtotal = unitPrice * item.quantity;
-      totalAmount += subtotal;
+    if (!product) {
+      throw new NotFoundError("Product not found", { productId });
+    }
 
-      return {
-        productId: item.productId,
-        productName: product.name,
-        productSlug: product.slug,
-        quantity: item.quantity,
-        unitPrice: toDecimal(unitPrice),
-        subtotal: toDecimal(subtotal),
-      };
-    });
+    const unitPrice = Number(product.price);
+    const subtotal = unitPrice * quantity;
+    totalAmount += subtotal;
+
+    return {
+      productId,
+      productName: product.name,
+      productSlug: product.slug,
+      quantity,
+      unitPrice: toDecimal(unitPrice),
+      subtotal: toDecimal(subtotal),
+    };
+  });
 
     const order = await prisma.order.create({
       data: {
@@ -367,25 +382,46 @@ const updateOrderStatus = async (id: string, userId: string, status: OrderStatus
         releasedItems.push({ productId: item.productId, quantity: item.quantity });
       }
     } catch (error) {
+      const rollbackResults = await Promise.allSettled(
+        releasedItems.map((item) => reserveStock(item.productId, item.quantity)),
+      );
+
+      console.error("Rollback after releaseStock failure", {
+        orderId: id,
+        releasedItems,
+        rollbackResults,
+        originalError: error,
+      });
+
       throw error;
     }
 
+    let updated;
+
     try {
-      const updated = await prisma.order.update({
+      updated = await prisma.order.update({
         where: { id },
         data: { status },
         include: {
           items: true,
         },
       });
-
-      return toOrderResponse(updated);
     } catch (error) {
-      await Promise.allSettled(
+      const rollbackResults = await Promise.allSettled(
         releasedItems.map((item) => reserveStock(item.productId, item.quantity)),
       );
+
+      console.error("Rollback after order update failure", {
+        orderId: id,
+        releasedItems,
+        rollbackResults,
+        originalError: error,
+      });
+
       throw error;
     }
+
+    return toOrderResponse(updated);
   }
 
   if (status === "CONFIRMED") {

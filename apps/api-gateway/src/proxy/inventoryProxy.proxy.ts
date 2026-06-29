@@ -11,9 +11,6 @@ export const inventoryProxy = createProxyMiddleware<Request, Response>({
   changeOrigin: true,
   timeout: proxyTimeoutMs,
   proxyTimeout: proxyTimeoutMs,
-  pathRewrite: {
-    "^/inventory": "",
-  },
   on: {
     proxyReq: attachUserHeaders,
     error: (_err, _req, res) => {

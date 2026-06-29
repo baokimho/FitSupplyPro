@@ -19,7 +19,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./apps/api-gateway/src:/app/src
+      - ./apps/api-gateway/src:/app/apps/api-gateway/src
       - ./packages/shared:/app/packages/shared
     command: npm --prefix apps/api-gateway run dev
     stdin_open: true

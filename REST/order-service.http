@@ -1,0 +1,214 @@
+@gatewayBaseUrl = http://localhost:3000
+@orderBaseUrl = http://localhost:3003
+@contentType = application/json
+@internalSecret = FitSupply_Internal_Secret_2026
+@testSuffix = ordere2e01
+@directUserId = rest-client-user
+@manualOrderId = replace-with-order-id
+
+### Login via gateway
+# @name login
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "customer123e@example.com",
+  "password": "Password123!"
+}
+
+###
+
+@accessToken = {{login.response.body.accessToken}}
+
+### Gateway health
+GET {{gatewayBaseUrl}}/health
+
+### Order service health via gateway
+GET {{gatewayBaseUrl}}/order/health
+Authorization: Bearer {{accessToken}}
+
+### Create category for order flow
+# @name createCategory
+POST {{gatewayBaseUrl}}/catalog/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Order E2E Category {{testSuffix}}",
+  "slug": "order-e2e-category-{{testSuffix}}",
+  "description": "Category used by order REST flow"
+}
+
+###
+
+@categoryId = {{createCategory.response.body.data.id}}
+
+### Create brand for order flow
+# @name createBrand
+POST {{gatewayBaseUrl}}/catalog/brands
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Order E2E Brand {{testSuffix}}",
+  "slug": "order-e2e-brand-{{testSuffix}}",
+  "description": "Brand used by order REST flow",
+  "logoUrl": "https://picsum.photos/seed/order-e2e-brand-{{testSuffix}}/256/256"
+}
+
+###
+
+@brandId = {{createBrand.response.body.data.id}}
+
+### Create published product for order flow
+# @name createProduct
+POST {{gatewayBaseUrl}}/catalog/products
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Order E2E Product {{testSuffix}}",
+  "slug": "order-e2e-product-{{testSuffix}}",
+  "description": "Product used by order REST flow",
+  "sku": "ORDER-E2E-{{testSuffix}}",
+  "price": 49.9,
+  "images": [
+    "https://picsum.photos/seed/order-e2e-product-{{testSuffix}}/800/800"
+  ],
+  "isPublished": true,
+  "categoryId": "{{categoryId}}",
+  "brandId": "{{brandId}}"
+}
+
+###
+
+@productId = {{createProduct.response.body.data.id}}
+
+### Create inventory for the product
+# @name createInventory
+POST {{gatewayBaseUrl}}/inventory
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productId}}",
+  "stock": 25,
+  "lowStockThreshold": 5
+}
+
+### Verify product by id
+GET {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Verify inventory by product id
+GET {{gatewayBaseUrl}}/inventory/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Create order via gateway
+# @name createOrder
+POST {{gatewayBaseUrl}}/order/orders
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 2
+    }
+  ]
+}
+
+###
+
+@createdOrderId = {{createOrder.response.body.id}}
+
+### Get my orders via gateway
+GET {{gatewayBaseUrl}}/order/orders/me
+Authorization: Bearer {{accessToken}}
+
+### Get created order by id via gateway
+GET {{gatewayBaseUrl}}/order/orders/{{createdOrderId}}
+Authorization: Bearer {{accessToken}}
+
+### Confirm created order via gateway
+PATCH {{gatewayBaseUrl}}/order/orders/{{createdOrderId}}/confirm
+Authorization: Bearer {{accessToken}}
+
+### Create another order for cancel flow
+# @name createOrderToCancel
+POST {{gatewayBaseUrl}}/order/orders
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 1
+    }
+  ]
+}
+
+###
+
+@cancelOrderId = {{createOrderToCancel.response.body.id}}
+
+### Cancel the second order via gateway
+PATCH {{gatewayBaseUrl}}/order/orders/{{cancelOrderId}}/cancel
+Authorization: Bearer {{accessToken}}
+
+### Check inventory after order operations
+GET {{gatewayBaseUrl}}/inventory/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Direct health check to order-service
+GET {{orderBaseUrl}}/health
+x-internal-secret: {{internalSecret}}
+
+### Direct create order to order-service
+POST {{orderBaseUrl}}/orders
+Content-Type: {{contentType}}
+x-internal-secret: {{internalSecret}}
+x-user-id: {{directUserId}}
+
+{
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 1
+    }
+  ]
+}
+
+### Direct get my orders from order-service
+GET {{orderBaseUrl}}/orders/me
+x-internal-secret: {{internalSecret}}
+x-user-id: {{directUserId}}
+
+### Direct get order by id from order-service
+GET {{orderBaseUrl}}/orders/{{manualOrderId}}
+x-internal-secret: {{internalSecret}}
+x-user-id: {{directUserId}}
+
+### Direct confirm order on order-service
+PATCH {{orderBaseUrl}}/orders/{{manualOrderId}}/confirm
+x-internal-secret: {{internalSecret}}
+x-user-id: {{directUserId}}
+
+### Direct cancel order on order-service
+PATCH {{orderBaseUrl}}/orders/{{manualOrderId}}/cancel
+x-internal-secret: {{internalSecret}}
+x-user-id: {{directUserId}}
+
+### Cleanup product
+DELETE {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Cleanup brand
+DELETE {{gatewayBaseUrl}}/catalog/brands/{{brandId}}
+Authorization: Bearer {{accessToken}}
+
+### Cleanup category
+DELETE {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}

@@ -11,11 +11,17 @@ export const orderProxy = createProxyMiddleware<Request, Response>({
   changeOrigin: true,
   timeout: proxyTimeoutMs,
   proxyTimeout: proxyTimeoutMs,
-  pathRewrite: {
-    "^/order": "",
-  },
   on: {
-    proxyReq: attachUserHeaders,
+    proxyReq: (proxyReq, req) => {
+      console.info("Order proxy forwarding request", {
+        method: req.method,
+        originalUrl: req.originalUrl,
+        proxiedPath: req.url,
+        targetUrl: `${orderUrl}${req.url}`,
+      });
+
+      attachUserHeaders(proxyReq, req);
+    },
     error: (_err, _req, res) => {
       const response = res as Response;
 
