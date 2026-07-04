@@ -4,11 +4,12 @@ import { getParam } from "@shared/utils";
 import {
   cancelOrderService,
   confirmOrderService,
+  checkoutOrderService,
   createOrderService,
   getMyOrdersService,
   getOrderByIdService,
 } from "../services/order.service.js";
-import type { CreateOrderInput, OrderParamsInput } from "../validations/order.schema.js";
+import type { CheckoutInput, CreateOrderInput, OrderParamsInput } from "../validations/order.schema.js";
 
 const getUserId = (req: Request) => {
   const userId = req.orderUser?.id;
@@ -22,6 +23,11 @@ const getUserId = (req: Request) => {
 
 export const createOrder = async (req: Request<{}, {}, CreateOrderInput>, res: Response) => {
   const order = await createOrderService(getUserId(req), req.body);
+  res.status(StatusCodes.CREATED).json(order);
+};
+
+export const checkoutOrder = async (req: Request<{}, {}, CheckoutInput>, res: Response) => {
+  const order = await checkoutOrderService(getUserId(req), req.body);
   res.status(StatusCodes.CREATED).json(order);
 };
 

@@ -15,5 +15,12 @@ export const createOrderSchema = z.object({
     .min(1, "Items must not be empty"),
 });
 
+export const checkoutSchema = z.object({
+  cartItemIds: z
+    .array(z.string().min(1, "Cart item id is required"))
+    .min(1, "Cart item ids must not be empty"),
+});
+
 export type OrderParamsInput = z.infer<typeof orderParamsSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CheckoutInput = z.infer<typeof checkoutSchema>;

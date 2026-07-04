@@ -7,7 +7,7 @@ import {
 import { Prisma } from "../generated/prisma/index.js";
 import type { OrderStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
-import type { CreateOrderInput } from "../validations/order.schema.js";
+import type { CheckoutInput, CreateOrderInput } from "../validations/order.schema.js";
 
 type CatalogProduct = {
   id: string;
@@ -33,6 +33,18 @@ type InventoryBatchResponse = {
   items: InventoryItem[];
 };
 
+type CartItem = {
+  id: string;
+  productId: string;
+  quantity: number;
+};
+
+type CartResponse = {
+  id: string | null;
+  userId: string;
+  items: CartItem[];
+};
+
 type OrderWithItems = Prisma.OrderGetPayload<{
   include: {
     items: true;
@@ -41,6 +53,8 @@ type OrderWithItems = Prisma.OrderGetPayload<{
 
 const catalogServiceUrl = process.env.CATALOG_SERVICE_URL || "http://catalog-service:3002";
 const inventoryServiceUrl = process.env.INVENTORY_SERVICE_URL || "http://inventory-service:3004";
+const cartServiceUrl = process.env.CART_SERVICE_URL || "http://cart-service:3005";
+const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:3008";
 const internalSecret = process.env.GATEWAY_SECRET || "";
 
 const jsonHeaders = {
@@ -203,6 +217,64 @@ const releaseStock = async (productId: string, quantity: number, reason: string)
   }
 };
 
+const getUserCart = async (userId: string) => {
+  try {
+    return await fetchJson<CartResponse>(`${cartServiceUrl}/internal/cart`, {
+      headers: {
+        ...jsonHeaders,
+        "x-user-id": userId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ServiceUnavailableError) {
+      throw new ServiceUnavailableError("Cart service unavailable", error.details);
+    }
+
+    throw error;
+  }
+};
+
+const removeCheckedOutCartItems = async (userId: string, cartItemIds: string[]) => {
+  try {
+    await fetchJson(`${cartServiceUrl}/internal/cart/items`, {
+      method: "DELETE",
+      headers: {
+        ...jsonHeaders,
+        "x-user-id": userId,
+      },
+      body: JSON.stringify({ cartItemIds }),
+    });
+  } catch (error) {
+    if (error instanceof ServiceUnavailableError) {
+      throw new ServiceUnavailableError("Cart service unavailable", error.details);
+    }
+
+    throw error;
+  }
+};
+
+const createNotification = async (
+  userId: string,
+  body: { type: "ORDER_CREATED" | "ORDER_CANCELLED"; title: string; message: string },
+) => {
+  try {
+    await fetchJson(`${notificationServiceUrl}/internal/notifications`, {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        userId,
+        ...body,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to create order notification", {
+      userId,
+      type: body.type,
+      error,
+    });
+  }
+};
+
 const getOrderByIdOrThrow = async (id: string) => {
   const order = await prisma.order.findUnique({
     where: { id },
@@ -332,6 +404,12 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
       },
     });
 
+    await createNotification(userId, {
+      type: "ORDER_CREATED",
+      title: "Order created",
+      message: `Order ${order.id} has been created.`,
+    });
+
     return toOrderResponse(order);
   } catch (error) {
     await Promise.allSettled(
@@ -339,6 +417,40 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
     );
     throw error;
   }
+};
+
+export const checkoutOrderService = async (userId: string, body: CheckoutInput) => {
+  const requestedIds = [...new Set(body.cartItemIds)];
+  const cart = await getUserCart(userId);
+
+  if (!cart.id || cart.items.length === 0) {
+    throw new NotFoundError("Cart not found");
+  }
+
+  const cartItemMap = new Map(cart.items.map((item) => [item.id, item]));
+  const missingIds = requestedIds.filter((itemId) => !cartItemMap.has(itemId));
+
+  if (missingIds.length > 0) {
+    throw new NotFoundError("Cart item not found", { cartItemIds: missingIds });
+  }
+
+  const items = requestedIds.map((itemId) => {
+    const item = cartItemMap.get(itemId);
+
+    if (!item) {
+      throw new NotFoundError("Cart item not found", { cartItemId: itemId });
+    }
+
+    return {
+      productId: item.productId,
+      quantity: item.quantity,
+    };
+  });
+
+  const order = await createOrderService(userId, { items });
+  await removeCheckedOutCartItems(userId, requestedIds);
+
+  return order;
 };
 
 export const getMyOrdersService = async (userId: string) => {
@@ -405,6 +517,12 @@ const updateOrderStatus = async (id: string, userId: string, status: OrderStatus
         include: {
           items: true,
         },
+      });
+
+      await createNotification(userId, {
+        type: "ORDER_CANCELLED",
+        title: "Order cancelled",
+        message: `Order ${id} has been cancelled.`,
       });
     } catch (error) {
       const rollbackResults = await Promise.allSettled(
