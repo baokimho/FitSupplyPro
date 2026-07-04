@@ -43,3 +43,6 @@ export const catalogLimiter = createLimiter(60_000, 300, authenticatedUserKeyGen
 export const inventoryLimiter = createLimiter(60_000, 300, authenticatedUserKeyGenerator);
 export const cartLimiter = createLimiter(60_000, 100, authenticatedUserKeyGenerator);
 export const orderLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
+export const paymentLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
+export const shippingLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
+export const notificationLimiter = createLimiter(60_000, 100, authenticatedUserKeyGenerator);
