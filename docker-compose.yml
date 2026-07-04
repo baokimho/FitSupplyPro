@@ -30,6 +30,9 @@ services:
       - inventory-service
       - order-service
       - cart-service
+      - payment-service
+      - shipping-service
+      - notification-service
       - shared-watcher
 
   auth-service:
@@ -151,6 +154,72 @@ services:
       - ./apps/cart-service/prisma:/app/apps/cart-service/prisma
       - ./packages/shared:/app/packages/shared
     command: sh -c "npx prisma migrate deploy --config apps/cart-service/prisma.config.ts --schema apps/cart-service/prisma/schema.prisma && npm --prefix apps/cart-service run dev"
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      shared-watcher:
+        condition: service_started
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: ./apps/payment-service/Dockerfile
+    container_name: payment-service
+    env_file:
+      - ./apps/payment-service/.env
+    expose:
+      - "3006"
+    volumes:
+      - ./apps/payment-service/src:/app/apps/payment-service/src
+      - ./apps/payment-service/prisma:/app/apps/payment-service/prisma
+      - ./packages/shared:/app/packages/shared
+    command: sh -c "npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && npm --prefix apps/payment-service run dev"
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      shared-watcher:
+        condition: service_started
+
+  shipping-service:
+    build:
+      context: .
+      dockerfile: ./apps/shipping-service/Dockerfile
+    container_name: shipping-service
+    env_file:
+      - ./apps/shipping-service/.env
+    expose:
+      - "3007"
+    volumes:
+      - ./apps/shipping-service/src:/app/apps/shipping-service/src
+      - ./apps/shipping-service/prisma:/app/apps/shipping-service/prisma
+      - ./packages/shared:/app/packages/shared
+    command: sh -c "npx prisma migrate deploy --config apps/shipping-service/prisma.config.ts --schema apps/shipping-service/prisma/schema.prisma && npm --prefix apps/shipping-service run dev"
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      shared-watcher:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./apps/notification-service/Dockerfile
+    container_name: notification-service
+    env_file:
+      - ./apps/notification-service/.env
+    expose:
+      - "3008"
+    volumes:
+      - ./apps/notification-service/src:/app/apps/notification-service/src
+      - ./apps/notification-service/prisma:/app/apps/notification-service/prisma
+      - ./packages/shared:/app/packages/shared
+    command: sh -c "npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npm --prefix apps/notification-service run dev"
     stdin_open: true
     tty: true
     depends_on:
