@@ -1,0 +1,83 @@
+@baseUrl = http://localhost:3000
+@email = customer@example.com
+@password = Password123!
+@token =
+@productId =
+@cartItemId =
+@orderId =
+@paymentId =
+@shipmentId =
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Add cart item
+POST {{baseUrl}}/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": "{{productId}}",
+  "quantity": 2
+}
+
+### Get cart
+GET {{baseUrl}}/cart
+Authorization: Bearer {{token}}
+
+### Checkout selected cart items
+POST {{baseUrl}}/order/orders/checkout
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cartItemIds": ["{{cartItemId}}"]
+}
+
+### Create mock payment
+POST {{baseUrl}}/payment/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}"
+}
+
+### Confirm payment
+PATCH {{baseUrl}}/payment/payments/{{paymentId}}/confirm
+Authorization: Bearer {{token}}
+
+### Create shipment
+POST {{baseUrl}}/shipping/shipments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "recipientName": "Customer Name",
+  "phone": "+358401234567",
+  "addressLine1": "Example Street 1",
+  "city": "Helsinki",
+  "postalCode": "00100",
+  "country": "FI"
+}
+
+### Update shipment status
+PATCH {{baseUrl}}/shipping/shipments/{{shipmentId}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "SHIPPED",
+  "trackingNumber": "MOCK-TRACK-001"
+}
+
+### List notifications
+GET {{baseUrl}}/notification/notifications/me
+Authorization: Bearer {{token}}
