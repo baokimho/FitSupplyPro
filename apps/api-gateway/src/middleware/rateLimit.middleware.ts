@@ -41,4 +41,5 @@ export const authLimiter = createLimiter(60_000, 5, clientIpKeyGenerator);
 export const refreshTokenLimiter = createLimiter(60_000, 30, clientIpKeyGenerator);
 export const catalogLimiter = createLimiter(60_000, 300, authenticatedUserKeyGenerator);
 export const inventoryLimiter = createLimiter(60_000, 300, authenticatedUserKeyGenerator);
+export const cartLimiter = createLimiter(60_000, 100, authenticatedUserKeyGenerator);
 export const orderLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);

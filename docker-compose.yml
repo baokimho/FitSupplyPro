@@ -29,6 +29,7 @@ services:
       - catalog-service
       - inventory-service
       - order-service
+      - cart-service
       - shared-watcher
 
   auth-service:
@@ -128,6 +129,28 @@ services:
       - ./apps/inventory-service/prisma:/app/apps/inventory-service/prisma
       - ./packages/shared:/app/packages/shared
     command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run seed && npm --prefix apps/inventory-service run dev"
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      shared-watcher:
+        condition: service_started
+
+  cart-service:
+    build:
+      context: .
+      dockerfile: ./apps/cart-service/Dockerfile
+    container_name: cart-service
+    env_file:
+      - ./apps/cart-service/.env
+    expose:
+      - "3005"
+    volumes:
+      - ./apps/cart-service/src:/app/apps/cart-service/src
+      - ./apps/cart-service/prisma:/app/apps/cart-service/prisma
+      - ./packages/shared:/app/packages/shared
+    command: sh -c "npx prisma migrate deploy --config apps/cart-service/prisma.config.ts --schema apps/cart-service/prisma/schema.prisma && npm --prefix apps/cart-service run dev"
     stdin_open: true
     tty: true
     depends_on:

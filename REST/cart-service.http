@@ -1,0 +1,30 @@
+### Get cart
+GET http://localhost:3000/cart
+Authorization: Bearer {{accessToken}}
+
+### Add item
+POST http://localhost:3000/cart/items
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productId}}",
+  "quantity": 2
+}
+
+### Update item quantity
+PATCH http://localhost:3000/cart/items/{{cartItemId}}
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 3
+}
+
+### Delete item
+DELETE http://localhost:3000/cart/items/{{cartItemId}}
+Authorization: Bearer {{accessToken}}
+
+### Clear cart
+DELETE http://localhost:3000/cart
+Authorization: Bearer {{accessToken}}

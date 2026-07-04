@@ -2,11 +2,13 @@ import { Router } from "express";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import {
   authLimiter,
+  cartLimiter,
   catalogLimiter,
   inventoryLimiter,
   orderLimiter,
   refreshTokenLimiter,
 } from "./middleware/rateLimit.middleware.js";
+import { cartProxy } from "./proxy/cartProxy.proxy.js";
 import { authProxy } from "./proxy/authProxy.proxy.js";
 import { catalogProxy } from "./proxy/catalogProxy.proxy.js";
 import { inventoryProxy } from "./proxy/inventoryProxy.proxy.js";
@@ -31,6 +33,7 @@ router.use("/auth/me", authMiddleware);
 router.use("/auth", authProxy);
 router.use("/catalog", authMiddleware, catalogLimiter, catalogProxy);
 router.use("/inventory", authMiddleware, inventoryLimiter, inventoryProxy);
+router.use("/cart", authMiddleware, cartLimiter, cartProxy);
 router.use("/order", authMiddleware, orderLimiter, orderProxy);
 
 router.use(errorHandler);
