@@ -6,11 +6,13 @@ import {
   clearCartService,
   deleteCartItemService,
   getUserCartOrEmpty,
+  removeCartItemsService,
   updateCartItemService,
 } from "../services/cart.service.js";
 import type {
   AddCartItemInput,
   CartItemParamsInput,
+  RemoveCartItemsInput,
   UpdateCartItemInput,
 } from "../validations/cart.schema.js";
 
@@ -49,5 +51,18 @@ export const deleteCartItem = async (req: Request<CartItemParamsInput>, res: Res
 
 export const clearCart = async (req: Request, res: Response) => {
   const cart = await clearCartService(getUserId(req));
+  res.status(StatusCodes.OK).json(cart);
+};
+
+export const getInternalCart = async (req: Request, res: Response) => {
+  const cart = await getUserCartOrEmpty(getUserId(req));
+  res.status(StatusCodes.OK).json(cart);
+};
+
+export const removeInternalCartItems = async (
+  req: Request<{}, {}, RemoveCartItemsInput>,
+  res: Response,
+) => {
+  const cart = await removeCartItemsService(getUserId(req), req.body);
   res.status(StatusCodes.OK).json(cart);
 };

@@ -1,7 +1,11 @@
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from "@shared/utils";
 import { Prisma } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
-import type { AddCartItemInput, UpdateCartItemInput } from "../validations/cart.schema.js";
+import type {
+  AddCartItemInput,
+  RemoveCartItemsInput,
+  UpdateCartItemInput,
+} from "../validations/cart.schema.js";
 
 type CatalogProduct = {
   id: string;
@@ -306,4 +310,34 @@ export const clearCartService = async (userId: string) => {
     } as CartWithItems,
     userId,
   );
+};
+
+export const removeCartItemsService = async (userId: string, body: RemoveCartItemsInput) => {
+  const cart = await prisma.cart.findUnique({
+    where: { userId },
+    include: { items: true },
+  });
+
+  if (!cart) {
+    throw new NotFoundError("Cart not found");
+  }
+
+  const requestedIds = new Set(body.cartItemIds);
+  const cartItemIds = new Set(cart.items.map((item) => item.id));
+  const invalidIds = [...requestedIds].filter((itemId) => !cartItemIds.has(itemId));
+
+  if (invalidIds.length > 0) {
+    throw new NotFoundError("Cart item not found", { cartItemIds: invalidIds });
+  }
+
+  await prisma.cartItem.deleteMany({
+    where: {
+      cartId: cart.id,
+      id: {
+        in: [...requestedIds],
+      },
+    },
+  });
+
+  return getUserCartOrEmpty(userId);
 };
