@@ -19,7 +19,9 @@
     "src/middleware/error.handler.ts",
     "src/middleware/internalGateway.middleware.ts",
     "src/http/getParam.ts",
-    "src/testing/integration.ts"
+    "src/testing/integration.ts",
+    "src/testing/factories.ts",
+    "src/testing/cleanup.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

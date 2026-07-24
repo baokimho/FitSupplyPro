@@ -14,8 +14,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests --exclude src/testing/integration.infrastructure.integration.test.ts",
-    "test:integration": "vitest run src/testing/integration.infrastructure.integration.test.ts",
+    "test:unit": "vitest run --passWithNoTests --exclude src/testing",
+    "test:integration": "vitest run src/testing",
     "test:e2e": "vitest run --passWithNoTests",
     "watch": "tsc --watch"
   },
