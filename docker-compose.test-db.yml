@@ -1,0 +1,26 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: fitsupply-postgres-test
+    environment:
+      POSTGRES_DB: fitsupply_test
+      POSTGRES_USER: fitsupply_test
+      POSTGRES_PASSWORD: fitsupply_test
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "for db in auth_test_db catalog_test_db inventory_test_db order_test_db cart_test_db payment_test_db shipping_test_db notification_test_db; do psql -U fitsupply_test -d \"$$db\" -tAc 'SELECT 1' >/dev/null || exit 1; done",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./docker/postgres-test/init-test-dbs.sql:/docker-entrypoint-initdb.d/init-test-dbs.sql:ro
+    ports:
+      - "55433:5432"
+
+volumes:
+  postgres_test_data:

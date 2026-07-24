@@ -13,6 +13,9 @@
     "test:unit": "npm run test:unit --workspaces --if-present",
     "test:integration": "npm run test:integration --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspaces --if-present",
+    "test:db:up": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml up -d --wait --wait-timeout 60",
+    "test:db:reset": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans && npm run test:db:up",
+    "test:db:down": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans",
     "build": "npm run build --workspace @shared/utils && npm run build --workspaces --if-present"
   },
   "dependencies": {
