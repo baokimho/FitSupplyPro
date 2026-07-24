@@ -1,0 +1,263 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: fitsupply-stack-postgres-test
+    environment:
+      POSTGRES_DB: fitsupply_test
+      POSTGRES_USER: fitsupply_test
+      POSTGRES_PASSWORD: fitsupply_test
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "for db in auth_test_db catalog_test_db inventory_test_db order_test_db cart_test_db payment_test_db shipping_test_db notification_test_db; do psql -U fitsupply_test -d \"$$db\" -tAc 'SELECT 1' >/dev/null || exit 1; done",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_stack_test_data:/var/lib/postgresql/data
+      - ./docker/postgres-test/init-test-dbs.sql:/docker-entrypoint-initdb.d/init-test-dbs.sql:ro
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./apps/api-gateway/Dockerfile
+    container_name: fitsupply-stack-api-gateway-test
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+      INVENTORY_SERVICE_URL: http://inventory-service:3004
+      ORDER_SERVICE_URL: http://order-service:3003
+      CART_SERVICE_URL: http://cart-service:3005
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      SHIPPING_SERVICE_URL: http://shipping-service:3007
+      NOTIFICATION_SERVICE_URL: http://notification-service:3008
+    ports:
+      - "3500:3000"
+    command: sh -c "npm --prefix packages/shared run build && npm --prefix apps/api-gateway run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      shipping-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./apps/auth-service/Dockerfile
+    container_name: fitsupply-stack-auth-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3001
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/auth_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && npm --prefix apps/auth-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: ./apps/catalog-service/Dockerfile
+    container_name: fitsupply-stack-catalog-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3002
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/catalog_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3002/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: ./apps/inventory-service/Dockerfile
+    container_name: fitsupply-stack-inventory-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3004
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/inventory_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3004/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      dockerfile: ./apps/order-service/Dockerfile
+    container_name: fitsupply-stack-order-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3003
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/order_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+      INVENTORY_SERVICE_URL: http://inventory-service:3004
+      CART_SERVICE_URL: http://cart-service:3005
+      NOTIFICATION_SERVICE_URL: http://notification-service:3008
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && npm --prefix apps/order-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3003/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
+  cart-service:
+    build:
+      context: .
+      dockerfile: ./apps/cart-service/Dockerfile
+    container_name: fitsupply-stack-cart-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3005
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/cart_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/cart-service/prisma.config.ts --schema apps/cart-service/prisma/schema.prisma && npm --prefix apps/cart-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3005/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: ./apps/payment-service/Dockerfile
+    container_name: fitsupply-stack-payment-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3006
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/payment_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+      ORDER_SERVICE_URL: http://order-service:3003
+      NOTIFICATION_SERVICE_URL: http://notification-service:3008
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && npm --prefix apps/payment-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3006/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
+  shipping-service:
+    build:
+      context: .
+      dockerfile: ./apps/shipping-service/Dockerfile
+    container_name: fitsupply-stack-shipping-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3007
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/shipping_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+      ORDER_SERVICE_URL: http://order-service:3003
+      NOTIFICATION_SERVICE_URL: http://notification-service:3008
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/shipping-service/prisma.config.ts --schema apps/shipping-service/prisma/schema.prisma && npm --prefix apps/shipping-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3007/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./apps/notification-service/Dockerfile
+    container_name: fitsupply-stack-notification-service-test
+    environment:
+      NODE_ENV: test
+      PORT: 3008
+      DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/notification_test_db
+      GATEWAY_SECRET: fitsupply_test_internal_secret
+    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npm --prefix apps/notification-service run dev"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3008/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+volumes:
+  postgres_stack_test_data:

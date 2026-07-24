@@ -16,6 +16,9 @@
     "test:db:up": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml up -d --wait --wait-timeout 60",
     "test:db:reset": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans && npm run test:db:up",
     "test:db:down": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans",
+    "test:stack:config": "docker compose -p fitsupply-test -f docker-compose.test.yml config",
+    "test:stack:up": "docker compose -p fitsupply-test -f docker-compose.test.yml up -d --build --wait --wait-timeout 120",
+    "test:stack:down": "docker compose -p fitsupply-test -f docker-compose.test.yml down -v --remove-orphans",
     "build": "npm run build --workspace @shared/utils && npm run build --workspaces --if-present"
   },
   "dependencies": {
