@@ -1,0 +1,53 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@orderId = order-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Create payment
+# @name createPayment
+POST {{gatewayBaseUrl}}/payment/payments
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "orderId": "{{orderId}}"
+}
+
+###
+
+@paymentId = {{createPayment.response.body.id}}
+
+### My payments
+GET {{gatewayBaseUrl}}/payment/payments/me
+Authorization: Bearer {{accessToken}}
+
+### Get payment by id
+GET {{gatewayBaseUrl}}/payment/payments/{{paymentId}}
+Authorization: Bearer {{accessToken}}
+
+### Confirm payment
+PATCH {{gatewayBaseUrl}}/payment/payments/{{paymentId}}/confirm
+Authorization: Bearer {{accessToken}}
+
+### Fail payment
+PATCH {{gatewayBaseUrl}}/payment/payments/{{paymentId}}/fail
+Authorization: Bearer {{accessToken}}
+
+### Refund payment
+PATCH {{gatewayBaseUrl}}/payment/payments/{{paymentId}}/refund
+Authorization: Bearer {{accessToken}}

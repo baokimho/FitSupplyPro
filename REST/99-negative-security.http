@@ -1,0 +1,21 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+
+### Missing token checks
+GET {{gatewayBaseUrl}}/catalog/products
+GET {{gatewayBaseUrl}}/inventory/products/dummy-product-id
+GET {{gatewayBaseUrl}}/cart
+GET {{gatewayBaseUrl}}/order/orders/me
+GET {{gatewayBaseUrl}}/payment/payments/me
+GET {{gatewayBaseUrl}}/shipping/shipments/me
+GET {{gatewayBaseUrl}}/notification/notifications/me
+
+### Internal path exposure checks
+GET {{gatewayBaseUrl}}/cart/internal/cart
+POST {{gatewayBaseUrl}}/notification/internal/notifications
+Content-Type: {{contentType}}
+
+{
+  "type": "ORDER_CREATED",
+  "message": "Security probe"
+}

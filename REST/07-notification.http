@@ -1,0 +1,31 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@notificationId = notification-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### My notifications
+GET {{gatewayBaseUrl}}/notification/notifications/me
+Authorization: Bearer {{accessToken}}
+
+### Mark one read
+PATCH {{gatewayBaseUrl}}/notification/notifications/{{notificationId}}/read
+Authorization: Bearer {{accessToken}}
+
+### Mark all read
+PATCH {{gatewayBaseUrl}}/notification/notifications/read-all
+Authorization: Bearer {{accessToken}}

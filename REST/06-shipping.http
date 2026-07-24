@@ -1,0 +1,76 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@orderId = order-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Create shipment
+# @name createShipment
+POST {{gatewayBaseUrl}}/shipping/shipments
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "orderId": "{{orderId}}",
+  "recipientName": "REST Client User",
+  "phone": "+358401234567",
+  "addressLine1": "Example Street 1",
+  "addressLine2": "Apt 2",
+  "city": "Helsinki",
+  "postalCode": "00100",
+  "country": "FI"
+}
+
+###
+
+@shipmentId = {{createShipment.response.body.id}}
+
+### My shipments
+GET {{gatewayBaseUrl}}/shipping/shipments/me
+Authorization: Bearer {{accessToken}}
+
+### Get shipment by id
+GET {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}
+Authorization: Bearer {{accessToken}}
+
+### Update status processing
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "status": "PROCESSING"
+}
+
+### Update status shipped
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "status": "SHIPPED",
+  "trackingNumber": "MOCK-TRACK-001"
+}
+
+### Update status delivered
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "status": "DELIVERED"
+}

@@ -1,0 +1,66 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+
+### Health
+GET {{gatewayBaseUrl}}/health
+
+### Register user
+# @name registerUser
+POST {{gatewayBaseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "REST Client User",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Login user
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+@refreshToken = {{loginUser.response.body.refreshToken}}
+
+### Me
+GET {{gatewayBaseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Refresh token
+POST {{gatewayBaseUrl}}/auth/refresh-token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Logout
+POST {{gatewayBaseUrl}}/auth/logout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### JWKS
+GET {{gatewayBaseUrl}}/auth/jwks
+
+### Negative auth checks
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "wrong-password"
+}

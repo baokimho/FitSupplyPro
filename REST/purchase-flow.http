@@ -1,83 +1,257 @@
-@baseUrl = http://localhost:3000
-@email = customer@example.com
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
 @password = Password123!
-@token =
-@productId =
-@cartItemId =
-@orderId =
-@paymentId =
-@shipmentId =
+@testSuffix = purchaseflow01
 
 ### Login
-POST {{baseUrl}}/auth/login
-Content-Type: application/json
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
 
 {
   "email": "{{email}}",
   "password": "{{password}}"
 }
 
-### Add cart item
-POST {{baseUrl}}/cart/items
-Authorization: Bearer {{token}}
-Content-Type: application/json
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Create category
+# @name createCategory
+POST {{gatewayBaseUrl}}/catalog/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "productId": "{{productId}}",
-  "quantity": 2
+  "name": "Purchase Category {{testSuffix}}",
+  "slug": "purchase-category-{{testSuffix}}",
+  "description": "Purchase flow category"
 }
+
+###
+
+@categoryId = {{createCategory.response.body.data.id}}
+
+### Create brand
+# @name createBrand
+POST {{gatewayBaseUrl}}/catalog/brands
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Purchase Brand {{testSuffix}}",
+  "slug": "purchase-brand-{{testSuffix}}",
+  "description": "Purchase flow brand",
+  "logoUrl": "https://picsum.photos/seed/purchase-brand-{{testSuffix}}/256/256"
+}
+
+###
+
+@brandId = {{createBrand.response.body.data.id}}
+
+### Create product A
+# @name createProductA
+POST {{gatewayBaseUrl}}/catalog/products
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Product A {{testSuffix}}",
+  "slug": "product-a-{{testSuffix}}",
+  "description": "Published product A",
+  "sku": "SKU-A-{{testSuffix}}",
+  "price": 49.9,
+  "images": ["https://picsum.photos/seed/product-a-{{testSuffix}}/800/800"],
+  "isPublished": true,
+  "categoryId": "{{categoryId}}",
+  "brandId": "{{brandId}}"
+}
+
+###
+
+@productAId = {{createProductA.response.body.data.id}}
+
+### Create product B
+# @name createProductB
+POST {{gatewayBaseUrl}}/catalog/products
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Product B {{testSuffix}}",
+  "slug": "product-b-{{testSuffix}}",
+  "description": "Published product B",
+  "sku": "SKU-B-{{testSuffix}}",
+  "price": 59.9,
+  "images": ["https://picsum.photos/seed/product-b-{{testSuffix}}/800/800"],
+  "isPublished": true,
+  "categoryId": "{{categoryId}}",
+  "brandId": "{{brandId}}"
+}
+
+###
+
+@productBId = {{createProductB.response.body.data.id}}
+
+### Create inventory A
+POST {{gatewayBaseUrl}}/inventory
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productAId}}",
+  "stock": 10,
+  "lowStockThreshold": 2
+}
+
+### Create inventory B
+POST {{gatewayBaseUrl}}/inventory
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productBId}}",
+  "stock": 10,
+  "lowStockThreshold": 2
+}
+
+### Add A to cart
+# @name addCartA
+POST {{gatewayBaseUrl}}/cart/items
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productAId}}",
+  "quantity": 1
+}
+
+###
+
+@cartItemAId = {{addCartA.response.body.data.id}}
+
+### Add B to cart
+# @name addCartB
+POST {{gatewayBaseUrl}}/cart/items
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productBId}}",
+  "quantity": 1
+}
+
+###
+
+@cartItemBId = {{addCartB.response.body.data.id}}
 
 ### Get cart
-GET {{baseUrl}}/cart
-Authorization: Bearer {{token}}
+GET {{gatewayBaseUrl}}/cart
+Authorization: Bearer {{accessToken}}
 
-### Checkout selected cart items
-POST {{baseUrl}}/order/orders/checkout
-Authorization: Bearer {{token}}
-Content-Type: application/json
+### Checkout selected item A
+# @name checkoutOrder
+POST {{gatewayBaseUrl}}/order/orders/checkout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "cartItemIds": ["{{cartItemId}}"]
+  "cartItemIds": ["{{cartItemAId}}"]
 }
 
-### Create mock payment
-POST {{baseUrl}}/payment/payments
-Authorization: Bearer {{token}}
-Content-Type: application/json
+###
+
+@orderId = {{checkoutOrder.response.body.id}}
+
+### Create payment for order
+# @name createPayment
+POST {{gatewayBaseUrl}}/payment/payments
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
   "orderId": "{{orderId}}"
 }
 
+###
+
+@paymentId = {{createPayment.response.body.id}}
+
 ### Confirm payment
-PATCH {{baseUrl}}/payment/payments/{{paymentId}}/confirm
-Authorization: Bearer {{token}}
+PATCH {{gatewayBaseUrl}}/payment/payments/{{paymentId}}/confirm
+Authorization: Bearer {{accessToken}}
 
 ### Create shipment
-POST {{baseUrl}}/shipping/shipments
-Authorization: Bearer {{token}}
-Content-Type: application/json
+# @name createShipment
+POST {{gatewayBaseUrl}}/shipping/shipments
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
   "orderId": "{{orderId}}",
-  "recipientName": "Customer Name",
+  "recipientName": "REST Client User",
   "phone": "+358401234567",
   "addressLine1": "Example Street 1",
+  "addressLine2": "Apt 2",
   "city": "Helsinki",
   "postalCode": "00100",
   "country": "FI"
 }
 
-### Update shipment status
-PATCH {{baseUrl}}/shipping/shipments/{{shipmentId}}/status
-Authorization: Bearer {{token}}
-Content-Type: application/json
+###
+
+@shipmentId = {{createShipment.response.body.id}}
+
+### Shipment processing
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "status": "PROCESSING"
+}
+
+### Shipment shipped
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
   "status": "SHIPPED",
   "trackingNumber": "MOCK-TRACK-001"
 }
 
-### List notifications
-GET {{baseUrl}}/notification/notifications/me
-Authorization: Bearer {{token}}
+### Shipment delivered
+PATCH {{gatewayBaseUrl}}/shipping/shipments/{{shipmentId}}/status
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "status": "DELIVERED"
+}
+
+### Notifications
+GET {{gatewayBaseUrl}}/notification/notifications/me
+Authorization: Bearer {{accessToken}}
+
+### Cleanup cart leftovers
+DELETE {{gatewayBaseUrl}}/cart
+Authorization: Bearer {{accessToken}}
+
+### Cleanup product A
+DELETE {{gatewayBaseUrl}}/catalog/products/{{productAId}}
+Authorization: Bearer {{accessToken}}
+
+### Cleanup product B
+DELETE {{gatewayBaseUrl}}/catalog/products/{{productBId}}
+Authorization: Bearer {{accessToken}}
+
+### Cleanup brand
+DELETE {{gatewayBaseUrl}}/catalog/brands/{{brandId}}
+Authorization: Bearer {{accessToken}}
+
+### Cleanup category
+DELETE {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}

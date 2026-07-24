@@ -1,0 +1,56 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@publishedProductId = catalog-product-id
+@cartItemId = cart-item-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Get cart
+GET {{gatewayBaseUrl}}/cart
+Authorization: Bearer {{accessToken}}
+
+### Add item
+# @name addCartItem
+POST {{gatewayBaseUrl}}/cart/items
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{publishedProductId}}",
+  "quantity": 2
+}
+
+###
+
+@cartItemId = {{addCartItem.response.body.data.id}}
+
+### Update item
+PATCH {{gatewayBaseUrl}}/cart/items/{{cartItemId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 3
+}
+
+### Delete item
+DELETE {{gatewayBaseUrl}}/cart/items/{{cartItemId}}
+Authorization: Bearer {{accessToken}}
+
+### Clear cart
+DELETE {{gatewayBaseUrl}}/cart
+Authorization: Bearer {{accessToken}}

@@ -1,0 +1,95 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@productId = inventory-product-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Health
+GET {{gatewayBaseUrl}}/inventory/health
+Authorization: Bearer {{accessToken}}
+
+### Create inventory
+POST {{gatewayBaseUrl}}/inventory
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productId": "{{productId}}",
+  "stock": 100,
+  "lowStockThreshold": 10
+}
+
+### Get inventory by productId
+GET {{gatewayBaseUrl}}/inventory/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Batch lookup one
+POST {{gatewayBaseUrl}}/inventory/products/batch
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "productIds": ["{{productId}}"]
+}
+
+### Patch stock
+PATCH {{gatewayBaseUrl}}/inventory/products/{{productId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "stock": 120
+}
+
+### Patch low stock threshold
+PATCH {{gatewayBaseUrl}}/inventory/products/{{productId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "lowStockThreshold": 15
+}
+
+### Adjust stock
+POST {{gatewayBaseUrl}}/inventory/products/{{productId}}/adjust
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 10,
+  "reason": "RESTOCK"
+}
+
+### Reserve stock
+POST {{gatewayBaseUrl}}/inventory/products/{{productId}}/reserve
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 1,
+  "reason": "ORDER_RESERVE"
+}
+
+### Release stock
+POST {{gatewayBaseUrl}}/inventory/products/{{productId}}/release
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "quantity": 1,
+  "reason": "ORDER_RELEASE"
+}

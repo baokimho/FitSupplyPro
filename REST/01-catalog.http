@@ -1,0 +1,148 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@testSuffix = catalogflow01-{{$timestamp}}
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Category health
+GET {{gatewayBaseUrl}}/catalog/health
+Authorization: Bearer {{accessToken}}
+
+### Create category
+# @name createCategoryRun
+POST {{gatewayBaseUrl}}/catalog/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Supplements {{testSuffix}}",
+  "slug": "supplements-{{testSuffix}}",
+  "description": "Category for catalog flow"
+}
+
+###
+
+@categoryId = {{createCategoryRun.response.body.$.data.id}}
+
+### Get all categories
+GET {{gatewayBaseUrl}}/catalog/categories
+Authorization: Bearer {{accessToken}}
+
+### Get category by id
+GET {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Authorization: Bearer {{accessToken}}
+
+### Update category description
+PUT {{gatewayBaseUrl}}/catalog/categories/{{categoryId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": "Updated category description"
+}
+
+### Create duplicate category slug
+POST {{gatewayBaseUrl}}/catalog/categories
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Supplements {{testSuffix}} duplicate",
+  "slug": "supplements-{{testSuffix}}",
+  "description": "Duplicate slug"
+}
+
+### Create brand
+# @name createBrand
+POST {{gatewayBaseUrl}}/catalog/brands
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Brand {{testSuffix}}",
+  "slug": "brand-{{testSuffix}}",
+  "description": "Brand for catalog flow",
+  "logoUrl": "https://picsum.photos/seed/brand-{{testSuffix}}/256/256"
+}
+
+###
+
+@brandId = {{createBrand.response.body.$.data.id}}
+
+### Get all brands
+GET {{gatewayBaseUrl}}/catalog/brands
+Authorization: Bearer {{accessToken}}
+
+### Get brand by id
+GET {{gatewayBaseUrl}}/catalog/brands/{{brandId}}
+Authorization: Bearer {{accessToken}}
+
+### Update brand
+PATCH {{gatewayBaseUrl}}/catalog/brands/{{brandId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "description": "Updated brand description"
+}
+
+### Create product
+# @name createProduct
+POST {{gatewayBaseUrl}}/catalog/products
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Product {{testSuffix}}",
+  "slug": "product-{{testSuffix}}",
+  "description": "Product for catalog flow",
+  "sku": "SKU-{{testSuffix}}",
+  "price": 79.9,
+  "images": ["https://picsum.photos/seed/product-{{testSuffix}}/800/800"],
+  "isPublished": false,
+  "categoryId": "{{categoryId}}",
+  "brandId": "{{brandId}}"
+}
+
+###
+
+@productId = {{createProduct.response.body.$.data.id}}
+
+### Get all products
+GET {{gatewayBaseUrl}}/catalog/products?page=1&limit=20
+Authorization: Bearer {{accessToken}}
+
+### Get product by id
+GET {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Authorization: Bearer {{accessToken}}
+
+### Update price
+PUT {{gatewayBaseUrl}}/catalog/products/{{productId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "price": 89.9
+}
+
+### Publish product
+PATCH {{gatewayBaseUrl}}/catalog/products/{{productId}}/publish
+Authorization: Bearer {{accessToken}}
+
+### Unpublish product
+PATCH {{gatewayBaseUrl}}/catalog/products/{{productId}}/unpublish
+Authorization: Bearer {{accessToken}}

@@ -1,0 +1,64 @@
+@gatewayBaseUrl = http://localhost:3000
+@contentType = application/json
+@email = rest-client-user@example.com
+@password = Password123!
+@productId = catalog-product-id
+@cartItemId = cart-item-id
+
+### Login
+# @name loginUser
+POST {{gatewayBaseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+@accessToken = {{loginUser.response.body.accessToken}}
+
+### Create order
+# @name createOrder
+POST {{gatewayBaseUrl}}/order/orders
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "items": [
+    {
+      "productId": "{{productId}}",
+      "quantity": 1
+    }
+  ]
+}
+
+###
+
+@orderId = {{createOrder.response.body.id}}
+
+### My orders
+GET {{gatewayBaseUrl}}/order/orders/me
+Authorization: Bearer {{accessToken}}
+
+### Get order by id
+GET {{gatewayBaseUrl}}/order/orders/{{orderId}}
+Authorization: Bearer {{accessToken}}
+
+### Confirm order
+PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/confirm
+Authorization: Bearer {{accessToken}}
+
+### Cancel order
+PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/cancel
+Authorization: Bearer {{accessToken}}
+
+### Checkout selected cart items
+POST {{gatewayBaseUrl}}/order/orders/checkout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "cartItemIds": ["{{cartItemId}}"]
+}
