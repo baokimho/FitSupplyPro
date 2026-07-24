@@ -1,24 +1,25 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
-		"declaration": true,
-		"declarationMap": true,
-		"rootDir": "./src",
-		"outDir": "./dist",
-		"strict": true,
-		"skipLibCheck": true,
-		"esModuleInterop": true
-	},
-	"include": [
-		"src/index.ts",
-		"src/auth/**/*.ts",
-		"src/errors/**/*.ts",
-		"src/middleware/asyncHandler.ts",
-		"src/middleware/error.handler.ts",
-		"src/middleware/internalGateway.middleware.ts"
-		, "src/http/getParam.ts"
-	],
-	"exclude": ["node_modules", "dist"]
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "src/index.ts",
+    "src/auth/**/*.ts",
+    "src/errors/**/*.ts",
+    "src/middleware/asyncHandler.ts",
+    "src/middleware/error.handler.ts",
+    "src/middleware/internalGateway.middleware.ts",
+    "src/http/getParam.ts",
+    "src/testing/integration.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }
