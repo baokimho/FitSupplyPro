@@ -12,6 +12,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --passWithNoTests",
+    "test:e2e": "vitest run --passWithNoTests",
     "watch": "tsc --watch"
   },
   "dependencies": {

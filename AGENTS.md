@@ -75,7 +75,7 @@ Do not introduce parallel error shapes when an existing shared error class fits.
 
 ## Commands
 
-Run from repo root `D:\Fitsupply\FitSupplyPro`.
+Run commands from the repository root.
 
 ### Install
 
@@ -83,43 +83,24 @@ Run from repo root `D:\Fitsupply\FitSupplyPro`.
 
 ### Lint
 
-Current repo has no lint script yet.
-
-- Expected current status: missing
-- When linting directly for investigation, first check whether a lint script was added in current branch.
+- `npm run lint`
 
 ### Typecheck
 
-- `npx tsc -p packages/shared/tsconfig.json --noEmit`
-- `npx tsc -p apps/api-gateway/tsconfig.json --noEmit`
-- `npx tsc -p apps/auth-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/catalog-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/inventory-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/cart-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/order-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/payment-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/shipping-service/tsconfig.json --noEmit`
-- `npx tsc -p apps/notification-service/tsconfig.json --noEmit`
+- `npm run typecheck`
 
 ### Test
 
-Current repo has no test scripts yet and no app/package test files.
+- `npm run test`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:e2e`
 
-- Expected current status: missing
-- New work must add relevant test commands and test files
+Business test coverage has not yet been implemented. Current Vitest commands intentionally use `--passWithNoTests` so tooling can run before real coverage lands. New business behavior still requires meaningful automated tests.
 
 ### Build
 
-- `npm --prefix packages/shared run build`
-- `npm --prefix apps/api-gateway run build`
-- `npm --prefix apps/auth-service run build`
-- `npm --prefix apps/catalog-service run build`
-- `npm --prefix apps/inventory-service run build`
-- `npm --prefix apps/cart-service run build`
-- `npm --prefix apps/order-service run build`
-- `npm --prefix apps/payment-service run build`
-- `npm --prefix apps/shipping-service run build`
-- `npm --prefix apps/notification-service run build`
+- `npm run build`
 
 ### Docker
 
