@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError, BadRequestError } from "@shared/utils";
+import { BadRequestError, ConflictError, NotFoundError } from "@shared/utils";
 import prisma from "../config/db.js";
 import type {
   AdjustInventoryInput,
@@ -32,6 +32,17 @@ const ensureStockConsistency = (stock: number, reservedStock: number) => {
   }
 };
 
+const getInventoryConflictDetails = async (productId: string) => {
+  const inventory = await prisma.inventory.findUnique({
+    where: { productId },
+  });
+
+  if (!inventory) {
+    throw new NotFoundError("Inventory not found");
+  }
+
+  return inventory;
+};
 const getInventoryRecordByProductId = async (productId: string) => {
   const inventory = await prisma.inventory.findUnique({
     where: { productId },
@@ -127,25 +138,27 @@ export const reserveInventoryStockService = async (
   productId: string,
   body: ReserveInventoryInput,
 ) => {
-  const inventory = await getInventoryRecordByProductId(productId);
-  const availableStock = inventory.stock - inventory.reservedStock;
+  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
+    UPDATE "Inventory"
+    SET "reservedStock" = "reservedStock" + ${body.quantity}, "updatedAt" = NOW()
+    WHERE "productId" = ${productId}
+      AND "stock" - "reservedStock" >= ${body.quantity}
+    RETURNING *
+  `;
 
-  if (availableStock < body.quantity) {
-    throw new BadRequestError("Insufficient stock", {
-      productId,
-      availableStock,
-      requestedQuantity: body.quantity,
-    });
+  const updated = updatedRows[0];
+  if (updated) {
+    return toInventoryResponse(updated);
   }
 
-  const updated = await prisma.inventory.update({
-    where: { productId },
-    data: {
-      reservedStock: inventory.reservedStock + body.quantity,
-    },
-  });
+  const inventory = await getInventoryConflictDetails(productId);
+  const availableStock = inventory.stock - inventory.reservedStock;
 
-  return toInventoryResponse(updated);
+  throw new BadRequestError("Insufficient stock", {
+    productId,
+    availableStock,
+    requestedQuantity: body.quantity,
+  });
 };
 
 export const releaseInventoryStockService = async (
