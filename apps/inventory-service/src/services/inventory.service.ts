@@ -3,6 +3,7 @@ import prisma from "../config/db.js";
 import type {
   AdjustInventoryInput,
   BatchInventoryInput,
+  ConsumeInventoryInput,
   CreateInventoryInput,
   ReleaseInventoryInput,
   ReserveInventoryInput,
@@ -184,5 +185,34 @@ export const releaseInventoryStockService = async (
     productId,
     reservedStock: inventory.reservedStock,
     releaseQuantity: body.quantity,
+  });
+};
+export const consumeInventoryReservationService = async (
+  productId: string,
+  body: ConsumeInventoryInput,
+) => {
+  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
+    UPDATE "Inventory"
+    SET
+      "stock" = "stock" - ${body.quantity},
+      "reservedStock" = "reservedStock" - ${body.quantity},
+      "updatedAt" = NOW()
+    WHERE "productId" = ${productId}
+      AND "reservedStock" >= ${body.quantity}
+      AND "stock" >= ${body.quantity}
+    RETURNING *
+  `;
+
+  const updated = updatedRows[0];
+  if (updated) {
+    return toInventoryResponse(updated);
+  }
+
+  const inventory = await getInventoryConflictDetails(productId);
+
+  throw new BadRequestError("Reserved stock is insufficient", {
+    productId,
+    reservedStock: inventory.reservedStock,
+    consumeQuantity: body.quantity,
   });
 };

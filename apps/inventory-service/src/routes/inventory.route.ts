@@ -3,6 +3,7 @@ import { validateRequest, wrapAsync } from "@shared/utils";
 import {
   adjustInventorySchema,
   batchInventorySchema,
+  consumeInventorySchema,
   createInventorySchema,
   inventoryProductParamsSchema,
   releaseInventorySchema,
@@ -11,6 +12,7 @@ import {
 } from "../validations/inventory.schema.js";
 import {
   adjustInventoryStock,
+  consumeInventoryReservation,
   createInventory,
   getInventoriesByProductIds,
   getInventoryByProductId,
@@ -56,6 +58,12 @@ router.post(
   validateRequest("params", inventoryProductParamsSchema),
   validateRequest("body", reserveInventorySchema),
   wrapAsync(reserveInventoryStock),
+);
+router.post(
+  "/products/:productId/consume",
+  validateRequest("params", inventoryProductParamsSchema),
+  validateRequest("body", consumeInventorySchema),
+  wrapAsync(consumeInventoryReservation),
 );
 router.post(
   "/products/:productId/release",

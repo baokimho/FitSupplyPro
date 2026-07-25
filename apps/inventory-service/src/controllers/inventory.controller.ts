@@ -3,6 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { getParam } from "@shared/utils";
 import {
   adjustInventoryStockService,
+  consumeInventoryReservationService,
   createInventoryService,
   getInventoriesByProductIdsService,
   getInventoryByProductIdService,
@@ -13,6 +14,7 @@ import {
 import type {
   AdjustInventoryInput,
   BatchInventoryInput,
+  ConsumeInventoryInput,
   CreateInventoryInput,
   InventoryProductParams,
   ReleaseInventoryInput,
@@ -77,5 +79,12 @@ export const releaseInventoryStock = async (
   res: Response,
 ) => {
   const inventory = await releaseInventoryStockService(getParam(req, "productId"), req.body);
+  res.status(StatusCodes.OK).json(inventory);
+};
+export const consumeInventoryReservation = async (
+  req: Request<InventoryProductParams, {}, ConsumeInventoryInput>,
+  res: Response,
+) => {
+  const inventory = await consumeInventoryReservationService(getParam(req, "productId"), req.body);
   res.status(StatusCodes.OK).json(inventory);
 };

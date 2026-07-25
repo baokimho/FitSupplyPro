@@ -248,3 +248,101 @@ describe("releaseInventoryStockService", () => {
     });
   });
 });
+
+describe("consumeInventoryReservationService", () => {
+  it("partially consumes reserved stock and decrements both fields", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-partial", stock: 10, reservedStock: 6 });
+
+    const result = await consumeInventoryReservationService(inventory.productId, {
+      quantity: 2,
+      reason: "payment-confirmed",
+    });
+
+    expect(result).toMatchObject({ stock: 8, reservedStock: 4, availableStock: 4 });
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 8,
+      reservedStock: 4,
+      availableStock: 4,
+    });
+  });
+
+  it("consumes a full reservation", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-full", stock: 7, reservedStock: 7 });
+
+    const result = await consumeInventoryReservationService(inventory.productId, {
+      quantity: 7,
+      reason: "payment-confirmed",
+    });
+
+    expect(result).toMatchObject({ stock: 0, reservedStock: 0, availableStock: 0 });
+  });
+
+  it("rejects insufficient reserved stock and leaves both fields unchanged", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-insufficient", stock: 8, reservedStock: 3 });
+
+    await expect(
+      consumeInventoryReservationService(inventory.productId, { quantity: 4, reason: "payment-confirmed" }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Reserved stock is insufficient",
+      details: { productId: inventory.productId, reservedStock: 3, consumeQuantity: 4 },
+    });
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 8,
+      reservedStock: 3,
+      availableStock: 5,
+    });
+  });
+
+  it("returns not found for missing inventory", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+
+    await expect(
+      consumeInventoryReservationService("missing-consume", { quantity: 1, reason: "payment-confirmed" }),
+    ).rejects.toMatchObject({ status: 404, message: "Inventory not found" });
+  });
+
+  it("rejects invalid consume quantities before reaching service mutation", async () => {
+    const inventory = await createInventory({ productId: "consume-invalid", stock: 5, reservedStock: 2 });
+
+    await request(app)
+      .post(`/products/${inventory.productId}/consume`)
+      .send({ quantity: 0, reason: "payment-confirmed" })
+      .expect(400);
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 5,
+      reservedStock: 2,
+      availableStock: 3,
+    });
+  });
+
+  it("prevents competing consumption from consuming the same reservation twice", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-race", stock: 5, reservedStock: 5 });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () =>
+        consumeInventoryReservationService(inventory.productId, { quantity: 1, reason: "payment-confirmed" }),
+      ),
+    );
+
+    const successes = results.filter((result) => result.status === "fulfilled");
+    const failures = results.filter((result) => result.status === "rejected");
+
+    expect(successes).toHaveLength(5);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      reason: { status: 400, message: "Reserved stock is insufficient" },
+    });
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 0,
+      reservedStock: 0,
+      availableStock: 0,
+    });
+  });
+});
