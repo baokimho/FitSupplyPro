@@ -91,8 +91,27 @@ const jsonHeaders = {
   "x-internal-secret": internalSecret,
 };
 
+const maxMoney = new Prisma.Decimal("99999999.99");
+
 const toNumber = (value: Prisma.Decimal | string | number) => Number(value);
-const toDecimal = (value: number) => new Prisma.Decimal(value.toFixed(2));
+const toMoney = (value: Prisma.Decimal | string | number, field: string) => {
+  try {
+    const decimal = new Prisma.Decimal(String(value));
+    if (!decimal.isFinite() || decimal.isNegative() || decimal.decimalPlaces() > 2 || decimal.greaterThan(maxMoney)) {
+      throw new Error("Invalid money");
+    }
+
+    return new Prisma.Decimal(decimal.toFixed(2));
+  } catch {
+    throw new BadRequestError(`${field} is invalid`);
+  }
+};
+
+const assertMoneyFits = (value: Prisma.Decimal, field: string) => {
+  if (value.decimalPlaces() > 2 || value.isNegative() || value.greaterThan(maxMoney)) {
+    throw new BadRequestError(`${field} is invalid`);
+  }
+};
 
 const toOrderItemResponse = (item: OrderWithItems["items"][number]) => ({
   id: item.id,
@@ -613,7 +632,7 @@ export const createOrderService = async (
       }
     }
 
-  let totalAmount = 0;
+  let totalAmount = new Prisma.Decimal(0);
 
   const itemsToCreate = [...aggregatedItems.entries()].map(([productId, quantity]) => {
     const product = productMap.get(productId);
@@ -622,26 +641,32 @@ export const createOrderService = async (
       throw new NotFoundError("Product not found", { productId });
     }
 
-    const unitPrice = Number(product.price);
-    const subtotal = unitPrice * quantity;
-    totalAmount += subtotal;
+    if (!product.name || !product.slug) {
+      throw new BadRequestError("Product snapshot is invalid", { productId });
+    }
+
+    const unitPrice = toMoney(product.price, "Product price");
+    const subtotal = unitPrice.times(quantity);
+    assertMoneyFits(subtotal, "Item subtotal");
+    totalAmount = totalAmount.plus(subtotal);
 
     return {
       productId,
       productName: product.name,
       productSlug: product.slug,
       quantity,
-      unitPrice: toDecimal(unitPrice),
-      subtotal: toDecimal(subtotal),
+      unitPrice,
+      subtotal,
     };
   });
 
+    assertMoneyFits(totalAmount, "Order total");
     const delivery = toDeliverySnapshot(body.delivery);
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
           userId,
-          totalAmount: toDecimal(totalAmount),
+          totalAmount,
           items: {
             create: itemsToCreate,
           },
@@ -908,6 +933,10 @@ export const cancelOrderService = async (id: string, userId: string) =>
 
 export const confirmOrderService = async (id: string, userId: string) =>
   updateOrderStatus(id, userId, "CONFIRMED");
+
+
+
+
 
 
 

@@ -48,6 +48,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+  @@unique([orderId, productId])
 }
 
 enum OrderStatus {
@@ -75,6 +76,7 @@ model CheckoutIdempotency {
   @@unique([userId, idempotencyKey])
   @@index([orderId])
 }
+
 
 
 

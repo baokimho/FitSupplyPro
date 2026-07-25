@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const maxOrderQuantity = Number.MAX_SAFE_INTEGER;
+
 export const orderParamsSchema = z.object({
   id: z.string().min(1, "Order id is required"),
 });
@@ -36,7 +38,7 @@ export const createOrderSchema = z.object({
     .array(
       z.object({
         productId: z.string().min(1, "Product id is required"),
-        quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+        quantity: z.coerce.number().int().positive("Quantity must be greater than 0").max(maxOrderQuantity, "Quantity is too large"),
       }),
     )
     .min(1, "Items must not be empty"),
@@ -54,4 +56,5 @@ export type OrderParamsInput = z.infer<typeof orderParamsSchema>;
 export type DeliveryDetailsInput = z.infer<typeof deliveryDetailsSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
 

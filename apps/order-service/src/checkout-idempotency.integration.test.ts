@@ -3,10 +3,11 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
-import type { checkoutOrderService as checkoutOrderServiceType } from "./services/order.service.js";
+import type { checkoutOrderService as checkoutOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
 
 let prisma: PrismaClient;
 let checkoutOrderService: typeof checkoutOrderServiceType;
+let createOrderService: typeof createOrderServiceType;
 let app: express.Express;
 
 const databaseUrl = requireTestDatabaseUrl("order_test_db");
@@ -170,7 +171,7 @@ beforeAll(async () => {
   installFetchDouble();
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
-  ({ checkoutOrderService } = await import("./services/order.service.js"));
+  ({ checkoutOrderService, createOrderService } = await import("./services/order.service.js"));
 
   const routes = (await import("./routes/order.route.js")).default;
   app = express();
@@ -401,12 +402,84 @@ describe("checkout idempotency", () => {
     expect(second.delivery?.city).toBe("Tampere");
     expect(await countOrders()).toBe(2);
   });
-});
 
+  it("calculates decimal totals exactly from authoritative catalog prices", async () => {
+    setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "12.33", isPublished: true });
+    setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "0.34", isPublished: true });
+    setCart([
+      { id: "cart-item-1", productId: "product-1", quantity: 3 },
+      { id: "cart-item-2", productId: "product-2", quantity: 1 },
+    ]);
+
+    const order = await checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-decimal");
+
+    expect(order.totalAmount).toBe(37.33);
+    expect(order.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ productId: "product-1", unitPrice: 12.33, subtotal: 36.99 }),
+        expect.objectContaining({ productId: "product-2", unitPrice: 0.34, subtotal: 0.34 }),
+      ]),
+    );
+  });
+
+  it("aggregates duplicate product inputs into one order line", async () => {
+    const order = await createOrderService(
+      "user-1",
+      {
+        items: [
+          { productId: "product-1", quantity: 1 },
+          { productId: "product-1", quantity: 2 },
+        ],
+        delivery: defaultDelivery(),
+      },
+    );
+
+    expect(order.items).toHaveLength(1);
+    expect(order.items[0]).toMatchObject({ productId: "product-1", quantity: 3, subtotal: 30 });
+    expect(reserveCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+  });
+
+  it("rejects invalid authoritative catalog price and compensates reservation", async () => {
+    setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.001", isPublished: true });
+
+    await expect(
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-bad-price"),
+    ).rejects.toMatchObject({ status: 400, message: "Product price is invalid" });
+
+    expect(await countOrders()).toBe(0);
+    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(removeCalls).toHaveLength(0);
+  });
+
+  it("rejects invalid direct order quantities before side effects", async () => {
+    await request(app)
+      .post("/orders")
+      .send({ items: [{ productId: "product-1", quantity: 0 }], delivery: defaultDelivery() })
+      .expect(400);
+
+    expect(await countOrders()).toBe(0);
+    expect(reserveCalls).toHaveLength(0);
+  });
+
+  it("rejects direct database writes that violate order constraints", async () => {
+    await expect(
+      prisma.$executeRaw`INSERT INTO "Order" ("id", "userId", "status", "totalAmount", "createdAt", "updatedAt") VALUES (${"bad-order"}, ${"user-1"}, ${"PENDING"}, ${-1}, NOW(), NOW())`,
+    ).rejects.toThrow();
+
+    await prisma.$executeRaw`INSERT INTO "Order" ("id", "userId", "status", "totalAmount", "recipientName", "contactPhone", "deliveryAddressLine1", "deliveryCity", "deliveryPostalCode", "deliveryCountryCode", "createdAt", "updatedAt") VALUES (${"constraint-order"}, ${"user-1"}, ${"PENDING"}, ${0}, ${"Ada"}, ${"+358 40 123 4567"}, ${"Street 1"}, ${"Helsinki"}, ${"00100"}, ${"FI"}, NOW(), NOW())`;
+    await expect(
+      prisma.$executeRaw`INSERT INTO "OrderItem" ("id", "orderId", "productId", "productName", "productSlug", "quantity", "unitPrice", "subtotal", "createdAt", "updatedAt") VALUES (${"bad-item"}, ${"constraint-order"}, ${"product-1"}, ${"Protein"}, ${"protein"}, ${1}, ${2}, ${3}, NOW(), NOW())`,
+    ).rejects.toThrow();
+  });
+
+});
 
 afterAll(() => {
   vi.stubGlobal("fetch", originalFetch);
 });
+
+
+
 
 
 
