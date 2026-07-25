@@ -346,3 +346,101 @@ describe("consumeInventoryReservationService", () => {
     });
   });
 });
+
+describe("inventory mutation concurrency", () => {
+  function countResults<T>(results: PromiseSettledResult<T>[]) {
+    const successes = results.filter((result) => result.status === "fulfilled");
+    const failures = results.filter((result) => result.status === "rejected");
+    return { successes, failures };
+  }
+
+  async function expectInvariant(productId: string) {
+    const state = await getInventory(productId);
+    expect(state.stock).toBeGreaterThanOrEqual(0);
+    expect(state.reservedStock).toBeGreaterThanOrEqual(0);
+    expect(state.reservedStock).toBeLessThanOrEqual(state.stock);
+    expect(state.availableStock).toBe(state.stock - state.reservedStock);
+    return state;
+  }
+
+  it("prevents reservation contention from exceeding available stock", async () => {
+    const inventory = await createInventory({ productId: "concurrent-reserve", stock: 9, reservedStock: 2 });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () =>
+        reserveInventoryStockService(inventory.productId, { quantity: 1, reason: "concurrency-test" }),
+      ),
+    );
+    const { successes, failures } = countResults(results);
+    const state = await expectInvariant(inventory.productId);
+
+    expect(successes).toHaveLength(7);
+    expect(failures).toHaveLength(3);
+    for (const failure of failures) {
+      expect(failure).toMatchObject({ reason: { status: 400, message: "Insufficient stock" } });
+    }
+    expect(state).toEqual({ stock: 9, reservedStock: 9, availableStock: 0 });
+    expect(state.reservedStock - 2).toBe(successes.length);
+  });
+
+  it("prevents release contention from releasing more than reserved stock", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "concurrent-release", stock: 9, reservedStock: 7 });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () =>
+        releaseInventoryStockService(inventory.productId, { quantity: 1, reason: "concurrency-test" }),
+      ),
+    );
+    const { successes, failures } = countResults(results);
+    const state = await expectInvariant(inventory.productId);
+
+    expect(successes).toHaveLength(7);
+    expect(failures).toHaveLength(3);
+    for (const failure of failures) {
+      expect(failure).toMatchObject({ reason: { status: 400, message: "Reserved stock is insufficient" } });
+    }
+    expect(state).toEqual({ stock: 9, reservedStock: 0, availableStock: 9 });
+    expect(7 - state.reservedStock).toBe(successes.length);
+  });
+
+  it("prevents consumption contention from consuming the same reservation twice", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "concurrent-consume", stock: 9, reservedStock: 7 });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 10 }, () =>
+        consumeInventoryReservationService(inventory.productId, { quantity: 1, reason: "concurrency-test" }),
+      ),
+    );
+    const { successes, failures } = countResults(results);
+    const state = await expectInvariant(inventory.productId);
+
+    expect(successes).toHaveLength(7);
+    expect(failures).toHaveLength(3);
+    for (const failure of failures) {
+      expect(failure).toMatchObject({ reason: { status: 400, message: "Reserved stock is insufficient" } });
+    }
+    expect(state).toEqual({ stock: 2, reservedStock: 0, availableStock: 2 });
+    expect(9 - state.stock).toBe(successes.length);
+  });
+
+  it("preserves invariants across mixed concurrent mutations", async () => {
+    const { consumeInventoryReservationService, releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "concurrent-mixed", stock: 12, reservedStock: 4 });
+
+    const results = await Promise.allSettled([
+      reserveInventoryStockService(inventory.productId, { quantity: 3, reason: "mixed-test" }),
+      reserveInventoryStockService(inventory.productId, { quantity: 3, reason: "mixed-test" }),
+      releaseInventoryStockService(inventory.productId, { quantity: 2, reason: "mixed-test" }),
+      consumeInventoryReservationService(inventory.productId, { quantity: 2, reason: "mixed-test" }),
+      consumeInventoryReservationService(inventory.productId, { quantity: 2, reason: "mixed-test" }),
+    ]);
+
+    const { successes } = countResults(results);
+    const state = await expectInvariant(inventory.productId);
+
+    expect(successes.length).toBeGreaterThanOrEqual(4);
+    expect(state.reservedStock).toBeLessThanOrEqual(state.stock);
+  });
+});
