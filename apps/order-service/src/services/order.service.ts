@@ -44,6 +44,7 @@ type CartItem = {
 type CartResponse = {
   id: string | null;
   userId: string;
+  version?: number;
   items: CartItem[];
 };
 
@@ -51,12 +52,15 @@ type OrderResponse = ReturnType<typeof toOrderResponse>;
 
 type ReservedInventoryItem = { productId: string; quantity: number };
 
+type CartFinalizationState = { cartItemIds: string[]; cart: { id: string; version: number } };
+
 type IdempotencyAttemptRow = {
   id: string;
   requestFingerprint: string;
   status: string;
   responseBody: Prisma.JsonValue | null;
   reservedItems: Prisma.JsonValue | null;
+  finalizationCart: Prisma.JsonValue | null;
 };
 
 type OrderWithItems = Prisma.OrderGetPayload<{
@@ -172,7 +176,7 @@ const claimCheckoutIdempotency = async (
     INSERT INTO "CheckoutIdempotency" ("id", "userId", "idempotencyKey", "requestFingerprint", "status", "updatedAt")
     VALUES (${randomUUID()}, ${userId}, ${idempotencyKey}, ${requestFingerprint}, 'PROCESSING', NOW())
     ON CONFLICT ("userId", "idempotencyKey") DO NOTHING
-    RETURNING "id", "requestFingerprint", "status", "responseBody", "reservedItems"
+    RETURNING "id", "requestFingerprint", "status", "responseBody", "reservedItems", "finalizationCart"
   `;
 
   if (inserted[0]) {
@@ -180,7 +184,7 @@ const claimCheckoutIdempotency = async (
   }
 
   const existing = await prisma.$queryRaw<IdempotencyAttemptRow[]>`
-    SELECT "id", "requestFingerprint", "status", "responseBody", "reservedItems"
+    SELECT "id", "requestFingerprint", "status", "responseBody", "reservedItems", "finalizationCart"
     FROM "CheckoutIdempotency"
     WHERE "userId" = ${userId} AND "idempotencyKey" = ${idempotencyKey}
   `;
@@ -242,6 +246,45 @@ const markCompensationFailed = async (id: string, error: unknown) => {
     UPDATE "CheckoutIdempotency"
     SET "status" = 'COMPENSATION_FAILED',
         "compensationError" = ${error instanceof Error ? error.message : "Checkout compensation failed"},
+        "updatedAt" = NOW()
+    WHERE "id" = ${id}
+  `;
+};
+const parseCartFinalizationState = (value: Prisma.JsonValue | null): CartFinalizationState | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const cartItemIds = record.cartItemIds;
+  const cart = record.cart;
+
+  if (!Array.isArray(cartItemIds) || !cart || typeof cart !== "object" || Array.isArray(cart)) {
+    return null;
+  }
+
+  const cartRecord = cart as Record<string, unknown>;
+  if (typeof cartRecord.id !== "string" || typeof cartRecord.version !== "number") {
+    return null;
+  }
+
+  return {
+    cartItemIds: cartItemIds.filter((itemId): itemId is string => typeof itemId === "string"),
+    cart: { id: cartRecord.id, version: cartRecord.version },
+  };
+};
+
+const recordCheckoutFinalization = async (
+  id: string,
+  order: OrderResponse,
+  finalization: CartFinalizationState,
+) => {
+  await prisma.$executeRaw`
+    UPDATE "CheckoutIdempotency"
+    SET "status" = 'ORDER_CREATED',
+        "orderId" = ${order.id},
+        "responseBody" = ${JSON.stringify(order)}::jsonb,
+        "finalizationCart" = ${JSON.stringify(finalization)}::jsonb,
         "updatedAt" = NOW()
     WHERE "id" = ${id}
   `;
@@ -365,7 +408,11 @@ const getUserCart = async (userId: string) => {
   }
 };
 
-const removeCheckedOutCartItems = async (userId: string, cartItemIds: string[]) => {
+const removeCheckedOutCartItems = async (
+  userId: string,
+  cartItemIds: string[],
+  cart: { id: string; version: number },
+) => {
   try {
     await fetchJson(`${cartServiceUrl}/internal/cart/items`, {
       method: "DELETE",
@@ -373,7 +420,7 @@ const removeCheckedOutCartItems = async (userId: string, cartItemIds: string[]) 
         ...jsonHeaders,
         "x-user-id": userId,
       },
-      body: JSON.stringify({ cartItemIds }),
+      body: JSON.stringify({ cartItemIds, cartId: cart.id, cartVersion: cart.version }),
     });
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
@@ -592,6 +639,16 @@ export const checkoutOrderService = async (
       return attempt.row.responseBody as unknown as OrderResponse;
     }
 
+    if (attempt.row.status === "ORDER_CREATED" && attempt.row.responseBody) {
+      const finalization = parseCartFinalizationState(attempt.row.finalizationCart);
+      if (!finalization) {
+        throw new ServiceUnavailableError("Checkout finalization state is incomplete", { checkoutAttemptId: attempt.row.id });
+      }
+
+      await removeCheckedOutCartItems(userId, finalization.cartItemIds, finalization.cart);
+      await completeCheckoutIdempotency(attempt.row.id, attempt.row.responseBody as unknown as OrderResponse);
+      return attempt.row.responseBody as unknown as OrderResponse;
+    }
     if (attempt.row.status === "COMPENSATION_FAILED") {
       try {
         await compensateReservedItems(attempt.row.id, parseReservedItems(attempt.row.reservedItems));
@@ -614,7 +671,7 @@ export const checkoutOrderService = async (
     const requestedIds = [...new Set(body.cartItemIds)];
     const cart = await getUserCart(userId);
 
-    if (!cart.id || cart.items.length === 0) {
+    if (!cart.id || !cart.version || cart.items.length === 0) {
       throw new NotFoundError("Cart not found");
     }
 
@@ -639,12 +696,21 @@ export const checkoutOrderService = async (
     });
 
     const order = await createOrderService(userId, { items }, attempt.row.id);
-    await removeCheckedOutCartItems(userId, requestedIds);
+    const finalization = { cartItemIds: requestedIds, cart: { id: cart.id, version: cart.version } };
+    await recordCheckoutFinalization(attempt.row.id, order, finalization);
+    try {
+      await removeCheckedOutCartItems(userId, requestedIds, finalization.cart);
+    } catch (error) {
+      throw new ServiceUnavailableError("Checkout finalization failed", {
+        checkoutAttemptId: attempt.row.id,
+        error: error instanceof Error ? error.message : "Cart finalization failed",
+      });
+    }
     await completeCheckoutIdempotency(attempt.row.id, order);
 
     return order;
   } catch (error) {
-    if (!(error instanceof Error && error.message === "Checkout compensation failed")) {
+    if (!(error instanceof Error && (error.message === "Checkout compensation failed" || error.message === "Checkout finalization failed"))) {
       await failCheckoutIdempotency(attempt.row.id, error);
     }
     throw error;
@@ -766,6 +832,11 @@ export const cancelOrderService = async (id: string, userId: string) =>
 
 export const confirmOrderService = async (id: string, userId: string) =>
   updateOrderStatus(id, userId, "CONFIRMED");
+
+
+
+
+
 
 
 

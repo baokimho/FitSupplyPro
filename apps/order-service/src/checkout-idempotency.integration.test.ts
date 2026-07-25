@@ -28,6 +28,7 @@ type CartItem = {
 
 const products = new Map<string, Product>();
 let cartItems: CartItem[] = [];
+let cartVersion = 1;
 let reserveCalls: Array<{ productId: string; quantity: number }> = [];
 let removeCalls: string[][] = [];
 let releaseCalls: Array<{ productId: string; quantity: number }> = [];
@@ -72,13 +73,17 @@ function installFetchDouble() {
     const method = init?.method ?? "GET";
 
     if (url.includes("/internal/cart") && method === "GET") {
-      return jsonResponse({ id: "cart-1", userId: "user-1", items: cartItems });
+      return jsonResponse({ id: "cart-1", userId: "user-1", version: cartVersion, items: cartItems });
     }
 
     if (url.includes("/internal/cart/items") && method === "DELETE") {
-      const body = JSON.parse(String(init?.body ?? "{}")) as { cartItemIds?: string[] };
+      const body = JSON.parse(String(init?.body ?? "{}")) as { cartItemIds?: string[]; cartId?: string; cartVersion?: number };
+      if (body.cartId && (body.cartId !== "cart-1" || body.cartVersion !== cartVersion)) {
+        return jsonResponse({ message: "Cart changed during checkout" }, 409);
+      }
       removeCalls.push(body.cartItemIds ?? []);
       cartItems = cartItems.filter((item) => !(body.cartItemIds ?? []).includes(item.id));
+      cartVersion += 1;
       return jsonResponse({});
     }
 
@@ -179,6 +184,7 @@ beforeEach(async () => {
   setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "12.00", isPublished: true });
   setInventory("product-1", 10);
   setInventory("product-2", 10);
+  cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
 });
 
@@ -194,7 +200,8 @@ describe("checkout idempotency", () => {
 
   it("replays the same completed checkout without another order or reservation", async () => {
     const first = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-2");
-    setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+    cartVersion = 1;
+  setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
 
     const second = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-2");
 
@@ -238,7 +245,8 @@ describe("checkout idempotency", () => {
 
   it("scopes the same idempotency key independently per user", async () => {
     await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "shared-key");
-    setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+    cartVersion = 1;
+  setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
 
     await checkoutOrderService("user-2", { cartItemIds: ["cart-item-1"] }, "shared-key");
 
@@ -314,6 +322,7 @@ describe("checkout idempotency", () => {
 afterAll(() => {
   vi.stubGlobal("fetch", originalFetch);
 });
+
 
 
 

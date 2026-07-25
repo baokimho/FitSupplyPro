@@ -15,9 +15,12 @@ export const updateCartItemSchema = z.object({
 
 export const removeCartItemsSchema = z.object({
   cartItemIds: z.array(z.string().min(1, "Cart item id is required")).min(1, "Cart item ids must not be empty"),
+  cartId: z.string().min(1, "Cart id is required").optional(),
+  cartVersion: z.coerce.number().int().positive("Cart version must be greater than 0").optional(),
 });
 
 export type CartItemParamsInput = z.infer<typeof cartItemParamsSchema>;
 export type AddCartItemInput = z.infer<typeof addCartItemSchema>;
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
 export type RemoveCartItemsInput = z.infer<typeof removeCartItemsSchema>;
+
