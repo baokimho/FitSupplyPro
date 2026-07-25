@@ -9,18 +9,22 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "test:unit": "npm run test:unit --workspaces --if-present",
-    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test": "node scripts/test-matrix.mjs all",
+    "test:unit": "node scripts/test-matrix.mjs unit",
+    "test:integration": "node scripts/test-matrix.mjs integration",
     "test:e2e": "npm run test:e2e --workspaces --if-present",
     "test:db:up": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml up -d --wait --wait-timeout 60",
+    "test:db:config": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config",
     "test:db:reset": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans && npm run test:db:up",
     "test:db:down": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans",
     "test:stack:config": "docker compose -p fitsupply-test -f docker-compose.test.yml config",
     "test:stack:up": "docker compose -p fitsupply-test -f docker-compose.test.yml up -d --build --wait --wait-timeout 120",
     "test:stack:down": "docker compose -p fitsupply-test -f docker-compose.test.yml down -v --remove-orphans",
     "build": "npm run build --workspace @shared/utils && npm run build --workspaces --if-present",
-    "test:db:prepare": "node scripts/prepare-test-dbs.mjs"
+    "test:db:prepare": "node scripts/prepare-test-dbs.mjs",
+    "test:all": "node scripts/test-matrix.mjs all",
+    "coverage": "node scripts/test-matrix.mjs coverage",
+    "test:workspace": "node scripts/test-matrix.mjs unit --workspace"
   },
   "dependencies": {
     "http-status-codes": "^2.3.0"
@@ -28,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.7.0",
     "supertest": "^7.2.2",
     "typescript-eslint": "^8.65.0",
