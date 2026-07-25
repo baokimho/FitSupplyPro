@@ -37,6 +37,19 @@ const failReleaseProducts = new Set<string>();
 const inventory = new Map<string, { stock: number; reservedStock: number }>();
 let reserveDelayMs = 0;
 
+const defaultDelivery = () => ({
+  recipientName: "Ada Lovelace",
+  contactPhone: "+358 40 123 4567",
+  addressLine1: "Testikatu 1",
+  addressLine2: "A 2",
+  city: "Helsinki",
+  region: "Uusimaa",
+  postalCode: "00100",
+  countryCode: "FI",
+});
+
+const checkoutBody = (cartItemIds: string[], delivery = defaultDelivery()) => ({ cartItemIds, delivery });
+
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -190,7 +203,7 @@ beforeEach(async () => {
 
 describe("checkout idempotency", () => {
   it("creates an order on first successful checkout", async () => {
-    const order = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-1");
+    const order = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-1");
 
     expect(order.items).toHaveLength(1);
     expect(order.totalAmount).toBe(20);
@@ -199,11 +212,11 @@ describe("checkout idempotency", () => {
   });
 
   it("replays the same completed checkout without another order or reservation", async () => {
-    const first = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-2");
+    const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-2");
     cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
 
-    const second = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-2");
+    const second = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-2");
 
     expect(second).toMatchObject({ id: first.id, totalAmount: first.totalAmount });
     expect(await countOrders()).toBe(1);
@@ -211,10 +224,10 @@ describe("checkout idempotency", () => {
   });
 
   it("does not depend on process memory for replay", async () => {
-    const first = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-db");
+    const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-db");
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ message: "should not call downstream" }, 500)));
 
-    const second = await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-db");
+    const second = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-db");
 
     expect(second).toMatchObject({ id: first.id });
     expect(globalThis.fetch).not.toHaveBeenCalled();
@@ -225,8 +238,8 @@ describe("checkout idempotency", () => {
     reserveDelayMs = 50;
 
     const results = await Promise.allSettled([
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-race"),
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-race"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-race"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-race"),
     ]);
 
     expect(await countOrders()).toBe(1);
@@ -236,19 +249,19 @@ describe("checkout idempotency", () => {
   });
 
   it("rejects same key with different logical input", async () => {
-    await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "checkout-key-conflict");
+    await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-conflict");
 
     await expect(
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-conflict"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-conflict"),
     ).rejects.toMatchObject({ status: 409, message: "Idempotency key was reused with a different request" });
   });
 
   it("scopes the same idempotency key independently per user", async () => {
-    await checkoutOrderService("user-1", { cartItemIds: ["cart-item-1"] }, "shared-key");
+    await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "shared-key");
     cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
 
-    await checkoutOrderService("user-2", { cartItemIds: ["cart-item-1"] }, "shared-key");
+    await checkoutOrderService("user-2", checkoutBody(["cart-item-1"]), "shared-key");
 
     expect(await countOrders()).toBe(2);
     expect(reserveCount("product-1")).toBe(2);
@@ -257,19 +270,19 @@ describe("checkout idempotency", () => {
   it("validates missing and invalid idempotency keys", async () => {
     await request(app)
       .post("/orders/checkout")
-      .send({ cartItemIds: ["cart-item-1"] })
+      .send(checkoutBody(["cart-item-1"]))
       .expect(400);
 
     await request(app)
       .post("/orders/checkout")
       .set("Idempotency-Key", "bad key")
-      .send({ cartItemIds: ["cart-item-1"] })
+      .send(checkoutBody(["cart-item-1"]))
       .expect(400);
   });
 
   it("keeps existing business errors mapped", async () => {
     await expect(
-      checkoutOrderService("user-1", { cartItemIds: ["missing-cart-item"] }, "checkout-key-business-error"),
+      checkoutOrderService("user-1", checkoutBody(["missing-cart-item"]), "checkout-key-business-error"),
     ).rejects.toMatchObject({ status: 404, message: "Cart item not found" });
 
     expect(await countOrders()).toBe(0);
@@ -283,7 +296,7 @@ describe("checkout idempotency", () => {
     failReserveProducts.add("product-2");
 
     await expect(
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-rollback"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-rollback"),
     ).rejects.toMatchObject({ status: 400, message: "Insufficient stock" });
 
     expect(await countOrders()).toBe(0);
@@ -300,7 +313,7 @@ describe("checkout idempotency", () => {
     failReleaseProducts.add("product-1");
 
     await expect(
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-compensation"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation"),
     ).rejects.toMatchObject({ status: 503, message: "Checkout compensation failed" });
 
     const [failedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
@@ -309,7 +322,7 @@ describe("checkout idempotency", () => {
 
     failReleaseProducts.clear();
     await expect(
-      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-compensation"),
+      checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation"),
     ).rejects.toMatchObject({ status: 409, message: "Checkout failed and was compensated" });
 
     const [retriedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
@@ -317,11 +330,87 @@ describe("checkout idempotency", () => {
     expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
     expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
   });
+
+  it("persists normalized delivery snapshot and returns it on retrieval", async () => {
+    const delivery = {
+      ...defaultDelivery(),
+      recipientName: "  Lukasz Kowalski  ",
+      addressLine1: "  Ulica Testowa 5  ",
+      addressLine2: "  ",
+      region: "  ",
+      countryCode: "fi",
+    };
+
+    const response = await request(app)
+      .post("/orders/checkout")
+      .set("Idempotency-Key", "checkout-key-delivery")
+      .send(checkoutBody(["cart-item-1"], delivery))
+      .expect(201);
+
+    expect(response.body.delivery).toEqual({
+      recipientName: "Lukasz Kowalski",
+      contactPhone: "+358 40 123 4567",
+      addressLine1: "Ulica Testowa 5",
+      addressLine2: null,
+      city: "Helsinki",
+      region: null,
+      postalCode: "00100",
+      countryCode: "FI",
+    });
+
+    const stored = await request(app).get(`/orders/${response.body.id}`).expect(200);
+    expect(stored.body.delivery).toEqual(response.body.delivery);
+  });
+
+  it("rejects invalid delivery data before checkout side effects", async () => {
+    await request(app)
+      .post("/orders/checkout")
+      .set("Idempotency-Key", "checkout-key-invalid-delivery")
+      .send(checkoutBody(["cart-item-1"], { ...defaultDelivery(), addressLine1: "   " }))
+      .expect(400);
+
+    expect(await countOrders()).toBe(0);
+    expect(reserveCalls).toHaveLength(0);
+    expect(removeCalls).toHaveLength(0);
+  });
+
+  it("includes delivery details in idempotency conflict detection", async () => {
+    await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-delivery-conflict");
+
+    await expect(
+      checkoutOrderService(
+        "user-1",
+        checkoutBody(["cart-item-1"], { ...defaultDelivery(), city: "Espoo" }),
+        "checkout-key-delivery-conflict",
+      ),
+    ).rejects.toMatchObject({ status: 409, message: "Idempotency key was reused with a different request" });
+  });
+
+  it("allows different idempotency keys to use different delivery snapshots", async () => {
+    const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-delivery-a");
+    cartVersion = 1;
+    setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+
+    const second = await checkoutOrderService(
+      "user-1",
+      checkoutBody(["cart-item-1"], { ...defaultDelivery(), city: "Tampere" }),
+      "checkout-key-delivery-b",
+    );
+
+    expect(first.delivery?.city).toBe("Helsinki");
+    expect(second.delivery?.city).toBe("Tampere");
+    expect(await countOrders()).toBe(2);
+  });
 });
+
 
 afterAll(() => {
   vi.stubGlobal("fetch", originalFetch);
 });
+
+
+
+
 
 
 

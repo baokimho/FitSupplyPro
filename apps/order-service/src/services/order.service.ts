@@ -9,7 +9,7 @@ import {
 import { Prisma } from "../generated/prisma/index.js";
 import type { OrderStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
-import type { CheckoutInput, CreateOrderInput } from "../validations/order.schema.js";
+import type { CheckoutInput, CreateOrderInput, DeliveryDetailsInput } from "../validations/order.schema.js";
 
 type CatalogProduct = {
   id: string;
@@ -69,6 +69,17 @@ type OrderWithItems = Prisma.OrderGetPayload<{
   };
 }>;
 
+type DeliverySnapshot = {
+  recipientName: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  region: string | null;
+  postalCode: string;
+  countryCode: string;
+};
+
 const catalogServiceUrl = process.env.CATALOG_SERVICE_URL || "http://catalog-service:3002";
 const inventoryServiceUrl = process.env.INVENTORY_SERVICE_URL || "http://inventory-service:3004";
 const cartServiceUrl = process.env.CART_SERVICE_URL || "http://cart-service:3005";
@@ -95,15 +106,64 @@ const toOrderItemResponse = (item: OrderWithItems["items"][number]) => ({
   updatedAt: item.updatedAt,
 });
 
-const toOrderResponse = (order: OrderWithItems) => ({
+const toDeliverySnapshot = (delivery: DeliveryDetailsInput): DeliverySnapshot => ({
+  recipientName: delivery.recipientName,
+  contactPhone: delivery.contactPhone,
+  addressLine1: delivery.addressLine1,
+  addressLine2: delivery.addressLine2 ?? null,
+  city: delivery.city,
+  region: delivery.region ?? null,
+  postalCode: delivery.postalCode,
+  countryCode: delivery.countryCode,
+});
+
+const toOrderResponse = (order: OrderWithItems, delivery: DeliverySnapshot | null = null) => ({
   id: order.id,
   userId: order.userId,
   status: order.status,
   totalAmount: toNumber(order.totalAmount),
+  delivery,
   items: order.items.map(toOrderItemResponse),
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
 });
+
+const getDeliverySnapshot = async (orderId: string): Promise<DeliverySnapshot | null> => {
+  const [row] = await prisma.$queryRaw<Array<{
+    recipientName: string | null;
+    contactPhone: string | null;
+    deliveryAddressLine1: string | null;
+    deliveryAddressLine2: string | null;
+    deliveryCity: string | null;
+    deliveryRegion: string | null;
+    deliveryPostalCode: string | null;
+    deliveryCountryCode: string | null;
+  }>>`
+    SELECT "recipientName", "contactPhone", "deliveryAddressLine1", "deliveryAddressLine2",
+           "deliveryCity", "deliveryRegion", "deliveryPostalCode", "deliveryCountryCode"
+    FROM "Order"
+    WHERE "id" = ${orderId}
+  `;
+
+  if (!row?.recipientName || !row.contactPhone || !row.deliveryAddressLine1 || !row.deliveryCity ||
+      !row.deliveryPostalCode || !row.deliveryCountryCode) {
+    return null;
+  }
+
+  return {
+    recipientName: row.recipientName,
+    contactPhone: row.contactPhone,
+    addressLine1: row.deliveryAddressLine1,
+    addressLine2: row.deliveryAddressLine2,
+    city: row.deliveryCity,
+    region: row.deliveryRegion,
+    postalCode: row.deliveryPostalCode,
+    countryCode: row.deliveryCountryCode,
+  };
+};
+
+const toOrderResponseWithDelivery = async (order: OrderWithItems) =>
+  toOrderResponse(order, await getDeliverySnapshot(order.id));
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   let response: Response;
@@ -576,17 +636,33 @@ export const createOrderService = async (
     };
   });
 
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        totalAmount: toDecimal(totalAmount),
-        items: {
-          create: itemsToCreate,
+    const delivery = toDeliverySnapshot(body.delivery);
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          userId,
+          totalAmount: toDecimal(totalAmount),
+          items: {
+            create: itemsToCreate,
+          },
         },
-      },
-      include: {
-        items: true,
-      },
+        include: {
+          items: true,
+        },
+      });
+
+      await tx.$executeRaw`UPDATE "Order"
+        SET "recipientName" = ${delivery.recipientName},
+            "contactPhone" = ${delivery.contactPhone},
+            "deliveryAddressLine1" = ${delivery.addressLine1},
+            "deliveryAddressLine2" = ${delivery.addressLine2},
+            "deliveryCity" = ${delivery.city},
+            "deliveryRegion" = ${delivery.region},
+            "deliveryPostalCode" = ${delivery.postalCode},
+            "deliveryCountryCode" = ${delivery.countryCode}
+        WHERE "id" = ${created.id}`;
+
+      return created;
     });
 
     await createNotification(userId, {
@@ -595,7 +671,7 @@ export const createOrderService = async (
       message: `Order ${order.id} has been created.`,
     });
 
-    return toOrderResponse(order);
+    return toOrderResponse(order, delivery);
   } catch (error) {
     for (const item of [...reservedItems].reverse()) {
       try {
@@ -695,7 +771,7 @@ export const checkoutOrderService = async (
       };
     });
 
-    const order = await createOrderService(userId, { items }, attempt.row.id);
+    const order = await createOrderService(userId, { items, delivery: body.delivery }, attempt.row.id);
     const finalization = { cartItemIds: requestedIds, cart: { id: cart.id, version: cart.version } };
     await recordCheckoutFinalization(attempt.row.id, order, finalization);
     try {
@@ -728,13 +804,13 @@ export const getMyOrdersService = async (userId: string) => {
     },
   });
 
-  return orders.map(toOrderResponse);
+  return Promise.all(orders.map(toOrderResponseWithDelivery));
 };
 
 export const getOrderByIdService = async (id: string, userId: string) => {
   const order = await getOrderByIdOrThrow(id);
   ensureOwnership(order, userId);
-  return toOrderResponse(order);
+  return toOrderResponseWithDelivery(order);
 };
 
 const updateOrderStatus = async (id: string, userId: string, status: OrderStatus) => {
@@ -803,7 +879,7 @@ const updateOrderStatus = async (id: string, userId: string, status: OrderStatus
       throw error;
     }
 
-    return toOrderResponse(updated);
+    return toOrderResponseWithDelivery(updated);
   }
 
   if (status === "CONFIRMED") {
@@ -824,7 +900,7 @@ const updateOrderStatus = async (id: string, userId: string, status: OrderStatus
     },
   });
 
-  return toOrderResponse(updated);
+  return toOrderResponseWithDelivery(updated);
 };
 
 export const cancelOrderService = async (id: string, userId: string) =>
@@ -832,6 +908,12 @@ export const cancelOrderService = async (id: string, userId: string) =>
 
 export const confirmOrderService = async (id: string, userId: string) =>
   updateOrderStatus(id, userId, "CONFIRMED");
+
+
+
+
+
+
 
 
 

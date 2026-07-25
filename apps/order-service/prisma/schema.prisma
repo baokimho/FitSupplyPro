@@ -13,6 +13,14 @@ model Order {
   userId      String
   status      OrderStatus @default(PENDING)
   totalAmount Decimal     @db.Decimal(10, 2)
+  recipientName String?
+  contactPhone String?
+  deliveryAddressLine1 String?
+  deliveryAddressLine2 String?
+  deliveryCity String?
+  deliveryRegion String?
+  deliveryPostalCode String?
+  deliveryCountryCode String?
 
   items       OrderItem[]
   idempotencyAttempts CheckoutIdempotency[]
@@ -67,5 +75,6 @@ model CheckoutIdempotency {
   @@unique([userId, idempotencyKey])
   @@index([orderId])
 }
+
 
 
