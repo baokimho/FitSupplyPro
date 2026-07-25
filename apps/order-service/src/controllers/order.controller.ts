@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { getParam } from "@shared/utils";
+import { BadRequestError, getParam } from "@shared/utils";
 import {
   cancelOrderService,
   confirmOrderService,
@@ -11,6 +11,21 @@ import {
 } from "../services/order.service.js";
 import type { CheckoutInput, CreateOrderInput, OrderParamsInput } from "../validations/order.schema.js";
 
+const idempotencyKeyPattern = /^[A-Za-z0-9._:-]+$/;
+
+const getIdempotencyKey = (req: Request) => {
+  const value = req.header("Idempotency-Key");
+
+  if (!value || value.trim().length === 0) {
+    throw new BadRequestError("Idempotency-Key header is required");
+  }
+
+  if (value.length > 128 || !idempotencyKeyPattern.test(value)) {
+    throw new BadRequestError("Idempotency-Key header is invalid");
+  }
+
+  return value;
+};
 const getUserId = (req: Request) => {
   const userId = req.orderUser?.id;
 
@@ -27,7 +42,7 @@ export const createOrder = async (req: Request<{}, {}, CreateOrderInput>, res: R
 };
 
 export const checkoutOrder = async (req: Request<{}, {}, CheckoutInput>, res: Response) => {
-  const order = await checkoutOrderService(getUserId(req), req.body);
+  const order = await checkoutOrderService(getUserId(req), req.body, getIdempotencyKey(req));
   res.status(StatusCodes.CREATED).json(order);
 };
 

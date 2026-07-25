@@ -15,6 +15,7 @@ model Order {
   totalAmount Decimal     @db.Decimal(10, 2)
 
   items       OrderItem[]
+  idempotencyAttempts CheckoutIdempotency[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -45,4 +46,21 @@ enum OrderStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+model CheckoutIdempotency {
+  id                 String   @id @default(uuid())
+  userId             String
+  idempotencyKey     String
+  requestFingerprint String
+  status             String
+  orderId            String?
+  responseBody       Json?
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  order              Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, idempotencyKey])
+  @@index([orderId])
 }

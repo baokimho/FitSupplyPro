@@ -1,5 +1,7 @@
+import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   ServiceUnavailableError,
@@ -43,6 +45,15 @@ type CartResponse = {
   id: string | null;
   userId: string;
   items: CartItem[];
+};
+
+type OrderResponse = ReturnType<typeof toOrderResponse>;
+
+type IdempotencyAttemptRow = {
+  id: string;
+  requestFingerprint: string;
+  status: string;
+  responseBody: Prisma.JsonValue | null;
 };
 
 type OrderWithItems = Prisma.OrderGetPayload<{
@@ -127,6 +138,73 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   return data as T;
 };
 
+
+const canonicalize = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, canonicalize(entry)]),
+    );
+  }
+
+  return value;
+};
+
+const createRequestFingerprint = (body: CheckoutInput) =>
+  createHash("sha256")
+    .update(JSON.stringify(canonicalize(body)))
+    .digest("hex");
+
+const claimCheckoutIdempotency = async (
+  userId: string,
+  idempotencyKey: string,
+  requestFingerprint: string,
+) => {
+  const inserted = await prisma.$queryRaw<IdempotencyAttemptRow[]>`
+    INSERT INTO "CheckoutIdempotency" ("id", "userId", "idempotencyKey", "requestFingerprint", "status", "updatedAt")
+    VALUES (${randomUUID()}, ${userId}, ${idempotencyKey}, ${requestFingerprint}, 'PROCESSING', NOW())
+    ON CONFLICT ("userId", "idempotencyKey") DO NOTHING
+    RETURNING "id", "requestFingerprint", "status", "responseBody"
+  `;
+
+  if (inserted[0]) {
+    return { row: inserted[0], owner: true };
+  }
+
+  const existing = await prisma.$queryRaw<IdempotencyAttemptRow[]>`
+    SELECT "id", "requestFingerprint", "status", "responseBody"
+    FROM "CheckoutIdempotency"
+    WHERE "userId" = ${userId} AND "idempotencyKey" = ${idempotencyKey}
+  `;
+
+  const row = existing[0];
+  if (!row) {
+    throw new ServiceUnavailableError("Unable to load checkout idempotency state");
+  }
+
+  return { row, owner: false };
+};
+
+const completeCheckoutIdempotency = async (id: string, order: OrderResponse) => {
+  await prisma.$executeRaw`
+    UPDATE "CheckoutIdempotency"
+    SET "status" = 'COMPLETED', "orderId" = ${order.id}, "responseBody" = ${JSON.stringify(order)}::jsonb, "updatedAt" = NOW()
+    WHERE "id" = ${id}
+  `;
+};
+
+const failCheckoutIdempotency = async (id: string, error: unknown) => {
+  await prisma.$executeRaw`
+    UPDATE "CheckoutIdempotency"
+    SET "status" = 'FAILED', "errorMessage" = ${error instanceof Error ? error.message : "Checkout failed"}, "updatedAt" = NOW()
+    WHERE "id" = ${id}
+  `;
+};
 const getProductById = async (productId: string) => {
   try {
     const response = await fetchJson<CatalogProductResponse>(
@@ -419,38 +497,63 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
   }
 };
 
-export const checkoutOrderService = async (userId: string, body: CheckoutInput) => {
-  const requestedIds = [...new Set(body.cartItemIds)];
-  const cart = await getUserCart(userId);
+export const checkoutOrderService = async (
+  userId: string,
+  body: CheckoutInput,
+  idempotencyKey: string,
+) => {
+  const requestFingerprint = createRequestFingerprint(body);
+  const attempt = await claimCheckoutIdempotency(userId, idempotencyKey, requestFingerprint);
 
-  if (!cart.id || cart.items.length === 0) {
-    throw new NotFoundError("Cart not found");
+  if (attempt.row.requestFingerprint !== requestFingerprint) {
+    throw new ConflictError("Idempotency key was reused with a different request");
   }
 
-  const cartItemMap = new Map(cart.items.map((item) => [item.id, item]));
-  const missingIds = requestedIds.filter((itemId) => !cartItemMap.has(itemId));
-
-  if (missingIds.length > 0) {
-    throw new NotFoundError("Cart item not found", { cartItemIds: missingIds });
-  }
-
-  const items = requestedIds.map((itemId) => {
-    const item = cartItemMap.get(itemId);
-
-    if (!item) {
-      throw new NotFoundError("Cart item not found", { cartItemId: itemId });
+  if (!attempt.owner) {
+    if (attempt.row.status === "COMPLETED" && attempt.row.responseBody) {
+      return attempt.row.responseBody as unknown as OrderResponse;
     }
 
-    return {
-      productId: item.productId,
-      quantity: item.quantity,
-    };
-  });
+    throw new ConflictError("Checkout already in progress");
+  }
 
-  const order = await createOrderService(userId, { items });
-  await removeCheckedOutCartItems(userId, requestedIds);
+  try {
+    const requestedIds = [...new Set(body.cartItemIds)];
+    const cart = await getUserCart(userId);
 
-  return order;
+    if (!cart.id || cart.items.length === 0) {
+      throw new NotFoundError("Cart not found");
+    }
+
+    const cartItemMap = new Map(cart.items.map((item) => [item.id, item]));
+    const missingIds = requestedIds.filter((itemId) => !cartItemMap.has(itemId));
+
+    if (missingIds.length > 0) {
+      throw new NotFoundError("Cart item not found", { cartItemIds: missingIds });
+    }
+
+    const items = requestedIds.map((itemId) => {
+      const item = cartItemMap.get(itemId);
+
+      if (!item) {
+        throw new NotFoundError("Cart item not found", { cartItemId: itemId });
+      }
+
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+      };
+    });
+
+    const order = await createOrderService(userId, { items });
+    await removeCheckedOutCartItems(userId, requestedIds);
+    await completeCheckoutIdempotency(attempt.row.id, order);
+
+    return order;
+  } catch (error) {
+    await failCheckoutIdempotency(attempt.row.id, error);
+    throw error;
+  }
 };
 
 export const getMyOrdersService = async (userId: string) => {
