@@ -151,6 +151,28 @@ describe("reserveInventoryStockService", () => {
   });
 });
 
+  it("deduplicates repeated reserve operation ids", async () => {
+    const inventory = await createInventory({ productId: "reserve-operation-id", stock: 5, reservedStock: 0 });
+
+    await reserveInventoryStockService(inventory.productId, {
+      quantity: 2,
+      reason: "checkout",
+      operationId: "reserve-op-1",
+    });
+    await reserveInventoryStockService(inventory.productId, {
+      quantity: 2,
+      reason: "checkout",
+      operationId: "reserve-op-1",
+    });
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 5,
+      reservedStock: 2,
+      availableStock: 3,
+    });
+  });
+
+
 describe("releaseInventoryStockService", () => {
   it("partially releases reserved stock", async () => {
     const { releaseInventoryStockService } = await import("./services/inventory.service.js");
@@ -444,3 +466,5 @@ describe("inventory mutation concurrency", () => {
     expect(state.reservedStock).toBeLessThanOrEqual(state.stock);
   });
 });
+
+

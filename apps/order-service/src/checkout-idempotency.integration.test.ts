@@ -30,6 +30,9 @@ const products = new Map<string, Product>();
 let cartItems: CartItem[] = [];
 let reserveCalls: Array<{ productId: string; quantity: number }> = [];
 let removeCalls: string[][] = [];
+let releaseCalls: Array<{ productId: string; quantity: number }> = [];
+const failReserveProducts = new Set<string>();
+const failReleaseProducts = new Set<string>();
 const inventory = new Map<string, { stock: number; reservedStock: number }>();
 let reserveDelayMs = 0;
 
@@ -102,7 +105,7 @@ function installFetchDouble() {
         await new Promise((resolve) => setTimeout(resolve, reserveDelayMs));
       }
       const current = inventory.get(productId);
-      if (!current || current.stock - current.reservedStock < body.quantity) {
+      if (failReserveProducts.has(productId) || !current || current.stock - current.reservedStock < body.quantity) {
         return jsonResponse({ message: "Insufficient stock" }, 400);
       }
       current.reservedStock += body.quantity;
@@ -114,8 +117,12 @@ function installFetchDouble() {
       const match = url.match(/\/products\/([^/]+)\/release/);
       const productId = match?.[1] ?? "";
       const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number };
+      if (failReleaseProducts.has(productId)) {
+        return jsonResponse({ message: "release failed" }, 500);
+      }
       const current = inventory.get(productId);
       if (current) current.reservedStock = Math.max(0, current.reservedStock - body.quantity);
+      releaseCalls.push({ productId, quantity: body.quantity });
       return jsonResponse({});
     }
 
@@ -164,6 +171,9 @@ beforeEach(async () => {
   inventory.clear();
   reserveCalls = [];
   removeCalls = [];
+  releaseCalls = [];
+  failReserveProducts.clear();
+  failReleaseProducts.clear();
   reserveDelayMs = 0;
   setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.00", isPublished: true });
   setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "12.00", isPublished: true });
@@ -257,8 +267,54 @@ describe("checkout idempotency", () => {
     expect(await countOrders()).toBe(0);
     expect(reserveCalls).toHaveLength(0);
   });
+  it("rolls back earlier reservations when a later reservation fails", async () => {
+    setCart([
+      { id: "cart-item-1", productId: "product-1", quantity: 2 },
+      { id: "cart-item-2", productId: "product-2", quantity: 3 },
+    ]);
+    failReserveProducts.add("product-2");
+
+    await expect(
+      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-rollback"),
+    ).rejects.toMatchObject({ status: 400, message: "Insufficient stock" });
+
+    expect(await countOrders()).toBe(0);
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+  });
+
+  it("records compensation failure durably and retries without double release", async () => {
+    setCart([
+      { id: "cart-item-1", productId: "product-1", quantity: 2 },
+      { id: "cart-item-2", productId: "product-2", quantity: 3 },
+    ]);
+    failReserveProducts.add("product-2");
+    failReleaseProducts.add("product-1");
+
+    await expect(
+      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-compensation"),
+    ).rejects.toMatchObject({ status: 503, message: "Checkout compensation failed" });
+
+    const [failedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
+    expect(failedAttempt.status).toBe("COMPENSATION_FAILED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 2 });
+
+    failReleaseProducts.clear();
+    await expect(
+      checkoutOrderService("user-1", { cartItemIds: ["cart-item-1", "cart-item-2"] }, "checkout-key-compensation"),
+    ).rejects.toMatchObject({ status: 409, message: "Checkout failed and was compensated" });
+
+    const [retriedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
+    expect(retriedAttempt.status).toBe("FAILED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+  });
 });
 
 afterAll(() => {
   vi.stubGlobal("fetch", originalFetch);
 });
+
+
+
+

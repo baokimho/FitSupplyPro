@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { BadRequestError, ConflictError, NotFoundError } from "@shared/utils";
+import type { Prisma } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import type {
   AdjustInventoryInput,
@@ -11,6 +13,14 @@ import type {
 } from "../validations/inventory.schema.js";
 
 type InventoryRecord = Awaited<ReturnType<typeof prisma.inventory.findUniqueOrThrow>>;
+
+type InventoryOperationRow = {
+  productId: string;
+  type: string;
+  quantity: number;
+};
+
+type InventoryMutationType = "RESERVE" | "RELEASE";
 
 const toInventoryResponse = (inventory: InventoryRecord) => ({
   id: inventory.id,
@@ -35,6 +45,53 @@ const ensureStockConsistency = (stock: number, reservedStock: number) => {
 
 const getInventoryConflictDetails = async (productId: string) => {
   const inventory = await prisma.inventory.findUnique({
+    where: { productId },
+  });
+
+  if (!inventory) {
+    throw new NotFoundError("Inventory not found");
+  }
+
+  return inventory;
+};
+const claimInventoryOperation = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+  operationId: string,
+  type: InventoryMutationType,
+  quantity: number,
+) => {
+  const inserted = await tx.$queryRaw<InventoryOperationRow[]>`
+    INSERT INTO "InventoryOperation" ("id", "operationId", "productId", "type", "quantity")
+    VALUES (${randomUUID()}, ${operationId}, ${productId}, ${type}, ${quantity})
+    ON CONFLICT ("operationId") DO NOTHING
+    RETURNING "productId", "type", "quantity"
+  `;
+
+  if (inserted[0]) {
+    return { duplicate: false };
+  }
+
+  const existing = await tx.$queryRaw<InventoryOperationRow[]>`
+    SELECT "productId", "type", "quantity"
+    FROM "InventoryOperation"
+    WHERE "operationId" = ${operationId}
+  `;
+  const operation = existing[0];
+
+  if (!operation) {
+    throw new ConflictError("Inventory operation is already in progress", { operationId });
+  }
+
+  if (operation.productId !== productId || operation.type !== type || operation.quantity !== quantity) {
+    throw new ConflictError("Inventory operation id was reused with different input", { operationId });
+  }
+
+  return { duplicate: true };
+};
+
+const getInventoryWithinTransaction = async (tx: Prisma.TransactionClient, productId: string) => {
+  const inventory = await tx.inventory.findUnique({
     where: { productId },
   });
 
@@ -139,53 +196,82 @@ export const reserveInventoryStockService = async (
   productId: string,
   body: ReserveInventoryInput,
 ) => {
-  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
-    UPDATE "Inventory"
-    SET "reservedStock" = "reservedStock" + ${body.quantity}, "updatedAt" = NOW()
-    WHERE "productId" = ${productId}
-      AND "stock" - "reservedStock" >= ${body.quantity}
-    RETURNING *
-  `;
+  const runMutation = async (tx: Prisma.TransactionClient) => {
+    const updatedRows = await tx.$queryRaw<InventoryRecord[]>`
+      UPDATE "Inventory"
+      SET "reservedStock" = "reservedStock" + ${body.quantity}, "updatedAt" = NOW()
+      WHERE "productId" = ${productId}
+        AND "stock" - "reservedStock" >= ${body.quantity}
+      RETURNING *
+    `;
 
-  const updated = updatedRows[0];
-  if (updated) {
-    return toInventoryResponse(updated);
+    const updated = updatedRows[0];
+    if (updated) {
+      return updated;
+    }
+
+    const inventory = await getInventoryWithinTransaction(tx, productId);
+    const availableStock = inventory.stock - inventory.reservedStock;
+
+    throw new BadRequestError("Insufficient stock", {
+      productId,
+      availableStock,
+      requestedQuantity: body.quantity,
+    });
+  };
+
+  if (!body.operationId) {
+    return toInventoryResponse(await prisma.$transaction(runMutation));
   }
 
-  const inventory = await getInventoryConflictDetails(productId);
-  const availableStock = inventory.stock - inventory.reservedStock;
+  return toInventoryResponse(await prisma.$transaction(async (tx) => {
+    const claim = await claimInventoryOperation(tx, productId, body.operationId ?? "", "RESERVE", body.quantity);
+    if (claim.duplicate) {
+      return getInventoryWithinTransaction(tx, productId);
+    }
 
-  throw new BadRequestError("Insufficient stock", {
-    productId,
-    availableStock,
-    requestedQuantity: body.quantity,
-  });
+    return runMutation(tx);
+  }));
 };
-
 export const releaseInventoryStockService = async (
   productId: string,
   body: ReleaseInventoryInput,
 ) => {
-  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
-    UPDATE "Inventory"
-    SET "reservedStock" = "reservedStock" - ${body.quantity}, "updatedAt" = NOW()
-    WHERE "productId" = ${productId}
-      AND "reservedStock" >= ${body.quantity}
-    RETURNING *
-  `;
+  const runMutation = async (tx: Prisma.TransactionClient) => {
+    const updatedRows = await tx.$queryRaw<InventoryRecord[]>`
+      UPDATE "Inventory"
+      SET "reservedStock" = "reservedStock" - ${body.quantity}, "updatedAt" = NOW()
+      WHERE "productId" = ${productId}
+        AND "reservedStock" >= ${body.quantity}
+      RETURNING *
+    `;
 
-  const updated = updatedRows[0];
-  if (updated) {
-    return toInventoryResponse(updated);
+    const updated = updatedRows[0];
+    if (updated) {
+      return updated;
+    }
+
+    const inventory = await getInventoryWithinTransaction(tx, productId);
+
+    throw new BadRequestError("Reserved stock is insufficient", {
+      productId,
+      reservedStock: inventory.reservedStock,
+      releaseQuantity: body.quantity,
+    });
+  };
+
+  if (!body.operationId) {
+    return toInventoryResponse(await prisma.$transaction(runMutation));
   }
 
-  const inventory = await getInventoryConflictDetails(productId);
+  return toInventoryResponse(await prisma.$transaction(async (tx) => {
+    const claim = await claimInventoryOperation(tx, productId, body.operationId ?? "", "RELEASE", body.quantity);
+    if (claim.duplicate) {
+      return getInventoryWithinTransaction(tx, productId);
+    }
 
-  throw new BadRequestError("Reserved stock is insufficient", {
-    productId,
-    reservedStock: inventory.reservedStock,
-    releaseQuantity: body.quantity,
-  });
+    return runMutation(tx);
+  }));
 };
 export const consumeInventoryReservationService = async (
   productId: string,
@@ -216,3 +302,8 @@ export const consumeInventoryReservationService = async (
     consumeQuantity: body.quantity,
   });
 };
+
+
+
+
+

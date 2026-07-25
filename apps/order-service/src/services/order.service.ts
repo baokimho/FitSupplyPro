@@ -49,11 +49,14 @@ type CartResponse = {
 
 type OrderResponse = ReturnType<typeof toOrderResponse>;
 
+type ReservedInventoryItem = { productId: string; quantity: number };
+
 type IdempotencyAttemptRow = {
   id: string;
   requestFingerprint: string;
   status: string;
   responseBody: Prisma.JsonValue | null;
+  reservedItems: Prisma.JsonValue | null;
 };
 
 type OrderWithItems = Prisma.OrderGetPayload<{
@@ -169,7 +172,7 @@ const claimCheckoutIdempotency = async (
     INSERT INTO "CheckoutIdempotency" ("id", "userId", "idempotencyKey", "requestFingerprint", "status", "updatedAt")
     VALUES (${randomUUID()}, ${userId}, ${idempotencyKey}, ${requestFingerprint}, 'PROCESSING', NOW())
     ON CONFLICT ("userId", "idempotencyKey") DO NOTHING
-    RETURNING "id", "requestFingerprint", "status", "responseBody"
+    RETURNING "id", "requestFingerprint", "status", "responseBody", "reservedItems"
   `;
 
   if (inserted[0]) {
@@ -177,7 +180,7 @@ const claimCheckoutIdempotency = async (
   }
 
   const existing = await prisma.$queryRaw<IdempotencyAttemptRow[]>`
-    SELECT "id", "requestFingerprint", "status", "responseBody"
+    SELECT "id", "requestFingerprint", "status", "responseBody", "reservedItems"
     FROM "CheckoutIdempotency"
     WHERE "userId" = ${userId} AND "idempotencyKey" = ${idempotencyKey}
   `;
@@ -204,6 +207,54 @@ const failCheckoutIdempotency = async (id: string, error: unknown) => {
     SET "status" = 'FAILED', "errorMessage" = ${error instanceof Error ? error.message : "Checkout failed"}, "updatedAt" = NOW()
     WHERE "id" = ${id}
   `;
+};
+const parseReservedItems = (value: Prisma.JsonValue | null): ReservedInventoryItem[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return [];
+    }
+
+    const productId = (item as Record<string, unknown>).productId;
+    const quantity = (item as Record<string, unknown>).quantity;
+
+    if (typeof productId !== "string" || typeof quantity !== "number") {
+      return [];
+    }
+
+    return [{ productId, quantity }];
+  });
+};
+
+const recordReservedItem = async (id: string, reservedItems: ReservedInventoryItem[]) => {
+  await prisma.$executeRaw`
+    UPDATE "CheckoutIdempotency"
+    SET "reservedItems" = ${JSON.stringify(reservedItems)}::jsonb, "updatedAt" = NOW()
+    WHERE "id" = ${id}
+  `;
+};
+
+const markCompensationFailed = async (id: string, error: unknown) => {
+  await prisma.$executeRaw`
+    UPDATE "CheckoutIdempotency"
+    SET "status" = 'COMPENSATION_FAILED',
+        "compensationError" = ${error instanceof Error ? error.message : "Checkout compensation failed"},
+        "updatedAt" = NOW()
+    WHERE "id" = ${id}
+  `;
+};
+const compensateReservedItems = async (id: string, reservedItems: ReservedInventoryItem[]) => {
+  for (const item of [...reservedItems].reverse()) {
+    await releaseStock(
+      item.productId,
+      item.quantity,
+      "Checkout compensation retry",
+      `${id}:release:${item.productId}`,
+    );
+  }
 };
 const getProductById = async (productId: string) => {
   try {
@@ -251,7 +302,7 @@ const getInventoryMap = async (productIds: string[]) => {
   }
 };
 
-const reserveStock = async (productId: string, quantity: number) => {
+const reserveStock = async (productId: string, quantity: number, operationId?: string) => {
   try {
     await fetchJson(
       `${inventoryServiceUrl}/products/${productId}/reserve`,
@@ -261,6 +312,7 @@ const reserveStock = async (productId: string, quantity: number) => {
         body: JSON.stringify({
           quantity,
           reason: "Order created",
+          ...(operationId ? { operationId } : {}),
         }),
       },
     );
@@ -273,7 +325,7 @@ const reserveStock = async (productId: string, quantity: number) => {
   }
 };
 
-const releaseStock = async (productId: string, quantity: number, reason: string) => {
+const releaseStock = async (productId: string, quantity: number, reason: string, operationId?: string) => {
   try {
     await fetchJson(
       `${inventoryServiceUrl}/products/${productId}/release`,
@@ -283,6 +335,7 @@ const releaseStock = async (productId: string, quantity: number, reason: string)
         body: JSON.stringify({
           quantity,
           reason,
+          ...(operationId ? { operationId } : {}),
         }),
       },
     );
@@ -374,7 +427,11 @@ const ensureOwnership = (order: OrderWithItems, userId: string) => {
   }
 };
 
-export const createOrderService = async (userId: string, body: CreateOrderInput) => {
+export const createOrderService = async (
+  userId: string,
+  body: CreateOrderInput,
+  checkoutAttemptId?: string,
+) => {
   const aggregatedItems = new Map<string, number>();
 
   for (const item of body.items) {
@@ -442,8 +499,11 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
 
   try {
     for (const [productId, quantity] of aggregatedItems.entries()) {
-      await reserveStock(productId, quantity);
+      await reserveStock(productId, quantity, checkoutAttemptId ? `${checkoutAttemptId}:reserve:${productId}` : undefined);
       reservedItems.push({ productId, quantity });
+      if (checkoutAttemptId) {
+        await recordReservedItem(checkoutAttemptId, reservedItems);
+      }
     }
 
   let totalAmount = 0;
@@ -490,9 +550,27 @@ export const createOrderService = async (userId: string, body: CreateOrderInput)
 
     return toOrderResponse(order);
   } catch (error) {
-    await Promise.allSettled(
-      reservedItems.map((item) => releaseStock(item.productId, item.quantity, "Order creation rollback")),
-    );
+    for (const item of [...reservedItems].reverse()) {
+      try {
+        await releaseStock(
+          item.productId,
+          item.quantity,
+          "Order creation rollback",
+          checkoutAttemptId ? `${checkoutAttemptId}:release:${item.productId}` : undefined,
+        );
+      } catch (compensationError) {
+        if (checkoutAttemptId) {
+          await markCompensationFailed(checkoutAttemptId, compensationError);
+        }
+
+        throw new ServiceUnavailableError("Checkout compensation failed", {
+          checkoutAttemptId,
+          originalError: error instanceof Error ? error.message : "Checkout failed",
+          compensationError: compensationError instanceof Error ? compensationError.message : "Compensation failed",
+        });
+      }
+    }
+
     throw error;
   }
 };
@@ -512,6 +590,21 @@ export const checkoutOrderService = async (
   if (!attempt.owner) {
     if (attempt.row.status === "COMPLETED" && attempt.row.responseBody) {
       return attempt.row.responseBody as unknown as OrderResponse;
+    }
+
+    if (attempt.row.status === "COMPENSATION_FAILED") {
+      try {
+        await compensateReservedItems(attempt.row.id, parseReservedItems(attempt.row.reservedItems));
+        await failCheckoutIdempotency(attempt.row.id, new Error("Checkout failed after compensation retry"));
+      } catch (error) {
+        await markCompensationFailed(attempt.row.id, error);
+        throw new ServiceUnavailableError("Checkout compensation failed", {
+          checkoutAttemptId: attempt.row.id,
+          compensationError: error instanceof Error ? error.message : "Compensation failed",
+        });
+      }
+
+      throw new ConflictError("Checkout failed and was compensated");
     }
 
     throw new ConflictError("Checkout already in progress");
@@ -545,13 +638,15 @@ export const checkoutOrderService = async (
       };
     });
 
-    const order = await createOrderService(userId, { items });
+    const order = await createOrderService(userId, { items }, attempt.row.id);
     await removeCheckedOutCartItems(userId, requestedIds);
     await completeCheckoutIdempotency(attempt.row.id, order);
 
     return order;
   } catch (error) {
-    await failCheckoutIdempotency(attempt.row.id, error);
+    if (!(error instanceof Error && error.message === "Checkout compensation failed")) {
+      await failCheckoutIdempotency(attempt.row.id, error);
+    }
     throw error;
   }
 };
@@ -671,3 +766,14 @@ export const cancelOrderService = async (id: string, userId: string) =>
 
 export const confirmOrderService = async (id: string, userId: string) =>
   updateOrderStatus(id, userId, "CONFIRMED");
+
+
+
+
+
+
+
+
+
+
+

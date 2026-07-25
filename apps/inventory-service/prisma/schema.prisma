@@ -16,4 +16,20 @@ model Inventory {
   lowStockThreshold Int      @default(5)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  operations InventoryOperation[]
 }
+
+model InventoryOperation {
+  id          String   @id @default(uuid())
+  operationId String   @unique
+  productId   String
+  type        String
+  quantity    Int
+  createdAt   DateTime @default(now())
+
+  inventory Inventory @relation(fields: [productId], references: [productId], onDelete: Cascade)
+
+  @@index([productId])
+}
+

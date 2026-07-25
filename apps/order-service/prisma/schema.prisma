@@ -56,6 +56,8 @@ model CheckoutIdempotency {
   status             String
   orderId            String?
   responseBody       Json?
+  reservedItems      Json?
+  compensationError  String?
   errorMessage       String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -64,3 +66,4 @@ model CheckoutIdempotency {
   @@unique([userId, idempotencyKey])
   @@index([orderId])
 }
+
