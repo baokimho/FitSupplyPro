@@ -150,3 +150,101 @@ describe("reserveInventoryStockService", () => {
     });
   });
 });
+
+describe("releaseInventoryStockService", () => {
+  it("partially releases reserved stock", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "release-partial", stock: 10, reservedStock: 6 });
+
+    const result = await releaseInventoryStockService(inventory.productId, {
+      quantity: 2,
+      reason: "order-cancelled",
+    });
+
+    expect(result).toMatchObject({ stock: 10, reservedStock: 4, availableStock: 6 });
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 10,
+      reservedStock: 4,
+      availableStock: 6,
+    });
+  });
+
+  it("releases all reserved stock to zero", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "release-full", stock: 7, reservedStock: 7 });
+
+    const result = await releaseInventoryStockService(inventory.productId, {
+      quantity: 7,
+      reason: "order-cancelled",
+    });
+
+    expect(result).toMatchObject({ stock: 7, reservedStock: 0, availableStock: 7 });
+  });
+
+  it("rejects over-release and leaves state unchanged", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "release-over", stock: 9, reservedStock: 3 });
+
+    await expect(
+      releaseInventoryStockService(inventory.productId, { quantity: 4, reason: "order-cancelled" }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Reserved stock is insufficient",
+      details: { productId: inventory.productId, reservedStock: 3, releaseQuantity: 4 },
+    });
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 9,
+      reservedStock: 3,
+      availableStock: 6,
+    });
+  });
+
+  it("returns not found for missing inventory", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+
+    await expect(
+      releaseInventoryStockService("missing-release", { quantity: 1, reason: "order-cancelled" }),
+    ).rejects.toMatchObject({ status: 404, message: "Inventory not found" });
+  });
+
+  it("rejects invalid release quantities before reaching service mutation", async () => {
+    const inventory = await createInventory({ productId: "release-invalid", stock: 5, reservedStock: 2 });
+
+    await request(app)
+      .post(`/products/${inventory.productId}/release`)
+      .send({ quantity: 0, reason: "order-cancelled" })
+      .expect(400);
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 5,
+      reservedStock: 2,
+      availableStock: 3,
+    });
+  });
+
+  it("prevents competing releases from making reserved stock negative", async () => {
+    const { releaseInventoryStockService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "release-race", stock: 5, reservedStock: 5 });
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () =>
+        releaseInventoryStockService(inventory.productId, { quantity: 1, reason: "order-cancelled" }),
+      ),
+    );
+
+    const successes = results.filter((result) => result.status === "fulfilled");
+    const failures = results.filter((result) => result.status === "rejected");
+
+    expect(successes).toHaveLength(5);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      reason: { status: 400, message: "Reserved stock is insufficient" },
+    });
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 5,
+      reservedStock: 0,
+      availableStock: 5,
+    });
+  });
+});

@@ -165,22 +165,24 @@ export const releaseInventoryStockService = async (
   productId: string,
   body: ReleaseInventoryInput,
 ) => {
-  const inventory = await getInventoryRecordByProductId(productId);
+  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
+    UPDATE "Inventory"
+    SET "reservedStock" = "reservedStock" - ${body.quantity}, "updatedAt" = NOW()
+    WHERE "productId" = ${productId}
+      AND "reservedStock" >= ${body.quantity}
+    RETURNING *
+  `;
 
-  if (inventory.reservedStock < body.quantity) {
-    throw new BadRequestError("Reserved stock is insufficient", {
-      productId,
-      reservedStock: inventory.reservedStock,
-      releaseQuantity: body.quantity,
-    });
+  const updated = updatedRows[0];
+  if (updated) {
+    return toInventoryResponse(updated);
   }
 
-  const updated = await prisma.inventory.update({
-    where: { productId },
-    data: {
-      reservedStock: inventory.reservedStock - body.quantity,
-    },
-  });
+  const inventory = await getInventoryConflictDetails(productId);
 
-  return toInventoryResponse(updated);
+  throw new BadRequestError("Reserved stock is insufficient", {
+    productId,
+    reservedStock: inventory.reservedStock,
+    releaseQuantity: body.quantity,
+  });
 };
