@@ -220,12 +220,14 @@ export const updateShipmentStatusService = async (
   id: string,
   userId: string,
   body: UpdateShipmentStatusInput,
+  role?: string,
 ) => {
   const shipment = await getShipmentByIdOrThrow(id);
 
-  if (shipment.userId !== userId) {
+  if (role !== "ADMIN" && shipment.userId !== userId) {
     throw new ForbiddenError("Forbidden");
   }
+  const ownerId = shipment.userId;
 
   if (shipment.status === "CANCELLED") {
     throw new BadRequestError("Cancelled shipment cannot be updated");
@@ -252,7 +254,7 @@ export const updateShipmentStatusService = async (
   });
 
   if (body.status === "SHIPPED") {
-    await createNotification(userId, {
+    await createNotification(ownerId, {
       type: "ORDER_SHIPPED",
       title: "Order shipped",
       message: `Shipment ${id} has shipped.`,
@@ -260,7 +262,7 @@ export const updateShipmentStatusService = async (
   }
 
   if (body.status === "DELIVERED") {
-    await createNotification(userId, {
+    await createNotification(ownerId, {
       type: "ORDER_DELIVERED",
       title: "Order delivered",
       message: `Shipment ${id} has been delivered.`,

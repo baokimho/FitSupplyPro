@@ -12,7 +12,7 @@
     "test": "node scripts/test-matrix.mjs all",
     "test:unit": "node scripts/test-matrix.mjs unit",
     "test:integration": "node scripts/test-matrix.mjs integration",
-    "test:e2e": "npm run test:e2e --workspaces --if-present",
+    "test:e2e": "node scripts/e2e.mjs",
     "test:db:up": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml up -d --wait --wait-timeout 60",
     "test:db:config": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config",
     "test:db:reset": "docker compose -p fitsupply-test-db -f docker-compose.test-db.yml down -v --remove-orphans && npm run test:db:up",

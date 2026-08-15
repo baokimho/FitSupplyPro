@@ -23,6 +23,8 @@ const getUserId = (req: Request) => {
   return userId;
 };
 
+const getUserRole = (req: Request) => req.paymentUser?.role;
+
 const getIdempotencyKey = (req: Request) => {
   const value = req.get("idempotency-key");
 
@@ -53,16 +55,16 @@ export const getPaymentById = async (req: Request<PaymentParamsInput>, res: Resp
 };
 
 export const confirmPayment = async (req: Request<PaymentParamsInput>, res: Response) => {
-  const payment = await confirmPaymentService(getParam(req, "id"), getUserId(req));
+  const payment = await confirmPaymentService(getParam(req, "id"), getUserId(req), getUserRole(req));
   res.status(StatusCodes.OK).json(payment);
 };
 
 export const failPayment = async (req: Request<PaymentParamsInput>, res: Response) => {
-  const payment = await failPaymentService(getParam(req, "id"), getUserId(req));
+  const payment = await failPaymentService(getParam(req, "id"), getUserId(req), getUserRole(req));
   res.status(StatusCodes.OK).json(payment);
 };
 
 export const refundPayment = async (req: Request<PaymentParamsInput>, res: Response) => {
-  const payment = await refundPaymentService(getParam(req, "id"), getUserId(req));
+  const payment = await refundPaymentService(getParam(req, "id"), getUserId(req), getUserRole(req));
   res.status(StatusCodes.OK).json(payment);
 };

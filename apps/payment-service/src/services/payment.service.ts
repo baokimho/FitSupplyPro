@@ -261,6 +261,14 @@ const ensureOwnership = (payment: PaymentWithScalars, userId: string) => {
   }
 };
 
+const ensureTransitionAllowed = (payment: PaymentWithScalars, userId: string, role?: string) => {
+  if (role === "ADMIN") {
+    return;
+  }
+
+  ensureOwnership(payment, userId);
+};
+
 const findExistingOrderPayment = async (orderId: string, userId: string) => {
   const payment = await prisma.payment.findUnique({ where: { orderId } });
   if (!payment) {
@@ -372,9 +380,10 @@ export const getPaymentByIdService = async (id: string, userId: string) => {
   return toPaymentResponse(payment);
 };
 
-const updatePaymentStatus = async (id: string, userId: string, status: PaymentStatus) => {
+const updatePaymentStatus = async (id: string, userId: string, status: PaymentStatus, role?: string) => {
   const payment = await getPaymentByIdOrThrow(id);
-  ensureOwnership(payment, userId);
+  ensureTransitionAllowed(payment, userId, role);
+  const ownerId = payment.userId;
 
   if (status === "PAID") {
     if (payment.status === "PAID") {
@@ -389,7 +398,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
       throw new BadRequestError("Only pending payment can be confirmed");
     }
 
-    await confirmOrder(payment.orderId, userId);
+    await confirmOrder(payment.orderId, ownerId);
   }
 
   if (status === "REFUNDED" && payment.status !== "PAID") {
@@ -405,12 +414,12 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
       throw new BadRequestError("Only pending payment can be failed or cancelled");
     }
 
-    await cancelOrder(payment.orderId, userId);
+    await cancelOrder(payment.orderId, ownerId);
   }
   const updated = await prisma.payment.update({ where: { id }, data: { status } });
 
   if (status === "PAID") {
-    await createNotification(userId, {
+    await createNotification(ownerId, {
       type: "PAYMENT_PAID",
       title: "Payment confirmed",
       message: `Payment ${id} has been confirmed.`,
@@ -418,7 +427,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
   }
 
   if (status === "FAILED") {
-    await createNotification(userId, {
+    await createNotification(ownerId, {
       type: "PAYMENT_FAILED",
       title: "Payment failed",
       message: `Payment ${id} has failed.`,
@@ -428,14 +437,14 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
   return toPaymentResponse(updated);
 };
 
-export const confirmPaymentService = async (id: string, userId: string) =>
-  updatePaymentStatus(id, userId, "PAID");
+export const confirmPaymentService = async (id: string, userId: string, role?: string) =>
+  updatePaymentStatus(id, userId, "PAID", role);
 
-export const failPaymentService = async (id: string, userId: string) =>
-  updatePaymentStatus(id, userId, "FAILED");
+export const failPaymentService = async (id: string, userId: string, role?: string) =>
+  updatePaymentStatus(id, userId, "FAILED", role);
 
-export const cancelPaymentService = async (id: string, userId: string) =>
-  updatePaymentStatus(id, userId, "CANCELLED");
+export const cancelPaymentService = async (id: string, userId: string, role?: string) =>
+  updatePaymentStatus(id, userId, "CANCELLED", role);
 
-export const refundPaymentService = async (id: string, userId: string) =>
-  updatePaymentStatus(id, userId, "REFUNDED");
+export const refundPaymentService = async (id: string, userId: string, role?: string) =>
+  updatePaymentStatus(id, userId, "REFUNDED", role);

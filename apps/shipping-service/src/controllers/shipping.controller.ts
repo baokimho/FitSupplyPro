@@ -13,6 +13,8 @@ import type {
   UpdateShipmentStatusInput,
 } from "../validations/shipping.schema.js";
 
+const getUserRole = (req: Request) => req.shippingUser?.role;
+
 const getUserId = (req: Request) => {
   const userId = req.shippingUser?.id;
 
@@ -42,6 +44,6 @@ export const updateShipmentStatus = async (
   req: Request<ShipmentParamsInput, {}, UpdateShipmentStatusInput>,
   res: Response,
 ) => {
-  const shipment = await updateShipmentStatusService(getParam(req, "id"), getUserId(req), req.body);
+  const shipment = await updateShipmentStatusService(getParam(req, "id"), getUserId(req), req.body, getUserRole(req));
   res.status(StatusCodes.OK).json(shipment);
 };
