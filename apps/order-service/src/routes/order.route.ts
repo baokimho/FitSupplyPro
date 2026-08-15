@@ -7,11 +7,13 @@ import {
   createOrder,
   getMyOrders,
   getOrderById,
+  getInternalOrderShippingSnapshot,
 } from "../controllers/order.controller.js";
 import { checkoutSchema, createOrderSchema, orderParamsSchema } from "../validations/order.schema.js";
 
 const router = Router();
 
+router.get("/internal/orders/:id/shipping-snapshot", validateRequest("params", orderParamsSchema), wrapAsync(getInternalOrderShippingSnapshot));
 router.post("/orders", validateRequest("body", createOrderSchema), wrapAsync(createOrder));
 router.post("/orders/checkout", validateRequest("body", checkoutSchema), wrapAsync(checkoutOrder));
 router.get("/orders/me", wrapAsync(getMyOrders));

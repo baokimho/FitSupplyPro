@@ -840,6 +840,21 @@ export const checkoutOrderService = async (
   }
 };
 
+export const getOrderShippingSnapshotService = async (id: string) => {
+  const order = await getOrderByIdOrThrow(id);
+  const delivery = await getDeliverySnapshot(order.id);
+
+  if (!delivery) {
+    throw new BadRequestError("Order delivery snapshot is incomplete", { orderId: id });
+  }
+
+  return {
+    id: order.id,
+    userId: order.userId,
+    status: order.status,
+    delivery,
+  };
+};
 export const getMyOrdersService = async (userId: string) => {
   const orders = await prisma.order.findMany({
     where: { userId },

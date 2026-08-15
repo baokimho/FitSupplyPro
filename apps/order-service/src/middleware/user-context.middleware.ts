@@ -15,6 +15,11 @@ declare global {
 }
 
 export function attachOrderUser(req: Request, _res: Response, next: NextFunction) {
+  if (req.path.startsWith("/internal/")) {
+    next();
+    return;
+  }
+
   const userId = req.get("x-user-id");
 
   if (!userId) {

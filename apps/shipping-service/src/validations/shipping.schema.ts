@@ -6,14 +6,7 @@ export const shipmentParamsSchema = z.object({
 
 export const createShipmentSchema = z.object({
   orderId: z.string().min(1, "Order id is required"),
-  recipientName: z.string().min(1, "Recipient name is required"),
-  phone: z.string().min(1, "Phone is required"),
-  addressLine1: z.string().min(1, "Address line 1 is required"),
-  addressLine2: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  postalCode: z.string().min(1, "Postal code is required"),
-  country: z.string().min(1, "Country is required"),
-});
+}).strict();
 
 export const updateShipmentStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]),

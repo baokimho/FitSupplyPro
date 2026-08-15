@@ -4,7 +4,7 @@ import {
   NotFoundError,
   ServiceUnavailableError,
 } from "@shared/utils";
-import type { Prisma } from "../generated/prisma/index.js";
+import { Prisma } from "../generated/prisma/index.js";
 import type { ShipmentStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import type {
@@ -16,6 +16,16 @@ type OrderResponse = {
   id: string;
   userId: string;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
+  delivery: {
+    recipientName: string;
+    contactPhone: string;
+    addressLine1: string;
+    addressLine2: string | null;
+    city: string;
+    region: string | null;
+    postalCode: string;
+    countryCode: string;
+  };
 };
 
 type ShipmentWithScalars = Prisma.ShipmentGetPayload<Record<string, never>>;
@@ -87,13 +97,10 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   return data as T;
 };
 
-const getOrder = async (orderId: string, userId: string) => {
+const getOrder = async (orderId: string) => {
   try {
-    return await fetchJson<OrderResponse>(`${orderServiceUrl}/orders/${orderId}`, {
-      headers: {
-        ...jsonHeaders,
-        "x-user-id": userId,
-      },
+    return await fetchJson<OrderResponse>(`${orderServiceUrl}/internal/orders/${orderId}/shipping-snapshot`, {
+      headers: jsonHeaders,
     });
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
@@ -144,12 +151,14 @@ const transitionRank: Record<ShipmentStatus, number> = {
   CANCELLED: 99,
 };
 
-export const createShipmentService = async (userId: string, body: CreateShipmentInput) => {
-  const order = await getOrder(body.orderId, userId);
+export const createShipmentService = async (_userId: string, body: CreateShipmentInput) => {
+  const existing = await prisma.shipment.findFirst({ where: { orderId: body.orderId } });
 
-  if (order.userId !== userId) {
-    throw new ForbiddenError("Forbidden");
+  if (existing) {
+    return toShipmentResponse(existing);
   }
+
+  const order = await getOrder(body.orderId);
 
   if (order.status !== "CONFIRMED") {
     throw new BadRequestError("Order must be confirmed before shipment", {
@@ -158,14 +167,34 @@ export const createShipmentService = async (userId: string, body: CreateShipment
     });
   }
 
-  const shipment = await prisma.shipment.create({
-    data: {
-      userId,
-      ...body,
-    },
-  });
+  try {
+    const shipment = await prisma.shipment.create({
+      data: {
+        userId: order.userId,
+        orderId: order.id,
+        status: "PROCESSING",
+        recipientName: order.delivery.recipientName,
+        phone: order.delivery.contactPhone,
+        addressLine1: order.delivery.addressLine1,
+        addressLine2: order.delivery.addressLine2,
+        city: order.delivery.city,
+        postalCode: order.delivery.postalCode,
+        country: order.delivery.countryCode,
+      },
+    });
 
-  return toShipmentResponse(shipment);
+    return toShipmentResponse(shipment);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const shipment = await prisma.shipment.findFirst({ where: { orderId: body.orderId } });
+
+      if (shipment) {
+        return toShipmentResponse(shipment);
+      }
+    }
+
+    throw error;
+  }
 };
 
 export const getMyShipmentsService = async (userId: string) => {

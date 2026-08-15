@@ -75,6 +75,7 @@ describe("api-gateway security boundaries", () => {
     const app = createGatewayApp();
 
     await request(app).post("/inventory/products/product-1/adjust").expect(403);
+    await request(app).post("/shipping/shipments").expect(403);
     await request(app).patch("/payment/payments/payment-1/confirm").expect(403);
     await request(app).patch("/shipping/shipments/shipment-1/status").send({ status: "SHIPPED" }).expect(403);
     await request(app).patch("/shipping/shipments/shipment-1/status").send({ status: "DELIVERED" }).expect(403);

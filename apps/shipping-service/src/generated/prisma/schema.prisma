@@ -11,7 +11,7 @@ datasource db {
 model Shipment {
   id             String         @id @default(uuid())
   userId         String
-  orderId        String
+  orderId        String         @unique
   status         ShipmentStatus @default(PENDING)
   recipientName  String
   phone          String

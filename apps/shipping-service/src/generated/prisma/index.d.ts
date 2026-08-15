@@ -2164,11 +2164,11 @@ export namespace Prisma {
 
   export type ShipmentWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    orderId?: string
     AND?: ShipmentWhereInput | ShipmentWhereInput[]
     OR?: ShipmentWhereInput[]
     NOT?: ShipmentWhereInput | ShipmentWhereInput[]
     userId?: StringFilter<"Shipment"> | string
-    orderId?: StringFilter<"Shipment"> | string
     status?: EnumShipmentStatusFilter<"Shipment"> | $Enums.ShipmentStatus
     recipientName?: StringFilter<"Shipment"> | string
     phone?: StringFilter<"Shipment"> | string
@@ -2180,7 +2180,7 @@ export namespace Prisma {
     trackingNumber?: StringNullableFilter<"Shipment"> | string | null
     createdAt?: DateTimeFilter<"Shipment"> | Date | string
     updatedAt?: DateTimeFilter<"Shipment"> | Date | string
-  }, "id">
+  }, "id" | "orderId">
 
   export type ShipmentOrderByWithAggregationInput = {
     id?: SortOrder
