@@ -125,8 +125,25 @@ exports.Prisma.PaymentScalarFieldEnum = {
   userId: 'userId',
   orderId: 'orderId',
   amount: 'amount',
+  currency: 'currency',
   status: 'status',
   provider: 'provider',
+  providerPaymentId: 'providerPaymentId',
+  progressState: 'progressState',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.PaymentIdempotencyScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  action: 'action',
+  idempotencyKey: 'idempotencyKey',
+  requestFingerprint: 'requestFingerprint',
+  status: 'status',
+  paymentId: 'paymentId',
+  responseBody: 'responseBody',
+  errorMessage: 'errorMessage',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -136,9 +153,25 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
+};
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
 };
 exports.PaymentStatus = exports.$Enums.PaymentStatus = {
   PENDING: 'PENDING',
@@ -153,7 +186,8 @@ exports.PaymentProvider = exports.$Enums.PaymentProvider = {
 };
 
 exports.Prisma.ModelName = {
-  Payment: 'Payment'
+  Payment: 'Payment',
+  PaymentIdempotency: 'PaymentIdempotency'
 };
 
 /**

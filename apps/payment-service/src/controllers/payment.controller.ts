@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { getParam } from "@shared/utils";
+import { BadRequestError, getParam } from "@shared/utils";
 import {
   confirmPaymentService,
   createPaymentService,
@@ -10,6 +10,8 @@ import {
   refundPaymentService,
 } from "../services/payment.service.js";
 import type { CreatePaymentInput, PaymentParamsInput } from "../validations/payment.schema.js";
+
+const idempotencyKeyPattern = /^[A-Za-z0-9._:-]{1,128}$/;
 
 const getUserId = (req: Request) => {
   const userId = req.paymentUser?.id;
@@ -21,8 +23,22 @@ const getUserId = (req: Request) => {
   return userId;
 };
 
+const getIdempotencyKey = (req: Request) => {
+  const value = req.get("idempotency-key");
+
+  if (!value) {
+    throw new BadRequestError("Idempotency-Key header is required");
+  }
+
+  if (value.trim() !== value || !idempotencyKeyPattern.test(value)) {
+    throw new BadRequestError("Idempotency-Key header is invalid");
+  }
+
+  return value;
+};
+
 export const createPayment = async (req: Request<{}, {}, CreatePaymentInput>, res: Response) => {
-  const payment = await createPaymentService(getUserId(req), req.body);
+  const payment = await createPaymentService(getUserId(req), req.body, getIdempotencyKey(req));
   res.status(StatusCodes.CREATED).json(payment);
 };
 
