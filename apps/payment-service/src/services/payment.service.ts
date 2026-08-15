@@ -159,6 +159,27 @@ const confirmOrder = async (orderId: string, userId: string) => {
   }
 };
 
+const cancelOrder = async (orderId: string, userId: string) => {
+  try {
+    await fetchJson(`${orderServiceUrl}/orders/${orderId}/cancel`, {
+      method: "PATCH",
+      headers: {
+        ...jsonHeaders,
+        "x-user-id": userId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof BadRequestError && error.message === "Order is already cancelled") {
+      return;
+    }
+
+    if (error instanceof ServiceUnavailableError) {
+      throw new ServiceUnavailableError("Order service unavailable");
+    }
+
+    throw error;
+  }
+};
 const createNotification = async (
   userId: string,
   body: { type: "PAYMENT_PAID" | "PAYMENT_FAILED"; title: string; message: string },
@@ -357,7 +378,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
 
   if (status === "PAID") {
     if (payment.status === "PAID") {
-      throw new BadRequestError("Payment is already paid");
+      return toPaymentResponse(payment);
     }
 
     if (payment.status === "REFUNDED") {
@@ -375,10 +396,17 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
     throw new BadRequestError("Only paid payment can be refunded");
   }
 
-  if ((status === "FAILED" || status === "CANCELLED") && payment.status !== "PENDING") {
-    throw new BadRequestError("Only pending payment can be failed or cancelled");
-  }
+  if (status === "FAILED" || status === "CANCELLED") {
+    if (payment.status === status) {
+      return toPaymentResponse(payment);
+    }
 
+    if (payment.status !== "PENDING") {
+      throw new BadRequestError("Only pending payment can be failed or cancelled");
+    }
+
+    await cancelOrder(payment.orderId, userId);
+  }
   const updated = await prisma.payment.update({ where: { id }, data: { status } });
 
   if (status === "PAID") {
@@ -405,6 +433,9 @@ export const confirmPaymentService = async (id: string, userId: string) =>
 
 export const failPaymentService = async (id: string, userId: string) =>
   updatePaymentStatus(id, userId, "FAILED");
+
+export const cancelPaymentService = async (id: string, userId: string) =>
+  updatePaymentStatus(id, userId, "CANCELLED");
 
 export const refundPaymentService = async (id: string, userId: string) =>
   updatePaymentStatus(id, userId, "REFUNDED");

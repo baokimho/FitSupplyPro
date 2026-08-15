@@ -470,6 +470,28 @@ const releaseStock = async (productId: string, quantity: number, reason: string,
   }
 };
 
+const consumeStock = async (productId: string, quantity: number, reason: string, operationId: string) => {
+  try {
+    await fetchJson(
+      `${inventoryServiceUrl}/products/${productId}/consume`,
+      {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          quantity,
+          reason,
+          operationId,
+        }),
+      },
+    );
+  } catch (error) {
+    if (error instanceof ServiceUnavailableError) {
+      throw new ServiceUnavailableError("Inventory service unavailable", error.details);
+    }
+
+    throw error;
+  }
+};
 const getUserCart = async (userId: string) => {
   try {
     return await fetchJson<CartResponse>(`${cartServiceUrl}/internal/cart`, {
@@ -851,69 +873,43 @@ const updateOrderStatus = async (id: string, userId: string, status: OrderStatus
       throw new BadRequestError("Confirmed order cannot be cancelled");
     }
 
-    const releasedItems: Array<{ productId: string; quantity: number }> = [];
-
-    try {
-      for (const item of order.items) {
-        await releaseStock(item.productId, item.quantity, "Order cancelled");
-        releasedItems.push({ productId: item.productId, quantity: item.quantity });
-      }
-    } catch (error) {
-      const rollbackResults = await Promise.allSettled(
-        releasedItems.map((item) => reserveStock(item.productId, item.quantity)),
-      );
-
-      console.error("Rollback after releaseStock failure", {
-        orderId: id,
-        releasedItems,
-        rollbackResults,
-        originalError: error,
-      });
-
-      throw error;
+    for (const item of order.items) {
+      await releaseStock(item.productId, item.quantity, "Order cancelled", `${id}:release:${item.productId}`);
     }
 
-    let updated;
+    const updated = await prisma.order.update({
+      where: { id },
+      data: { status },
+      include: {
+        items: true,
+      },
+    });
 
-    try {
-      updated = await prisma.order.update({
-        where: { id },
-        data: { status },
-        include: {
-          items: true,
-        },
-      });
-
-      await createNotification(userId, {
-        type: "ORDER_CANCELLED",
-        title: "Order cancelled",
-        message: `Order ${id} has been cancelled.`,
-      });
-    } catch (error) {
-      const rollbackResults = await Promise.allSettled(
-        releasedItems.map((item) => reserveStock(item.productId, item.quantity)),
-      );
-
-      console.error("Rollback after order update failure", {
-        orderId: id,
-        releasedItems,
-        rollbackResults,
-        originalError: error,
-      });
-
-      throw error;
-    }
+    await createNotification(userId, {
+      type: "ORDER_CANCELLED",
+      title: "Order cancelled",
+      message: `Order ${id} has been cancelled.`,
+    });
 
     return toOrderResponseWithDelivery(updated);
   }
 
   if (status === "CONFIRMED") {
     if (order.status === "CONFIRMED") {
-      throw new BadRequestError("Order is already confirmed");
+      return toOrderResponseWithDelivery(order);
     }
 
     if (order.status === "CANCELLED") {
       throw new BadRequestError("Cancelled order cannot be confirmed");
+    }
+
+    for (const item of order.items) {
+      await consumeStock(
+        item.productId,
+        item.quantity,
+        "Order confirmed",
+        `${id}:consume:${item.productId}`,
+      );
     }
   }
 

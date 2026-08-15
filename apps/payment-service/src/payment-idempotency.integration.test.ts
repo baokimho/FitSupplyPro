@@ -5,10 +5,13 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import { PrismaClient } from "./generated/prisma/index.js";
-import type { createPaymentService as createPaymentServiceType } from "./services/payment.service.js";
+import type { cancelPaymentService as cancelPaymentServiceType, confirmPaymentService as confirmPaymentServiceType, createPaymentService as createPaymentServiceType, failPaymentService as failPaymentServiceType } from "./services/payment.service.js";
 
 let prisma: PrismaClient;
+let cancelPaymentService: typeof cancelPaymentServiceType;
+let confirmPaymentService: typeof confirmPaymentServiceType;
 let createPaymentService: typeof createPaymentServiceType;
+let failPaymentService: typeof failPaymentServiceType;
 let app: express.Express;
 
 const databaseUrl = requireTestDatabaseUrl("payment_test_db");
@@ -18,6 +21,10 @@ const orderId = "11111111-1111-4111-8111-111111111111";
 const secondOrderId = "22222222-2222-4222-8222-222222222222";
 let orderDelayMs = 0;
 let orderFetchCount = 0;
+let orderCancelCalls = 0;
+let orderConfirmCalls = 0;
+let failOrderCancel = false;
+let failOrderConfirm = false;
 let orderStatus: "PENDING" | "CONFIRMED" | "CANCELLED" = "PENDING";
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -38,7 +45,7 @@ function installFetchDouble() {
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL, init?: RequestInit) => {
     const url = String(input);
 
-    if (url.includes("/orders/") && !url.includes("/confirm")) {
+    if (url.includes("/orders/") && !url.includes("/confirm") && !url.includes("/cancel")) {
       orderFetchCount += 1;
       if (orderDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, orderDelayMs));
@@ -54,10 +61,25 @@ function installFetchDouble() {
       });
     }
 
-    if (url.includes("/internal/notifications") || url.includes("/confirm")) {
+    if (url.includes("/confirm")) {
+      orderConfirmCalls += 1;
+      if (failOrderConfirm) {
+        return jsonResponse({ message: "consume failed" }, 500);
+      }
       return jsonResponse({});
     }
 
+    if (url.includes("/cancel")) {
+      orderCancelCalls += 1;
+      if (failOrderCancel) {
+        return jsonResponse({ message: "release failed" }, 500);
+      }
+      return jsonResponse({});
+    }
+
+    if (url.includes("/internal/notifications")) {
+      return jsonResponse({});
+    }
     return jsonResponse({ message: `Unhandled request: ${url}` }, 500);
   }));
 }
@@ -71,7 +93,7 @@ beforeAll(async () => {
   installFetchDouble();
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
-  ({ createPaymentService } = await import("./services/payment.service.js"));
+  ({ cancelPaymentService, confirmPaymentService, createPaymentService, failPaymentService } = await import("./services/payment.service.js"));
 
   const routes = (await import("./routes/payment.route.js")).default;
   app = express();
@@ -88,6 +110,10 @@ beforeEach(async () => {
   await truncatePaymentDb();
   orderDelayMs = 0;
   orderFetchCount = 0;
+  orderCancelCalls = 0;
+  orderConfirmCalls = 0;
+  failOrderCancel = false;
+  failOrderConfirm = false;
   orderStatus = "PENDING";
   installFetchDouble();
 });
@@ -274,6 +300,75 @@ describe("payment idempotency", () => {
     expect(await countPayments()).toBe(0);
   });
 
+  it("does not mark payment paid when order confirmation fails", async () => {
+    const payment = await prisma.payment.create({
+      data: { userId: "user-1", orderId, amount: "19.99" },
+    });
+    failOrderConfirm = true;
+
+    await expect(confirmPaymentService(payment.id, "user-1"))
+      .rejects.toMatchObject({ status: 503, message: "Order service unavailable" });
+
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }))
+      .resolves.toMatchObject({ status: "PENDING" });
+    expect(orderConfirmCalls).toBe(1);
+  });
+
+  it("marks payment paid only after order confirmation succeeds", async () => {
+    const payment = await prisma.payment.create({
+      data: { userId: "user-1", orderId, amount: "19.99" },
+    });
+
+    const paid = await confirmPaymentService(payment.id, "user-1");
+
+    expect(paid.status).toBe("PAID");
+    expect(orderConfirmCalls).toBe(1);
+  });
+
+  it("cancels the order before marking payment failed", async () => {
+    const payment = await prisma.payment.create({
+      data: { userId: "user-1", orderId, amount: "19.99" },
+    });
+
+    const failed = await failPaymentService(payment.id, "user-1");
+
+    expect(failed.status).toBe("FAILED");
+    expect(orderCancelCalls).toBe(1);
+  });
+
+  it("does not mark payment failed when order cancellation fails", async () => {
+    const payment = await prisma.payment.create({
+      data: { userId: "user-1", orderId, amount: "19.99" },
+    });
+    failOrderCancel = true;
+
+    await expect(failPaymentService(payment.id, "user-1"))
+      .rejects.toMatchObject({ status: 503, message: "Order service unavailable" });
+
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }))
+      .resolves.toMatchObject({ status: "PENDING" });
+    expect(orderCancelCalls).toBe(1);
+  });
+
+  it("repeated payment failure and cancellation do not cancel the order twice", async () => {
+    const failedPayment = await prisma.payment.create({
+      data: { userId: "user-1", orderId, amount: "19.99" },
+    });
+    await failPaymentService(failedPayment.id, "user-1");
+    await failPaymentService(failedPayment.id, "user-1");
+
+    expect(orderCancelCalls).toBe(1);
+
+    await truncatePaymentDb();
+    orderCancelCalls = 0;
+    const cancelledPayment = await prisma.payment.create({
+      data: { userId: "user-1", orderId: secondOrderId, amount: "25.50" },
+    });
+    await cancelPaymentService(cancelledPayment.id, "user-1");
+    await cancelPaymentService(cancelledPayment.id, "user-1");
+
+    expect(orderCancelCalls).toBe(1);
+  });
   it("rejects direct database writes that violate uniqueness and monetary constraints", async () => {
     await expect(
       prisma.$executeRaw`INSERT INTO "Payment" ("id", "userId", "orderId", "amount", "status", "provider", "createdAt", "updatedAt") VALUES (${"bad-payment"}, ${"user-1"}, ${""}, ${-1}, ${"PENDING"}, ${"MOCK"}, NOW(), NOW())`,

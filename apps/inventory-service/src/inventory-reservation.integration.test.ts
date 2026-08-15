@@ -369,6 +369,54 @@ describe("consumeInventoryReservationService", () => {
   });
 });
 
+describe("consume inventory operation idempotency", () => {
+  it("deduplicates repeated consume operation ids", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-operation-id", stock: 10, reservedStock: 3 });
+
+    await consumeInventoryReservationService(inventory.productId, {
+      quantity: 3,
+      reason: "payment-confirmed",
+      operationId: "order-1:consume:consume-operation-id",
+    });
+    await consumeInventoryReservationService(inventory.productId, {
+      quantity: 3,
+      reason: "payment-confirmed",
+      operationId: "order-1:consume:consume-operation-id",
+    });
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 7,
+      reservedStock: 0,
+      availableStock: 7,
+    });
+  });
+
+  it("rejects consume operation id reuse with different input", async () => {
+    const { consumeInventoryReservationService } = await import("./services/inventory.service.js");
+    const inventory = await createInventory({ productId: "consume-operation-conflict", stock: 10, reservedStock: 5 });
+
+    await consumeInventoryReservationService(inventory.productId, {
+      quantity: 2,
+      reason: "payment-confirmed",
+      operationId: "order-1:consume:conflict",
+    });
+
+    await expect(
+      consumeInventoryReservationService(inventory.productId, {
+        quantity: 3,
+        reason: "payment-confirmed",
+        operationId: "order-1:consume:conflict",
+      }),
+    ).rejects.toMatchObject({ status: 409, message: "Inventory operation id was reused with different input" });
+
+    await expect(getInventory(inventory.productId)).resolves.toEqual({
+      stock: 8,
+      reservedStock: 3,
+      availableStock: 5,
+    });
+  });
+});
 describe("inventory mutation concurrency", () => {
   function countResults<T>(results: PromiseSettledResult<T>[]) {
     const successes = results.filter((result) => result.status === "fulfilled");

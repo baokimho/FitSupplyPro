@@ -20,7 +20,7 @@ type InventoryOperationRow = {
   quantity: number;
 };
 
-type InventoryMutationType = "RESERVE" | "RELEASE";
+type InventoryMutationType = "RESERVE" | "RELEASE" | "CONSUME";
 
 const toInventoryResponse = (inventory: InventoryRecord) => ({
   id: inventory.id,
@@ -43,17 +43,6 @@ const ensureStockConsistency = (stock: number, reservedStock: number) => {
   }
 };
 
-const getInventoryConflictDetails = async (productId: string) => {
-  const inventory = await prisma.inventory.findUnique({
-    where: { productId },
-  });
-
-  if (!inventory) {
-    throw new NotFoundError("Inventory not found");
-  }
-
-  return inventory;
-};
 const claimInventoryOperation = async (
   tx: Prisma.TransactionClient,
   productId: string,
@@ -277,33 +266,43 @@ export const consumeInventoryReservationService = async (
   productId: string,
   body: ConsumeInventoryInput,
 ) => {
-  const updatedRows = await prisma.$queryRaw<InventoryRecord[]>`
-    UPDATE "Inventory"
-    SET
-      "stock" = "stock" - ${body.quantity},
-      "reservedStock" = "reservedStock" - ${body.quantity},
-      "updatedAt" = NOW()
-    WHERE "productId" = ${productId}
-      AND "reservedStock" >= ${body.quantity}
-      AND "stock" >= ${body.quantity}
-    RETURNING *
-  `;
+  const runMutation = async (tx: Prisma.TransactionClient) => {
+    const updatedRows = await tx.$queryRaw<InventoryRecord[]>`
+      UPDATE "Inventory"
+      SET
+        "stock" = "stock" - ${body.quantity},
+        "reservedStock" = "reservedStock" - ${body.quantity},
+        "updatedAt" = NOW()
+      WHERE "productId" = ${productId}
+        AND "reservedStock" >= ${body.quantity}
+        AND "stock" >= ${body.quantity}
+      RETURNING *
+    `;
 
-  const updated = updatedRows[0];
-  if (updated) {
-    return toInventoryResponse(updated);
+    const updated = updatedRows[0];
+    if (updated) {
+      return updated;
+    }
+
+    const inventory = await getInventoryWithinTransaction(tx, productId);
+
+    throw new BadRequestError("Reserved stock is insufficient", {
+      productId,
+      reservedStock: inventory.reservedStock,
+      consumeQuantity: body.quantity,
+    });
+  };
+
+  if (!body.operationId) {
+    return toInventoryResponse(await prisma.$transaction(runMutation));
   }
 
-  const inventory = await getInventoryConflictDetails(productId);
+  return toInventoryResponse(await prisma.$transaction(async (tx) => {
+    const claim = await claimInventoryOperation(tx, productId, body.operationId ?? "", "CONSUME", body.quantity);
+    if (claim.duplicate) {
+      return getInventoryWithinTransaction(tx, productId);
+    }
 
-  throw new BadRequestError("Reserved stock is insufficient", {
-    productId,
-    reservedStock: inventory.reservedStock,
-    consumeQuantity: body.quantity,
-  });
+    return runMutation(tx);
+  }));
 };
-
-
-
-
-

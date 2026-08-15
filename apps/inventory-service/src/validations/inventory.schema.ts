@@ -49,6 +49,7 @@ export const releaseInventorySchema = z.object({
 export const consumeInventorySchema = z.object({
   quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
   reason: z.string().min(1, "Reason is required"),
+  operationId: z.string().min(1).max(128).optional(),
 });
 
 export type InventoryProductParams = z.infer<typeof inventoryProductParamsSchema>;

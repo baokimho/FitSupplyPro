@@ -3,10 +3,12 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
-import type { checkoutOrderService as checkoutOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
+import type { cancelOrderService as cancelOrderServiceType, checkoutOrderService as checkoutOrderServiceType, confirmOrderService as confirmOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
 
 let prisma: PrismaClient;
+let cancelOrderService: typeof cancelOrderServiceType;
 let checkoutOrderService: typeof checkoutOrderServiceType;
+let confirmOrderService: typeof confirmOrderServiceType;
 let createOrderService: typeof createOrderServiceType;
 let app: express.Express;
 
@@ -33,8 +35,11 @@ let cartVersion = 1;
 let reserveCalls: Array<{ productId: string; quantity: number }> = [];
 let removeCalls: string[][] = [];
 let releaseCalls: Array<{ productId: string; quantity: number }> = [];
+let consumeCalls: Array<{ productId: string; quantity: number }> = [];
 const failReserveProducts = new Set<string>();
 const failReleaseProducts = new Set<string>();
+const failConsumeProducts = new Set<string>();
+const inventoryOperations = new Map<string, { productId: string; action: string; quantity: number }>();
 const inventory = new Map<string, { stock: number; reservedStock: number }>();
 let reserveDelayMs = 0;
 
@@ -145,6 +150,32 @@ function installFetchDouble() {
       return jsonResponse({});
     }
 
+    if (url.includes("/consume") && method === "POST") {
+      const match = url.match(/\/products\/([^/]+)\/consume/);
+      const productId = match?.[1] ?? "";
+      const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number; operationId?: string };
+      const existing = body.operationId ? inventoryOperations.get(body.operationId) : undefined;
+      if (existing) {
+        if (existing.productId !== productId || existing.action !== "CONSUME" || existing.quantity !== body.quantity) {
+          return jsonResponse({ message: "Inventory operation id was reused with different input" }, 409);
+        }
+        return jsonResponse({});
+      }
+      if (failConsumeProducts.has(productId)) {
+        return jsonResponse({ message: "consume failed" }, 500);
+      }
+      const current = inventory.get(productId);
+      if (!current || current.reservedStock < body.quantity || current.stock < body.quantity) {
+        return jsonResponse({ message: "Reserved stock is insufficient" }, 400);
+      }
+      if (body.operationId) {
+        inventoryOperations.set(body.operationId, { productId, action: "CONSUME", quantity: body.quantity });
+      }
+      current.stock -= body.quantity;
+      current.reservedStock -= body.quantity;
+      consumeCalls.push({ productId, quantity: body.quantity });
+      return jsonResponse({});
+    }
     const productMatch = url.match(/\/products\/([^/]+)$/);
     if (productMatch && method === "GET") {
       const product = products.get(productMatch[1]);
@@ -171,7 +202,7 @@ beforeAll(async () => {
   installFetchDouble();
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
-  ({ checkoutOrderService, createOrderService } = await import("./services/order.service.js"));
+  ({ cancelOrderService, checkoutOrderService, confirmOrderService, createOrderService } = await import("./services/order.service.js"));
 
   const routes = (await import("./routes/order.route.js")).default;
   app = express();
@@ -191,8 +222,11 @@ beforeEach(async () => {
   reserveCalls = [];
   removeCalls = [];
   releaseCalls = [];
+  consumeCalls = [];
   failReserveProducts.clear();
   failReleaseProducts.clear();
+  failConsumeProducts.clear();
+  inventoryOperations.clear();
   reserveDelayMs = 0;
   setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.00", isPublished: true });
   setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "12.00", isPublished: true });
@@ -322,6 +356,8 @@ describe("checkout idempotency", () => {
     expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 2 });
 
     failReleaseProducts.clear();
+  failConsumeProducts.clear();
+  inventoryOperations.clear();
     await expect(
       checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation"),
     ).rejects.toMatchObject({ status: 409, message: "Checkout failed and was compensated" });
@@ -461,6 +497,79 @@ describe("checkout idempotency", () => {
     expect(reserveCalls).toHaveLength(0);
   });
 
+  it("consumes reserved inventory before confirming an order", async () => {
+    const order = await createOrderService("user-1", {
+      items: [{ productId: "product-1", quantity: 3 }],
+      delivery: defaultDelivery(),
+    });
+
+    const confirmed = await confirmOrderService(order.id, "user-1");
+
+    expect(confirmed.status).toBe("CONFIRMED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 7, reservedStock: 0 });
+    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+  });
+
+  it("does not consume again when confirming an already confirmed order", async () => {
+    const order = await createOrderService("user-1", {
+      items: [{ productId: "product-1", quantity: 2 }],
+      delivery: defaultDelivery(),
+    });
+    await confirmOrderService(order.id, "user-1");
+
+    const confirmedAgain = await confirmOrderService(order.id, "user-1");
+
+    expect(confirmedAgain.status).toBe("CONFIRMED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
+    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+  });
+
+  it("leaves order pending for retry if multi-item consume fails midway", async () => {
+    setCart([
+      { id: "cart-item-1", productId: "product-1", quantity: 2 },
+      { id: "cart-item-2", productId: "product-2", quantity: 1 },
+    ]);
+    const order = await createOrderService("user-1", {
+      items: [
+        { productId: "product-1", quantity: 2 },
+        { productId: "product-2", quantity: 1 },
+      ],
+      delivery: defaultDelivery(),
+    });
+    failConsumeProducts.add("product-2");
+
+    await expect(confirmOrderService(order.id, "user-1"))
+      .rejects.toMatchObject({ status: 503, message: "Inventory service unavailable" });
+
+    const stored = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(stored.status).toBe("PENDING");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
+    expect(inventory.get("product-2")).toMatchObject({ stock: 10, reservedStock: 1 });
+
+    failConsumeProducts.clear();
+    const retried = await confirmOrderService(order.id, "user-1");
+
+    expect(retried.status).toBe("CONFIRMED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
+    expect(inventory.get("product-2")).toMatchObject({ stock: 9, reservedStock: 0 });
+    expect(consumeCalls).toEqual([
+      { productId: "product-1", quantity: 2 },
+      { productId: "product-2", quantity: 1 },
+    ]);
+  });
+
+  it("releases reserved inventory before cancelling an order", async () => {
+    const order = await createOrderService("user-1", {
+      items: [{ productId: "product-1", quantity: 3 }],
+      delivery: defaultDelivery(),
+    });
+
+    const cancelled = await cancelOrderService(order.id, "user-1");
+
+    expect(cancelled.status).toBe("CANCELLED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+  });
   it("rejects direct database writes that violate order constraints", async () => {
     await expect(
       prisma.$executeRaw`INSERT INTO "Order" ("id", "userId", "status", "totalAmount", "createdAt", "updatedAt") VALUES (${"bad-order"}, ${"user-1"}, ${"PENDING"}, ${-1}, NOW(), NOW())`,
