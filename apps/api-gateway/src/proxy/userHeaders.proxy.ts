@@ -12,6 +12,10 @@ export function attachUserHeaders(proxyReq: ClientRequest, req: Request) {
   const gatewayRequest = req as GatewayRequest;
   const internalSecret = process.env.GATEWAY_SECRET;
 
+  proxyReq.removeHeader("x-user-id");
+  proxyReq.removeHeader("x-user-role");
+  proxyReq.removeHeader("x-internal-secret");
+
   if (internalSecret) {
     proxyReq.setHeader("x-internal-secret", internalSecret);
   }
