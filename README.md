@@ -1,449 +1,266 @@
 # FitSupply Pro
 
-**Microservices Fitness E-commerce & Nutrition Platform**
+Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-**Status:** In Progress — backend services partially implemented, fullstack product vision in development
+Status: backend functional closure complete. Feature work is frozen after final verification; next phase is DevOps, deployment, observability, and documentation hardening. Frontend and fitness/nutrition product areas are not implemented in this repository yet.
 
-FitSupply Pro is designed as a fullstack platform that combines fitness commerce with practical nutrition and body-composition tools in one product experience. The target product allows customers to browse and buy supplements, gym accessories, and recovery products while also using built-in fitness utilities such as TDEE and macro calculation, body fat estimation, food logging, and personal progress tracking.
+## Services
 
-The long-term goal is to make FitSupply Pro useful beyond checkout. Instead of acting only as an online store, the product vision is a user-centered health and performance platform where shopping, nutrition planning, and progress monitoring support each other. Customers should be able to discover products, manage orders, understand calorie and macro needs, and track their fitness journey from a single account.
+| Workspace | Responsibility |
+| --- | --- |
+| `apps/api-gateway` | Public entry point, JWT verification, RBAC, request proxying, rate limiting, trusted header forwarding |
+| `apps/auth-service` | Registration, login, refresh token rotation, logout, `/me`, JWKS, user roles |
+| `apps/catalog-service` | Categories, brands, products, product publishing and browsing |
+| `apps/inventory-service` | Inventory records, stock adjustments, reservation, release, consume, inventory operation idempotency |
+| `apps/cart-service` | Customer carts, item snapshots, cart versioning, internal cart access for checkout |
+| `apps/order-service` | Checkout, order lifecycle, delivery snapshot, inventory orchestration, cancellation/confirmation |
+| `apps/payment-service` | Mock payment records, one payment per order, payment idempotency, authoritative state transitions |
+| `apps/shipping-service` | Shipment records, one shipment per order, shipment snapshot from confirmed order, fulfillment status transitions |
+| `apps/notification-service` | Notification persistence and customer read-state |
+| `packages/shared` | Shared errors, middleware, validation, JWT/user header helpers, internal secret middleware |
 
-For admins, the target product is intended to support catalog operations and business visibility at the same time. The planned admin experience includes managing products, inventory, orders, and analytics through a structured service-based architecture that can grow over time.
-
-This repository does **not** implement that full product yet. The current codebase is a **backend-only monorepo** with several backend services already started, while the frontend and multiple planned product domains are still in progress.
-
-## Current Status
-
-FitSupply Pro currently exists as a TypeScript backend monorepo built around a microservices-style architecture. The repository includes an API Gateway, an authentication service, a catalog service, a partially implemented inventory service, and a very early order service.
-
-What exists today is mainly backend infrastructure and core commerce-oriented APIs:
-
-- `api-gateway` is implemented and routes requests to backend services.
-- `auth-service` is implemented for registration, login, token refresh, logout, JWKS, and authenticated user lookup.
-- `catalog-service` is implemented with CRUD APIs for categories, brands, and products.
-- `inventory-service` is partially implemented with inventory creation, lookup, update, and stock adjustment flows.
-- `order-service` is still at an early setup stage and currently exposes only a health endpoint.
-
-The following are **not implemented yet** in this repository: frontend application, cart, checkout, full order workflow, fitness service, nutrition service, notifications, analytics, automated tests, CI/CD, Swagger/OpenAPI, and production deployment.
-
-## Target Product Features
-
-### Customer Features (Planned)
-
-- Browse supplements, accessories, and recovery products
-- Search, filter, and sort product listings
-- Add products to cart and place orders
-- View account profile and order history
-- Calculate TDEE and daily macro targets
-- Estimate body fat using guided inputs
-- Log meals and nutrition intake
-- Track body metrics and fitness progress over time
-
-### Admin Features (Planned)
-
-- Manage categories, brands, and products
-- Manage inventory and stock movements
-- Manage customer orders and fulfillment status
-- Review sales and operational analytics
-- Monitor platform activity across services
-
-## Currently Implemented
-
-### API Gateway
-
-- Proxy routing to backend services
-- JWT access token verification
-- Rate limiting for auth, catalog, inventory, and order routes
-- `Helmet` for basic HTTP hardening
-- `Morgan` request logging
-- Shared error handling
-- Internal secret header for service-to-service protection
-
-### Auth Service
-
-- Prisma models for `User` and `RefreshToken`
-- User registration
-- User login
-- Authenticated user lookup (`/me`)
-- Refresh token endpoint
-- Logout endpoint
-- JWKS endpoint for public key distribution
-- Password hashing
-- JWT-based authentication
-- Refresh token rotation and revocation
-- Zod request validation
-
-### Catalog Service
-
-- Prisma models for `Category`, `Brand`, and `Product`
-- CRUD APIs for categories
-- CRUD APIs for brands
-- CRUD APIs for products
-- Product filtering, pagination, and sorting
-- Product publish and unpublish actions
-- Prisma migrations
-- Prisma seed data
-
-### Inventory Service
-
-- Prisma model for `Inventory`
-- Create inventory records
-- Get inventory by `productId`
-- Update inventory by `productId`
-- Batch inventory lookup
-- Stock adjustment endpoint
-- `availableStock` response logic
-- Stock consistency checks
-
-### Order Service
-
-- Health endpoint only
-
-## Architecture Diagram
+## Architecture
 
 ```text
-                           Planned
-                    ┌──────────────────┐
-                    │   React Frontend │
-                    │  Store + Admin   │
-                    └────────┬─────────┘
-                             │
-                             ▼
-                    ┌──────────────────┐
-                    │   API Gateway    │
-                    │  Implemented     │
-                    └───────┬──────────┘
-                            │
-     ┌──────────────────────┼──────────────────────────┬─────────────────────┐
-     │                      │                          │                     │
-     ▼                      ▼                          ▼                     ▼
-┌───────────────┐   ┌───────────────┐         ┌───────────────┐     ┌───────────────┐
-│ Auth Service  │   │ Catalog       │         │ Inventory     │     │ Order Service │
-│ Implemented   │   │ Service       │         │ Service       │     │ Early         │
-│               │   │ Implemented   │         │ Partial       │     │ Health only   │
-└───────────────┘   └───────────────┘         └───────────────┘     └───────────────┘
-        │                    │                         │                     │
-        └──────────────┬─────┴───────────────┬─────────┴─────────────────────┘
-                       │                     │
-                       ▼                     ▼
-                ┌──────────────────────────────────┐
-                │        PostgreSQL + Prisma       │
-                │ auth_db / catalog_db /           │
-                │ inventory_db / order_db          │
-                └──────────────────────────────────┘
+Client
+  |
+  v
+API Gateway
+  |-- Auth Service
+  |-- Catalog Service
+  |-- Inventory Service
+  |-- Cart Service
+  |-- Order Service
+  |-- Payment Service
+  |-- Shipping Service
+  `-- Notification Service
 
-                     Planned Future Services
-     ┌───────────────────────────────────────────────────────────────┐
-     │ Cart / Checkout / Fitness / Nutrition / Notifications /      │
-     │ Analytics / Reporting                                        │
-     └───────────────────────────────────────────────────────────────┘
+Each domain service owns its own Prisma schema and PostgreSQL database/schema in local/test compose environments.
+Service-to-service commands use HTTP plus the configured internal secret.
 ```
 
-## Services Table
+The gateway verifies access tokens and derives trusted `x-user-id` and `x-user-role` headers. External callers cannot supply trusted identity or internal-secret headers. Public gateway routing blocks `/internal/*` before proxying.
 
-| Service | Responsibility | Status |
-|---|---|---|
-| `api-gateway` | Entry point, proxy routing, auth verification, rate limiting, request protection | Implemented |
-| `auth-service` | Authentication, JWT issuing/verification support, refresh token lifecycle, user session endpoints | Implemented |
-| `catalog-service` | Categories, brands, products, product querying, publish state | Implemented |
-| `inventory-service` | Inventory records, stock lookup, stock adjustment, stock rules | Partially implemented |
-| `order-service` | Order domain | Very early, health endpoint only |
-| `packages/shared` | Shared auth, middleware, validation, and error utilities | Implemented |
+## Purchase Lifecycle
 
-## Current Tech Stack
+Happy path:
 
-Only technologies that exist in the repository today:
+```text
+Auth
+-> Catalog browse/admin product setup
+-> Cart
+-> Checkout
+-> Inventory reservation
+-> Order PENDING
+-> Payment creation
+-> Payment confirmation
+-> Inventory reservation consume
+-> Order CONFIRMED
+-> Shipment creation from order delivery snapshot
+-> SHIPPED
+-> DELIVERED
+-> Customer notifications
+```
 
+Failure path:
+
+```text
+Checkout
+-> Inventory reservation
+-> Order PENDING
+-> Payment FAILED or CANCELLED
+-> Order CANCELLED
+-> Inventory reservation release
+```
+
+Important invariants:
+
+- `PENDING` order means inventory is reserved but stock is not consumed.
+- `CONFIRMED` order means reservation was consumed and stock decreased.
+- `CANCELLED` order means reservation was released and stock was not consumed.
+- Payment is not marked `PAID` unless downstream order confirmation and inventory consumption succeed.
+- Shipment creation requires a confirmed order and copies immutable delivery/contact snapshot data from order-service.
+
+## Idempotency, Concurrency, Compensation
+
+- Checkout uses PostgreSQL-backed idempotency scoped to authenticated user and checkout action.
+- Payment creation uses PostgreSQL-backed idempotency scoped to authenticated user and payment creation action.
+- Request fingerprints are canonicalized so key reuse with different input returns conflict.
+- Inventory reserve/release/consume can use deterministic `operationId` values and the `InventoryOperation` table to avoid double mutation on retries.
+- Payment uniqueness is enforced by the database: one logical payment per order.
+- Shipment uniqueness is enforced by the database: one shipment per order.
+- Checkout and order lifecycle use retry-safe compensation instead of distributed transactions. If a multi-step downstream operation fails, completed inventory mutations are released or compensated through idempotent operations where the domain allows it.
+
+## Security Boundary
+
+Customer users can:
+
+- Browse catalog.
+- Manage their own cart.
+- Checkout.
+- View their own orders, payments, shipments, and notifications.
+- Cancel their own pending order where the domain permits cancellation.
+
+Admin users can:
+
+- Mutate catalog categories, brands, products, and publish state.
+- Create/update/adjust inventory.
+- Execute mock payment authoritative transitions.
+- Create shipments and update fulfillment status/tracking.
+
+Internal-only routes require `GATEWAY_SECRET` and are not publicly proxyable through the gateway. Ownership checks remain separate from RBAC: customer reads still require the resource to belong to the authenticated user.
+
+## Database Invariants
+
+Current schemas and migrations enforce key backend invariants:
+
+- Inventory stock and reserved stock are nonnegative, with atomic reserve/release/consume updates.
+- Checkout stores durable idempotency progress and delivery snapshot data.
+- Orders validate positive item quantity and nonnegative monetary totals.
+- Payments require nonblank identifiers/currency, nonnegative money, one payment per order, provider payment id uniqueness where applicable, and durable idempotency state.
+- Shipments require one row per order and copy delivery snapshot fields from confirmed orders.
+
+Migrations are real Prisma migrations under each service's `prisma/migrations` directory. Do not edit old migrations; add new migrations for schema changes.
+
+## Tech Stack
+
+- Node.js 20
 - TypeScript
-- Node.js
-- Express 5
 - npm workspaces
+- Express 5
 - PostgreSQL
 - Prisma
 - Zod
-- Docker
+- JOSE/JWT
 - Docker Compose
-- `jose` / JWT
-- `helmet`
-- `morgan`
-- `http-proxy-middleware`
+- Vitest and Supertest
+- ESLint
 
-## Planned Tech Stack
-
-Target stack for the completed product vision:
-
-- React
-- Tailwind CSS
-- TanStack Query
-- Recharts
-- Swagger / OpenAPI
-- Automated tests
-- GitHub Actions
-- AWS
-
-These technologies are **planned** and are **not implemented in the current repository** unless also listed in the current stack section above.
-
-## Monorepo Structure
-
-Current repository structure:
+## Repository Layout
 
 ```text
-FitSupplyPro/
-├─ apps/
-│  ├─ api-gateway/
-│  ├─ auth-service/
-│  ├─ catalog-service/
-│  ├─ inventory-service/
-│  └─ order-service/
-├─ docker/
-│  └─ postgres/
-├─ packages/
-│  └─ shared/
-├─ REST/
-│  ├─ auth-service.http
-│  ├─ catalog-service.http
-│  └─ inventory-service.http
-├─ docker-compose.yml
-├─ package.json
-└─ package-lock.json
+apps/
+  api-gateway/
+  auth-service/
+  catalog-service/
+  inventory-service/
+  cart-service/
+  order-service/
+  payment-service/
+  shipping-service/
+  notification-service/
+packages/
+  shared/
+scripts/
+  e2e.mjs
+  prepare-test-dbs.mjs
+  test-matrix.mjs
+tests/
+  e2e/
+docker-compose.yml
+docker-compose.test-db.yml
+docker-compose.test.yml
 ```
 
-## Getting Started
+## Commands
 
-### Prerequisites
+Run from repository root.
 
-- Node.js
-- npm
-- Docker
-- Docker Compose
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+npm run build
+```
 
-### Install Dependencies
+Useful Docker test commands:
+
+```bash
+npm run test:db:up
+npm run test:db:prepare
+npm run test:db:down
+npm run test:stack:config
+```
+
+`npm run test:integration` prepares disposable PostgreSQL test databases through `docker-compose.test-db.yml` and runs the service integration matrix. `npm run test:e2e` starts the full backend test stack from `docker-compose.test.yml`, seeds a deterministic admin identity, runs the cross-service purchase lifecycle E2E test through the API Gateway, then tears the stack down.
+
+## Local Development
+
+Install dependencies first:
 
 ```bash
 npm install
 ```
 
-### Start the Full Local Backend with Docker Compose
-
-This is the most accurate way to run the current repository because the services are already wired through `docker-compose.yml`.
+Run all services with Docker Compose:
 
 ```bash
 docker compose up --build
 ```
 
-This starts:
-
-- `api-gateway` on port `3000`
-- `auth-service`
-- `catalog-service`
-- `inventory-service`
-- `order-service`
-- `postgres`
-- `shared-watcher`
-
-### Local Development Commands
-
-The repository uses npm workspaces, and each service exposes a `dev` script.
+Or run a service workspace directly after its database and dependencies are available:
 
 ```bash
-npm --prefix apps/api-gateway run dev
-npm --prefix apps/auth-service run dev
-npm --prefix apps/catalog-service run dev
-npm --prefix apps/inventory-service run dev
-npm --prefix apps/order-service run dev
+npm run dev --workspace api-gateway
+npm run dev --workspace auth-service
+npm run dev --workspace catalog-service
+npm run dev --workspace inventory-service
+npm run dev --workspace cart-service
+npm run dev --workspace order-service
+npm run dev --workspace payment-service
+npm run dev --workspace shipping-service
+npm run dev --workspace notification-service
 ```
 
-Shared package watcher:
+Environment is service-specific. Keep real secrets out of git. `GATEWAY_SECRET` must match between gateway and internal services for service-to-service calls.
+
+## Docker Notes
+
+Service Dockerfiles install workspace dependencies from the root lockfile context and copy each workspace manifest before `npm install`. Prisma-generating images invoke Prisma through the installed workspace CLI, for example:
 
 ```bash
-npm --prefix packages/shared run watch
+npm exec --workspace catalog-service -- prisma generate --config prisma.config.ts --schema prisma/schema.prisma
 ```
 
-### Build Commands
+Do not use `npx prisma generate` in Dockerfiles because it can download an unrelated Prisma version if the local binary is not resolved.
 
-```bash
-npm --prefix packages/shared run build
-npm --prefix apps/auth-service run build
-npm --prefix apps/catalog-service run build
-npm --prefix apps/inventory-service run build
-npm --prefix apps/order-service run build
-npm --prefix apps/api-gateway run build
-```
+## Generated Prisma Clients
 
-## Environment Variables
+Several services currently have `apps/*/src/generated/prisma` committed. This is the current repository state and is left intact for freeze stability.
 
-The repository currently uses per-service `.env` files plus a Postgres env file under `docker/postgres/`.
+Recommended DevOps-phase cleanup: generate Prisma clients during install/build and gitignore generated output once all local, test, and Docker workflows consistently regenerate clients from schema and migrations.
 
-### API Gateway
+## Test Coverage
 
-- `PORT`
-- `AUTH_SERVICE_URL`
-- `CATALOG_SERVICE_URL`
-- `INVENTORY_SERVICE_URL`
-- `ORDER_SERVICE_URL`
-- `GATEWAY_SECRET`
+Current meaningful coverage:
 
-### Auth Service
+- Gateway security integration tests for RBAC, internal route blocking, and trusted header sanitization.
+- Inventory integration tests for reserve/release/consume idempotency and stock constraints.
+- Cart integration tests for version behavior.
+- Order integration tests for checkout idempotency, inventory reservation, and compensation behavior.
+- Payment integration tests for uniqueness, idempotency, constraints, and lifecycle error mapping.
+- Shipping integration tests for one shipment per order, snapshot copying, status transitions, and notifications.
+- Root E2E test for complete happy path, payment failure rollback, idempotency, and focused security negatives through the API Gateway.
 
-- `PORT`
-- `DATABASE_URL`
-- `NODE_ENV`
-- `JWT_PRIVATE_KEY_BASE64`
-- `JWT_PUBLIC_KEY_BASE64`
-- `GATEWAY_SECRET`
+Known non-blocking gaps:
 
-### Catalog Service
+- `auth-service` has no dedicated integration test file.
+- `catalog-service` has no dedicated integration test file.
+- `notification-service` has no dedicated integration test file.
 
-- `PORT`
-- `DATABASE_URL`
-- `GATEWAY_SECRET`
+These are not current backend freeze blockers because the full E2E suite exercises authentication, catalog admin setup/browse, and notification read behavior through the gateway. Add targeted service-level tests later when changing those services.
 
-### Inventory Service
+## Next Phase
 
-- `PORT`
-- `DATABASE_URL`
-- `GATEWAY_SECRET`
+Backend feature work should pause after freeze. Next work should focus on DevOps and operational maturity:
 
-### Order Service
+- Production Docker image hardening.
+- CI/CD pipeline.
+- Deployment manifests/infrastructure.
+- Observability, logging, health checks, and runbooks.
+- Environment example files and deployment documentation.
 
-- `PORT`
-- `DATABASE_URL`
-- `GATEWAY_SECRET`
-
-### PostgreSQL
-
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-
-### Note
-
-Do not publish real secrets or reusable credentials in a public repository. For a portfolio-safe setup, prefer committed `.env.example` files and keep actual secrets local.
-
-## API Overview
-
-Only endpoints that are present in the current route files are listed below.
-
-### API Gateway
-
-- `GET /health`
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `POST /auth/refresh-token`
-- `POST /auth/logout`
-- `GET /auth/jwks`
-- `GET /catalog/health`
-- `POST /catalog/categories`
-- `GET /catalog/categories`
-- `GET /catalog/categories/:id`
-- `PUT /catalog/categories/:id`
-- `DELETE /catalog/categories/:id`
-- `POST /catalog/brands`
-- `GET /catalog/brands`
-- `GET /catalog/brands/:id`
-- `PATCH /catalog/brands/:id`
-- `DELETE /catalog/brands/:id`
-- `POST /catalog/products`
-- `GET /catalog/products`
-- `GET /catalog/products/:id`
-- `PUT /catalog/products/:id`
-- `DELETE /catalog/products/:id`
-- `PATCH /catalog/products/:id/publish`
-- `PATCH /catalog/products/:id/unpublish`
-- `POST /inventory`
-- `POST /inventory/products/batch`
-- `GET /inventory/products/:productId`
-- `PATCH /inventory/products/:productId`
-- `POST /inventory/products/:productId/adjust`
-- `GET /order/health`
-
-### Auth Service
-
-- `GET /health`
-- `GET /jwks`
-- `GET /me`
-- `POST /register`
-- `POST /login`
-- `POST /refresh-token`
-- `POST /logout`
-
-### Catalog Service
-
-- `GET /health`
-- `POST /categories`
-- `GET /categories`
-- `GET /categories/:id`
-- `PUT /categories/:id`
-- `DELETE /categories/:id`
-- `POST /brands`
-- `GET /brands`
-- `GET /brands/:id`
-- `PATCH /brands/:id`
-- `DELETE /brands/:id`
-- `POST /products`
-- `GET /products`
-- `GET /products/:id`
-- `PUT /products/:id`
-- `DELETE /products/:id`
-- `PATCH /products/:id/publish`
-- `PATCH /products/:id/unpublish`
-
-### Inventory Service
-
-- `GET /health`
-- `POST /`
-- `POST /products/batch`
-- `GET /products/:productId`
-- `PATCH /products/:productId`
-- `POST /products/:productId/adjust`
-
-### Order Service
-
-- `GET /health`
-
-## Security Notes
-
-- Backend services are protected with an internal secret header check (`GATEWAY_SECRET`) to reduce direct service access outside the gateway.
-- The gateway verifies JWT access tokens before forwarding protected requests.
-- Refresh token lifecycle logic includes hashing, rotation, revocation, and cleanup behavior in the auth service.
-- Rate limiting is enabled at the gateway level for auth and service routes.
-- `Helmet` is enabled in the gateway for basic HTTP hardening.
-
-This is still a development-stage codebase, so security hardening should be considered in progress rather than complete.
-
-## Known Limitations
-
-- Backend-only repository at the moment
-- No frontend application yet
-- No cart or checkout flow yet
-- No full order workflow yet
-- `order-service` is still at a very early stage
-- `inventory-service` is only partially implemented
-- No dedicated fitness service yet
-- No dedicated nutrition service yet
-- No notifications or analytics services yet
-- No automated test suite yet
-- No CI/CD pipeline yet
-- No Swagger / OpenAPI documentation yet
-- No production deployment setup documented
-
-## Roadmap
-
-### Short-Term
-
-- Expand `order-service` beyond health checks into real order domain APIs
-- Continue inventory workflows and service integration
-- Add clearer environment setup and `.env.example` files
-- Improve API documentation for local development
-- Add automated tests for existing backend services
-
-### Full Product Roadmap
-
-- Build the React frontend for customer and admin experiences
-- Add cart, checkout, and complete order lifecycle features
-- Introduce fitness calculators and macro planning workflows
-- Add nutrition logging and progress tracking features
-- Add notifications and analytics capabilities
-- Add OpenAPI documentation, CI/CD, and production-ready infrastructure over time
-
+Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, Stripe, or message queues are implemented until they exist in the repository.
