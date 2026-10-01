@@ -1,11 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import HttpError from "../errors/httpErrors.js";
 import { ZodError } from "zod";
-import { BadRequestError } from "../errors/httpErrors.js";
 
 type PrismaLikeError = {
   code?: string;
-  meta?: { target?: unknown };
 };
 
 function isPrismaError(err: unknown): err is PrismaLikeError {
@@ -13,7 +11,7 @@ function isPrismaError(err: unknown): err is PrismaLikeError {
     typeof err === "object" &&
     err !== null &&
     "code" in err &&
-    typeof (err as any).code === "string"
+    typeof err.code === "string"
   );
 }
 
@@ -24,7 +22,8 @@ export default function errorHandler(
   next: NextFunction,
 ) {
   let status = 500;
-  let message = "Internal Server Error";
+  let code = "INTERNAL_ERROR";
+  let message = "Internal server error";
   let details: unknown = undefined;
 
   try {
@@ -34,50 +33,52 @@ export default function errorHandler(
   }
 
   if (err instanceof ZodError) {
-    const bad = new BadRequestError("Validation error", err.issues);
-    return res.status(bad.status).json({ message: bad.message, details: bad.details });
-  }
-
-  if (err instanceof HttpError) {
+    status = 400;
+    code = "VALIDATION_ERROR";
+    message = "Validation error";
+    details = err.issues;
+  } else if (err instanceof HttpError) {
     status = err.status;
+    code = err.code;
     message = err.message;
     details = err.details;
-    return res.status(status).json({ message, details });
-  }
+  } else {
+    // Prisma known request errors (e.g. unique constraint)
+    if (isPrismaError(err)) {
+      switch (err.code) {
+        case "P2002": // Unique constraint failed
+          status = 409;
+          code = "CONFLICT";
+          message = "Unique constraint failed";
+          break;
+        case "P1001": // Can't reach database
+        case "P1000":
+        case "P1010":
+          status = 503;
+          code = "SERVICE_UNAVAILABLE";
+          message = "Database unavailable";
+          break;
+        default:
+          status = 400;
+          break;
+      }
+    }
 
-  if (err instanceof Error) {
-    message = err.message || message;
-  }
-
-  // Prisma known request errors (e.g. unique constraint)
-  if (isPrismaError(err)) {
-    switch (err.code) {
-      case "P2002": // Unique constraint failed
-        status = 409;
-        message = `Unique constraint failed: ${err.meta?.target || "field"}`;
-        break;
-      case "P1001": // Can't reach database
-      case "P1000":
-      case "P1010":
-        status = 503;
-        message = "Database unavailable";
-        break;
-      default:
-        status = 400;
-        break;
+    // JOSE / JWT style errors (lightweight detection)
+    if (typeof err === "object" && err !== null && "name" in err) {
+      const name = err.name;
+      if (typeof name === "string" && (name.includes("JWT") || name.includes("JsonWebTokenError") || name.includes("TokenExpiredError"))) {
+        status = 401;
+        code = "UNAUTHORIZED";
+        message = "Unauthorized";
+      }
     }
   }
 
-  // JOSE / JWT style errors (lightweight detection)
-  if (typeof err === "object" && err !== null && "name" in err) {
-    const name = (err as any).name as string;
-    if (name && (name.includes("JWT") || name.includes("JsonWebTokenError") || name.includes("TokenExpiredError"))) {
-      status = 401;
-      // keep message from error if present
-    }
-  }
-
+  const publicDetails = details === undefined ? {} : { details };
   res.status(status).json({
     message,
+    ...publicDetails,
+    error: { code, message, ...publicDetails },
   });
 }
