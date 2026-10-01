@@ -23,6 +23,11 @@ export type Order = $Result.DefaultSelection<Prisma.$OrderPayload>
  * 
  */
 export type OrderItem = $Result.DefaultSelection<Prisma.$OrderItemPayload>
+/**
+ * Model CheckoutIdempotency
+ * 
+ */
+export type CheckoutIdempotency = $Result.DefaultSelection<Prisma.$CheckoutIdempotencyPayload>
 
 /**
  * Enums
@@ -182,6 +187,16 @@ export class PrismaClient<
     * ```
     */
   get orderItem(): Prisma.OrderItemDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.checkoutIdempotency`: Exposes CRUD operations for the **CheckoutIdempotency** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CheckoutIdempotencies
+    * const checkoutIdempotencies = await prisma.checkoutIdempotency.findMany()
+    * ```
+    */
+  get checkoutIdempotency(): Prisma.CheckoutIdempotencyDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -617,7 +632,8 @@ export namespace Prisma {
 
   export const ModelName: {
     Order: 'Order',
-    OrderItem: 'OrderItem'
+    OrderItem: 'OrderItem',
+    CheckoutIdempotency: 'CheckoutIdempotency'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -633,7 +649,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "order" | "orderItem"
+      modelProps: "order" | "orderItem" | "checkoutIdempotency"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -785,6 +801,80 @@ export namespace Prisma {
           }
         }
       }
+      CheckoutIdempotency: {
+        payload: Prisma.$CheckoutIdempotencyPayload<ExtArgs>
+        fields: Prisma.CheckoutIdempotencyFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CheckoutIdempotencyFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CheckoutIdempotencyFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          findFirst: {
+            args: Prisma.CheckoutIdempotencyFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CheckoutIdempotencyFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          findMany: {
+            args: Prisma.CheckoutIdempotencyFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>[]
+          }
+          create: {
+            args: Prisma.CheckoutIdempotencyCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          createMany: {
+            args: Prisma.CheckoutIdempotencyCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CheckoutIdempotencyCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>[]
+          }
+          delete: {
+            args: Prisma.CheckoutIdempotencyDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          update: {
+            args: Prisma.CheckoutIdempotencyUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          deleteMany: {
+            args: Prisma.CheckoutIdempotencyDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CheckoutIdempotencyUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CheckoutIdempotencyUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>[]
+          }
+          upsert: {
+            args: Prisma.CheckoutIdempotencyUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutIdempotencyPayload>
+          }
+          aggregate: {
+            args: Prisma.CheckoutIdempotencyAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCheckoutIdempotency>
+          }
+          groupBy: {
+            args: Prisma.CheckoutIdempotencyGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutIdempotencyGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CheckoutIdempotencyCountArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutIdempotencyCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -895,6 +985,7 @@ export namespace Prisma {
   export type GlobalOmitConfig = {
     order?: OrderOmit
     orderItem?: OrderItemOmit
+    checkoutIdempotency?: CheckoutIdempotencyOmit
   }
 
   /* Types for Logging */
@@ -976,10 +1067,12 @@ export namespace Prisma {
 
   export type OrderCountOutputType = {
     items: number
+    idempotencyAttempts: number
   }
 
   export type OrderCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | OrderCountOutputTypeCountItemsArgs
+    idempotencyAttempts?: boolean | OrderCountOutputTypeCountIdempotencyAttemptsArgs
   }
 
   // Custom InputTypes
@@ -998,6 +1091,13 @@ export namespace Prisma {
    */
   export type OrderCountOutputTypeCountItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: OrderItemWhereInput
+  }
+
+  /**
+   * OrderCountOutputType without action
+   */
+  export type OrderCountOutputTypeCountIdempotencyAttemptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CheckoutIdempotencyWhereInput
   }
 
 
@@ -1030,6 +1130,14 @@ export namespace Prisma {
     userId: string | null
     status: $Enums.OrderStatus | null
     totalAmount: Decimal | null
+    recipientName: string | null
+    contactPhone: string | null
+    deliveryAddressLine1: string | null
+    deliveryAddressLine2: string | null
+    deliveryCity: string | null
+    deliveryRegion: string | null
+    deliveryPostalCode: string | null
+    deliveryCountryCode: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1039,6 +1147,14 @@ export namespace Prisma {
     userId: string | null
     status: $Enums.OrderStatus | null
     totalAmount: Decimal | null
+    recipientName: string | null
+    contactPhone: string | null
+    deliveryAddressLine1: string | null
+    deliveryAddressLine2: string | null
+    deliveryCity: string | null
+    deliveryRegion: string | null
+    deliveryPostalCode: string | null
+    deliveryCountryCode: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1048,6 +1164,14 @@ export namespace Prisma {
     userId: number
     status: number
     totalAmount: number
+    recipientName: number
+    contactPhone: number
+    deliveryAddressLine1: number
+    deliveryAddressLine2: number
+    deliveryCity: number
+    deliveryRegion: number
+    deliveryPostalCode: number
+    deliveryCountryCode: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1067,6 +1191,14 @@ export namespace Prisma {
     userId?: true
     status?: true
     totalAmount?: true
+    recipientName?: true
+    contactPhone?: true
+    deliveryAddressLine1?: true
+    deliveryAddressLine2?: true
+    deliveryCity?: true
+    deliveryRegion?: true
+    deliveryPostalCode?: true
+    deliveryCountryCode?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1076,6 +1208,14 @@ export namespace Prisma {
     userId?: true
     status?: true
     totalAmount?: true
+    recipientName?: true
+    contactPhone?: true
+    deliveryAddressLine1?: true
+    deliveryAddressLine2?: true
+    deliveryCity?: true
+    deliveryRegion?: true
+    deliveryPostalCode?: true
+    deliveryCountryCode?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1085,6 +1225,14 @@ export namespace Prisma {
     userId?: true
     status?: true
     totalAmount?: true
+    recipientName?: true
+    contactPhone?: true
+    deliveryAddressLine1?: true
+    deliveryAddressLine2?: true
+    deliveryCity?: true
+    deliveryRegion?: true
+    deliveryPostalCode?: true
+    deliveryCountryCode?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1181,6 +1329,14 @@ export namespace Prisma {
     userId: string
     status: $Enums.OrderStatus
     totalAmount: Decimal
+    recipientName: string | null
+    contactPhone: string | null
+    deliveryAddressLine1: string | null
+    deliveryAddressLine2: string | null
+    deliveryCity: string | null
+    deliveryRegion: string | null
+    deliveryPostalCode: string | null
+    deliveryCountryCode: string | null
     createdAt: Date
     updatedAt: Date
     _count: OrderCountAggregateOutputType | null
@@ -1209,9 +1365,18 @@ export namespace Prisma {
     userId?: boolean
     status?: boolean
     totalAmount?: boolean
+    recipientName?: boolean
+    contactPhone?: boolean
+    deliveryAddressLine1?: boolean
+    deliveryAddressLine2?: boolean
+    deliveryCity?: boolean
+    deliveryRegion?: boolean
+    deliveryPostalCode?: boolean
+    deliveryCountryCode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     items?: boolean | Order$itemsArgs<ExtArgs>
+    idempotencyAttempts?: boolean | Order$idempotencyAttemptsArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["order"]>
 
@@ -1220,6 +1385,14 @@ export namespace Prisma {
     userId?: boolean
     status?: boolean
     totalAmount?: boolean
+    recipientName?: boolean
+    contactPhone?: boolean
+    deliveryAddressLine1?: boolean
+    deliveryAddressLine2?: boolean
+    deliveryCity?: boolean
+    deliveryRegion?: boolean
+    deliveryPostalCode?: boolean
+    deliveryCountryCode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["order"]>
@@ -1229,6 +1402,14 @@ export namespace Prisma {
     userId?: boolean
     status?: boolean
     totalAmount?: boolean
+    recipientName?: boolean
+    contactPhone?: boolean
+    deliveryAddressLine1?: boolean
+    deliveryAddressLine2?: boolean
+    deliveryCity?: boolean
+    deliveryRegion?: boolean
+    deliveryPostalCode?: boolean
+    deliveryCountryCode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["order"]>
@@ -1238,13 +1419,22 @@ export namespace Prisma {
     userId?: boolean
     status?: boolean
     totalAmount?: boolean
+    recipientName?: boolean
+    contactPhone?: boolean
+    deliveryAddressLine1?: boolean
+    deliveryAddressLine2?: boolean
+    deliveryCity?: boolean
+    deliveryRegion?: boolean
+    deliveryPostalCode?: boolean
+    deliveryCountryCode?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "status" | "totalAmount" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "status" | "totalAmount" | "recipientName" | "contactPhone" | "deliveryAddressLine1" | "deliveryAddressLine2" | "deliveryCity" | "deliveryRegion" | "deliveryPostalCode" | "deliveryCountryCode" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
   export type OrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Order$itemsArgs<ExtArgs>
+    idempotencyAttempts?: boolean | Order$idempotencyAttemptsArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type OrderIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -1254,12 +1444,21 @@ export namespace Prisma {
     name: "Order"
     objects: {
       items: Prisma.$OrderItemPayload<ExtArgs>[]
+      idempotencyAttempts: Prisma.$CheckoutIdempotencyPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
       status: $Enums.OrderStatus
       totalAmount: Prisma.Decimal
+      recipientName: string | null
+      contactPhone: string | null
+      deliveryAddressLine1: string | null
+      deliveryAddressLine2: string | null
+      deliveryCity: string | null
+      deliveryRegion: string | null
+      deliveryPostalCode: string | null
+      deliveryCountryCode: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["order"]>
@@ -1657,6 +1856,7 @@ export namespace Prisma {
   export interface Prisma__OrderClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     items<T extends Order$itemsArgs<ExtArgs> = {}>(args?: Subset<T, Order$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OrderItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    idempotencyAttempts<T extends Order$idempotencyAttemptsArgs<ExtArgs> = {}>(args?: Subset<T, Order$idempotencyAttemptsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1690,6 +1890,14 @@ export namespace Prisma {
     readonly userId: FieldRef<"Order", 'String'>
     readonly status: FieldRef<"Order", 'OrderStatus'>
     readonly totalAmount: FieldRef<"Order", 'Decimal'>
+    readonly recipientName: FieldRef<"Order", 'String'>
+    readonly contactPhone: FieldRef<"Order", 'String'>
+    readonly deliveryAddressLine1: FieldRef<"Order", 'String'>
+    readonly deliveryAddressLine2: FieldRef<"Order", 'String'>
+    readonly deliveryCity: FieldRef<"Order", 'String'>
+    readonly deliveryRegion: FieldRef<"Order", 'String'>
+    readonly deliveryPostalCode: FieldRef<"Order", 'String'>
+    readonly deliveryCountryCode: FieldRef<"Order", 'String'>
     readonly createdAt: FieldRef<"Order", 'DateTime'>
     readonly updatedAt: FieldRef<"Order", 'DateTime'>
   }
@@ -2106,6 +2314,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: OrderItemScalarFieldEnum | OrderItemScalarFieldEnum[]
+  }
+
+  /**
+   * Order.idempotencyAttempts
+   */
+  export type Order$idempotencyAttemptsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    where?: CheckoutIdempotencyWhereInput
+    orderBy?: CheckoutIdempotencyOrderByWithRelationInput | CheckoutIdempotencyOrderByWithRelationInput[]
+    cursor?: CheckoutIdempotencyWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CheckoutIdempotencyScalarFieldEnum | CheckoutIdempotencyScalarFieldEnum[]
   }
 
   /**
@@ -3298,6 +3530,1180 @@ export namespace Prisma {
 
 
   /**
+   * Model CheckoutIdempotency
+   */
+
+  export type AggregateCheckoutIdempotency = {
+    _count: CheckoutIdempotencyCountAggregateOutputType | null
+    _min: CheckoutIdempotencyMinAggregateOutputType | null
+    _max: CheckoutIdempotencyMaxAggregateOutputType | null
+  }
+
+  export type CheckoutIdempotencyMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    idempotencyKey: string | null
+    requestFingerprint: string | null
+    status: string | null
+    orderId: string | null
+    compensationError: string | null
+    errorMessage: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CheckoutIdempotencyMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    idempotencyKey: string | null
+    requestFingerprint: string | null
+    status: string | null
+    orderId: string | null
+    compensationError: string | null
+    errorMessage: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CheckoutIdempotencyCountAggregateOutputType = {
+    id: number
+    userId: number
+    idempotencyKey: number
+    requestFingerprint: number
+    status: number
+    orderId: number
+    responseBody: number
+    reservedItems: number
+    compensationError: number
+    finalizationCart: number
+    errorMessage: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CheckoutIdempotencyMinAggregateInputType = {
+    id?: true
+    userId?: true
+    idempotencyKey?: true
+    requestFingerprint?: true
+    status?: true
+    orderId?: true
+    compensationError?: true
+    errorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CheckoutIdempotencyMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    idempotencyKey?: true
+    requestFingerprint?: true
+    status?: true
+    orderId?: true
+    compensationError?: true
+    errorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CheckoutIdempotencyCountAggregateInputType = {
+    id?: true
+    userId?: true
+    idempotencyKey?: true
+    requestFingerprint?: true
+    status?: true
+    orderId?: true
+    responseBody?: true
+    reservedItems?: true
+    compensationError?: true
+    finalizationCart?: true
+    errorMessage?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CheckoutIdempotencyAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutIdempotency to aggregate.
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CheckoutIdempotencies to fetch.
+     */
+    orderBy?: CheckoutIdempotencyOrderByWithRelationInput | CheckoutIdempotencyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CheckoutIdempotencyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CheckoutIdempotencies from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CheckoutIdempotencies.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CheckoutIdempotencies
+    **/
+    _count?: true | CheckoutIdempotencyCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CheckoutIdempotencyMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CheckoutIdempotencyMaxAggregateInputType
+  }
+
+  export type GetCheckoutIdempotencyAggregateType<T extends CheckoutIdempotencyAggregateArgs> = {
+        [P in keyof T & keyof AggregateCheckoutIdempotency]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCheckoutIdempotency[P]>
+      : GetScalarType<T[P], AggregateCheckoutIdempotency[P]>
+  }
+
+
+
+
+  export type CheckoutIdempotencyGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CheckoutIdempotencyWhereInput
+    orderBy?: CheckoutIdempotencyOrderByWithAggregationInput | CheckoutIdempotencyOrderByWithAggregationInput[]
+    by: CheckoutIdempotencyScalarFieldEnum[] | CheckoutIdempotencyScalarFieldEnum
+    having?: CheckoutIdempotencyScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CheckoutIdempotencyCountAggregateInputType | true
+    _min?: CheckoutIdempotencyMinAggregateInputType
+    _max?: CheckoutIdempotencyMaxAggregateInputType
+  }
+
+  export type CheckoutIdempotencyGroupByOutputType = {
+    id: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    orderId: string | null
+    responseBody: JsonValue | null
+    reservedItems: JsonValue | null
+    compensationError: string | null
+    finalizationCart: JsonValue | null
+    errorMessage: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: CheckoutIdempotencyCountAggregateOutputType | null
+    _min: CheckoutIdempotencyMinAggregateOutputType | null
+    _max: CheckoutIdempotencyMaxAggregateOutputType | null
+  }
+
+  type GetCheckoutIdempotencyGroupByPayload<T extends CheckoutIdempotencyGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CheckoutIdempotencyGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CheckoutIdempotencyGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CheckoutIdempotencyGroupByOutputType[P]>
+            : GetScalarType<T[P], CheckoutIdempotencyGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CheckoutIdempotencySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    status?: boolean
+    orderId?: boolean
+    responseBody?: boolean
+    reservedItems?: boolean
+    compensationError?: boolean
+    finalizationCart?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }, ExtArgs["result"]["checkoutIdempotency"]>
+
+  export type CheckoutIdempotencySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    status?: boolean
+    orderId?: boolean
+    responseBody?: boolean
+    reservedItems?: boolean
+    compensationError?: boolean
+    finalizationCart?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }, ExtArgs["result"]["checkoutIdempotency"]>
+
+  export type CheckoutIdempotencySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    status?: boolean
+    orderId?: boolean
+    responseBody?: boolean
+    reservedItems?: boolean
+    compensationError?: boolean
+    finalizationCart?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }, ExtArgs["result"]["checkoutIdempotency"]>
+
+  export type CheckoutIdempotencySelectScalar = {
+    id?: boolean
+    userId?: boolean
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    status?: boolean
+    orderId?: boolean
+    responseBody?: boolean
+    reservedItems?: boolean
+    compensationError?: boolean
+    finalizationCart?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CheckoutIdempotencyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "idempotencyKey" | "requestFingerprint" | "status" | "orderId" | "responseBody" | "reservedItems" | "compensationError" | "finalizationCart" | "errorMessage" | "createdAt" | "updatedAt", ExtArgs["result"]["checkoutIdempotency"]>
+  export type CheckoutIdempotencyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }
+  export type CheckoutIdempotencyIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }
+  export type CheckoutIdempotencyIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | CheckoutIdempotency$orderArgs<ExtArgs>
+  }
+
+  export type $CheckoutIdempotencyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CheckoutIdempotency"
+    objects: {
+      order: Prisma.$OrderPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      idempotencyKey: string
+      requestFingerprint: string
+      status: string
+      orderId: string | null
+      responseBody: Prisma.JsonValue | null
+      reservedItems: Prisma.JsonValue | null
+      compensationError: string | null
+      finalizationCart: Prisma.JsonValue | null
+      errorMessage: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["checkoutIdempotency"]>
+    composites: {}
+  }
+
+  type CheckoutIdempotencyGetPayload<S extends boolean | null | undefined | CheckoutIdempotencyDefaultArgs> = $Result.GetResult<Prisma.$CheckoutIdempotencyPayload, S>
+
+  type CheckoutIdempotencyCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CheckoutIdempotencyFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CheckoutIdempotencyCountAggregateInputType | true
+    }
+
+  export interface CheckoutIdempotencyDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CheckoutIdempotency'], meta: { name: 'CheckoutIdempotency' } }
+    /**
+     * Find zero or one CheckoutIdempotency that matches the filter.
+     * @param {CheckoutIdempotencyFindUniqueArgs} args - Arguments to find a CheckoutIdempotency
+     * @example
+     * // Get one CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CheckoutIdempotencyFindUniqueArgs>(args: SelectSubset<T, CheckoutIdempotencyFindUniqueArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CheckoutIdempotency that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CheckoutIdempotencyFindUniqueOrThrowArgs} args - Arguments to find a CheckoutIdempotency
+     * @example
+     * // Get one CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CheckoutIdempotencyFindUniqueOrThrowArgs>(args: SelectSubset<T, CheckoutIdempotencyFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutIdempotency that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyFindFirstArgs} args - Arguments to find a CheckoutIdempotency
+     * @example
+     * // Get one CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CheckoutIdempotencyFindFirstArgs>(args?: SelectSubset<T, CheckoutIdempotencyFindFirstArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutIdempotency that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyFindFirstOrThrowArgs} args - Arguments to find a CheckoutIdempotency
+     * @example
+     * // Get one CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CheckoutIdempotencyFindFirstOrThrowArgs>(args?: SelectSubset<T, CheckoutIdempotencyFindFirstOrThrowArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CheckoutIdempotencies that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CheckoutIdempotencies
+     * const checkoutIdempotencies = await prisma.checkoutIdempotency.findMany()
+     * 
+     * // Get first 10 CheckoutIdempotencies
+     * const checkoutIdempotencies = await prisma.checkoutIdempotency.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const checkoutIdempotencyWithIdOnly = await prisma.checkoutIdempotency.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CheckoutIdempotencyFindManyArgs>(args?: SelectSubset<T, CheckoutIdempotencyFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CheckoutIdempotency.
+     * @param {CheckoutIdempotencyCreateArgs} args - Arguments to create a CheckoutIdempotency.
+     * @example
+     * // Create one CheckoutIdempotency
+     * const CheckoutIdempotency = await prisma.checkoutIdempotency.create({
+     *   data: {
+     *     // ... data to create a CheckoutIdempotency
+     *   }
+     * })
+     * 
+     */
+    create<T extends CheckoutIdempotencyCreateArgs>(args: SelectSubset<T, CheckoutIdempotencyCreateArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CheckoutIdempotencies.
+     * @param {CheckoutIdempotencyCreateManyArgs} args - Arguments to create many CheckoutIdempotencies.
+     * @example
+     * // Create many CheckoutIdempotencies
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CheckoutIdempotencyCreateManyArgs>(args?: SelectSubset<T, CheckoutIdempotencyCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CheckoutIdempotencies and returns the data saved in the database.
+     * @param {CheckoutIdempotencyCreateManyAndReturnArgs} args - Arguments to create many CheckoutIdempotencies.
+     * @example
+     * // Create many CheckoutIdempotencies
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CheckoutIdempotencies and only return the `id`
+     * const checkoutIdempotencyWithIdOnly = await prisma.checkoutIdempotency.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CheckoutIdempotencyCreateManyAndReturnArgs>(args?: SelectSubset<T, CheckoutIdempotencyCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CheckoutIdempotency.
+     * @param {CheckoutIdempotencyDeleteArgs} args - Arguments to delete one CheckoutIdempotency.
+     * @example
+     * // Delete one CheckoutIdempotency
+     * const CheckoutIdempotency = await prisma.checkoutIdempotency.delete({
+     *   where: {
+     *     // ... filter to delete one CheckoutIdempotency
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CheckoutIdempotencyDeleteArgs>(args: SelectSubset<T, CheckoutIdempotencyDeleteArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CheckoutIdempotency.
+     * @param {CheckoutIdempotencyUpdateArgs} args - Arguments to update one CheckoutIdempotency.
+     * @example
+     * // Update one CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CheckoutIdempotencyUpdateArgs>(args: SelectSubset<T, CheckoutIdempotencyUpdateArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CheckoutIdempotencies.
+     * @param {CheckoutIdempotencyDeleteManyArgs} args - Arguments to filter CheckoutIdempotencies to delete.
+     * @example
+     * // Delete a few CheckoutIdempotencies
+     * const { count } = await prisma.checkoutIdempotency.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CheckoutIdempotencyDeleteManyArgs>(args?: SelectSubset<T, CheckoutIdempotencyDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutIdempotencies.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CheckoutIdempotencies
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CheckoutIdempotencyUpdateManyArgs>(args: SelectSubset<T, CheckoutIdempotencyUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutIdempotencies and returns the data updated in the database.
+     * @param {CheckoutIdempotencyUpdateManyAndReturnArgs} args - Arguments to update many CheckoutIdempotencies.
+     * @example
+     * // Update many CheckoutIdempotencies
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CheckoutIdempotencies and only return the `id`
+     * const checkoutIdempotencyWithIdOnly = await prisma.checkoutIdempotency.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CheckoutIdempotencyUpdateManyAndReturnArgs>(args: SelectSubset<T, CheckoutIdempotencyUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CheckoutIdempotency.
+     * @param {CheckoutIdempotencyUpsertArgs} args - Arguments to update or create a CheckoutIdempotency.
+     * @example
+     * // Update or create a CheckoutIdempotency
+     * const checkoutIdempotency = await prisma.checkoutIdempotency.upsert({
+     *   create: {
+     *     // ... data to create a CheckoutIdempotency
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CheckoutIdempotency we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CheckoutIdempotencyUpsertArgs>(args: SelectSubset<T, CheckoutIdempotencyUpsertArgs<ExtArgs>>): Prisma__CheckoutIdempotencyClient<$Result.GetResult<Prisma.$CheckoutIdempotencyPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CheckoutIdempotencies.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyCountArgs} args - Arguments to filter CheckoutIdempotencies to count.
+     * @example
+     * // Count the number of CheckoutIdempotencies
+     * const count = await prisma.checkoutIdempotency.count({
+     *   where: {
+     *     // ... the filter for the CheckoutIdempotencies we want to count
+     *   }
+     * })
+    **/
+    count<T extends CheckoutIdempotencyCountArgs>(
+      args?: Subset<T, CheckoutIdempotencyCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CheckoutIdempotencyCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CheckoutIdempotency.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CheckoutIdempotencyAggregateArgs>(args: Subset<T, CheckoutIdempotencyAggregateArgs>): Prisma.PrismaPromise<GetCheckoutIdempotencyAggregateType<T>>
+
+    /**
+     * Group by CheckoutIdempotency.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutIdempotencyGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CheckoutIdempotencyGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CheckoutIdempotencyGroupByArgs['orderBy'] }
+        : { orderBy?: CheckoutIdempotencyGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CheckoutIdempotencyGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCheckoutIdempotencyGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CheckoutIdempotency model
+   */
+  readonly fields: CheckoutIdempotencyFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CheckoutIdempotency.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CheckoutIdempotencyClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    order<T extends CheckoutIdempotency$orderArgs<ExtArgs> = {}>(args?: Subset<T, CheckoutIdempotency$orderArgs<ExtArgs>>): Prisma__OrderClient<$Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CheckoutIdempotency model
+   */
+  interface CheckoutIdempotencyFieldRefs {
+    readonly id: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly userId: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly idempotencyKey: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly requestFingerprint: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly status: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly orderId: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly responseBody: FieldRef<"CheckoutIdempotency", 'Json'>
+    readonly reservedItems: FieldRef<"CheckoutIdempotency", 'Json'>
+    readonly compensationError: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly finalizationCart: FieldRef<"CheckoutIdempotency", 'Json'>
+    readonly errorMessage: FieldRef<"CheckoutIdempotency", 'String'>
+    readonly createdAt: FieldRef<"CheckoutIdempotency", 'DateTime'>
+    readonly updatedAt: FieldRef<"CheckoutIdempotency", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CheckoutIdempotency findUnique
+   */
+  export type CheckoutIdempotencyFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter, which CheckoutIdempotency to fetch.
+     */
+    where: CheckoutIdempotencyWhereUniqueInput
+  }
+
+  /**
+   * CheckoutIdempotency findUniqueOrThrow
+   */
+  export type CheckoutIdempotencyFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter, which CheckoutIdempotency to fetch.
+     */
+    where: CheckoutIdempotencyWhereUniqueInput
+  }
+
+  /**
+   * CheckoutIdempotency findFirst
+   */
+  export type CheckoutIdempotencyFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter, which CheckoutIdempotency to fetch.
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CheckoutIdempotencies to fetch.
+     */
+    orderBy?: CheckoutIdempotencyOrderByWithRelationInput | CheckoutIdempotencyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CheckoutIdempotencies.
+     */
+    cursor?: CheckoutIdempotencyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CheckoutIdempotencies from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CheckoutIdempotencies.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CheckoutIdempotencies.
+     */
+    distinct?: CheckoutIdempotencyScalarFieldEnum | CheckoutIdempotencyScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutIdempotency findFirstOrThrow
+   */
+  export type CheckoutIdempotencyFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter, which CheckoutIdempotency to fetch.
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CheckoutIdempotencies to fetch.
+     */
+    orderBy?: CheckoutIdempotencyOrderByWithRelationInput | CheckoutIdempotencyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CheckoutIdempotencies.
+     */
+    cursor?: CheckoutIdempotencyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CheckoutIdempotencies from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CheckoutIdempotencies.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CheckoutIdempotencies.
+     */
+    distinct?: CheckoutIdempotencyScalarFieldEnum | CheckoutIdempotencyScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutIdempotency findMany
+   */
+  export type CheckoutIdempotencyFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter, which CheckoutIdempotencies to fetch.
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CheckoutIdempotencies to fetch.
+     */
+    orderBy?: CheckoutIdempotencyOrderByWithRelationInput | CheckoutIdempotencyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CheckoutIdempotencies.
+     */
+    cursor?: CheckoutIdempotencyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CheckoutIdempotencies from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CheckoutIdempotencies.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CheckoutIdempotencies.
+     */
+    distinct?: CheckoutIdempotencyScalarFieldEnum | CheckoutIdempotencyScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutIdempotency create
+   */
+  export type CheckoutIdempotencyCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CheckoutIdempotency.
+     */
+    data: XOR<CheckoutIdempotencyCreateInput, CheckoutIdempotencyUncheckedCreateInput>
+  }
+
+  /**
+   * CheckoutIdempotency createMany
+   */
+  export type CheckoutIdempotencyCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CheckoutIdempotencies.
+     */
+    data: CheckoutIdempotencyCreateManyInput | CheckoutIdempotencyCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CheckoutIdempotency createManyAndReturn
+   */
+  export type CheckoutIdempotencyCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * The data used to create many CheckoutIdempotencies.
+     */
+    data: CheckoutIdempotencyCreateManyInput | CheckoutIdempotencyCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CheckoutIdempotency update
+   */
+  export type CheckoutIdempotencyUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CheckoutIdempotency.
+     */
+    data: XOR<CheckoutIdempotencyUpdateInput, CheckoutIdempotencyUncheckedUpdateInput>
+    /**
+     * Choose, which CheckoutIdempotency to update.
+     */
+    where: CheckoutIdempotencyWhereUniqueInput
+  }
+
+  /**
+   * CheckoutIdempotency updateMany
+   */
+  export type CheckoutIdempotencyUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CheckoutIdempotencies.
+     */
+    data: XOR<CheckoutIdempotencyUpdateManyMutationInput, CheckoutIdempotencyUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutIdempotencies to update
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * Limit how many CheckoutIdempotencies to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutIdempotency updateManyAndReturn
+   */
+  export type CheckoutIdempotencyUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * The data used to update CheckoutIdempotencies.
+     */
+    data: XOR<CheckoutIdempotencyUpdateManyMutationInput, CheckoutIdempotencyUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutIdempotencies to update
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * Limit how many CheckoutIdempotencies to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CheckoutIdempotency upsert
+   */
+  export type CheckoutIdempotencyUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CheckoutIdempotency to update in case it exists.
+     */
+    where: CheckoutIdempotencyWhereUniqueInput
+    /**
+     * In case the CheckoutIdempotency found by the `where` argument doesn't exist, create a new CheckoutIdempotency with this data.
+     */
+    create: XOR<CheckoutIdempotencyCreateInput, CheckoutIdempotencyUncheckedCreateInput>
+    /**
+     * In case the CheckoutIdempotency was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CheckoutIdempotencyUpdateInput, CheckoutIdempotencyUncheckedUpdateInput>
+  }
+
+  /**
+   * CheckoutIdempotency delete
+   */
+  export type CheckoutIdempotencyDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+    /**
+     * Filter which CheckoutIdempotency to delete.
+     */
+    where: CheckoutIdempotencyWhereUniqueInput
+  }
+
+  /**
+   * CheckoutIdempotency deleteMany
+   */
+  export type CheckoutIdempotencyDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutIdempotencies to delete
+     */
+    where?: CheckoutIdempotencyWhereInput
+    /**
+     * Limit how many CheckoutIdempotencies to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutIdempotency.order
+   */
+  export type CheckoutIdempotency$orderArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Order
+     */
+    select?: OrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Order
+     */
+    omit?: OrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: OrderInclude<ExtArgs> | null
+    where?: OrderWhereInput
+  }
+
+  /**
+   * CheckoutIdempotency without action
+   */
+  export type CheckoutIdempotencyDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutIdempotency
+     */
+    select?: CheckoutIdempotencySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutIdempotency
+     */
+    omit?: CheckoutIdempotencyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CheckoutIdempotencyInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -3316,6 +4722,14 @@ export namespace Prisma {
     userId: 'userId',
     status: 'status',
     totalAmount: 'totalAmount',
+    recipientName: 'recipientName',
+    contactPhone: 'contactPhone',
+    deliveryAddressLine1: 'deliveryAddressLine1',
+    deliveryAddressLine2: 'deliveryAddressLine2',
+    deliveryCity: 'deliveryCity',
+    deliveryRegion: 'deliveryRegion',
+    deliveryPostalCode: 'deliveryPostalCode',
+    deliveryCountryCode: 'deliveryCountryCode',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -3339,6 +4753,25 @@ export namespace Prisma {
   export type OrderItemScalarFieldEnum = (typeof OrderItemScalarFieldEnum)[keyof typeof OrderItemScalarFieldEnum]
 
 
+  export const CheckoutIdempotencyScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    idempotencyKey: 'idempotencyKey',
+    requestFingerprint: 'requestFingerprint',
+    status: 'status',
+    orderId: 'orderId',
+    responseBody: 'responseBody',
+    reservedItems: 'reservedItems',
+    compensationError: 'compensationError',
+    finalizationCart: 'finalizationCart',
+    errorMessage: 'errorMessage',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CheckoutIdempotencyScalarFieldEnum = (typeof CheckoutIdempotencyScalarFieldEnum)[keyof typeof CheckoutIdempotencyScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -3347,12 +4780,37 @@ export namespace Prisma {
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+  export const NullableJsonNullValueInput: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull
+  };
+
+  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
   export const QueryMode: {
     default: 'default',
     insensitive: 'insensitive'
   };
 
   export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+  export const NullsOrder: {
+    first: 'first',
+    last: 'last'
+  };
+
+  export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+  export const JsonNullValueFilter: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull,
+    AnyNull: typeof AnyNull
+  };
+
+  export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
   /**
@@ -3431,6 +4889,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -3455,9 +4927,18 @@ export namespace Prisma {
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
     totalAmount?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    recipientName?: StringNullableFilter<"Order"> | string | null
+    contactPhone?: StringNullableFilter<"Order"> | string | null
+    deliveryAddressLine1?: StringNullableFilter<"Order"> | string | null
+    deliveryAddressLine2?: StringNullableFilter<"Order"> | string | null
+    deliveryCity?: StringNullableFilter<"Order"> | string | null
+    deliveryRegion?: StringNullableFilter<"Order"> | string | null
+    deliveryPostalCode?: StringNullableFilter<"Order"> | string | null
+    deliveryCountryCode?: StringNullableFilter<"Order"> | string | null
     createdAt?: DateTimeFilter<"Order"> | Date | string
     updatedAt?: DateTimeFilter<"Order"> | Date | string
     items?: OrderItemListRelationFilter
+    idempotencyAttempts?: CheckoutIdempotencyListRelationFilter
   }
 
   export type OrderOrderByWithRelationInput = {
@@ -3465,9 +4946,18 @@ export namespace Prisma {
     userId?: SortOrder
     status?: SortOrder
     totalAmount?: SortOrder
+    recipientName?: SortOrderInput | SortOrder
+    contactPhone?: SortOrderInput | SortOrder
+    deliveryAddressLine1?: SortOrderInput | SortOrder
+    deliveryAddressLine2?: SortOrderInput | SortOrder
+    deliveryCity?: SortOrderInput | SortOrder
+    deliveryRegion?: SortOrderInput | SortOrder
+    deliveryPostalCode?: SortOrderInput | SortOrder
+    deliveryCountryCode?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     items?: OrderItemOrderByRelationAggregateInput
+    idempotencyAttempts?: CheckoutIdempotencyOrderByRelationAggregateInput
   }
 
   export type OrderWhereUniqueInput = Prisma.AtLeast<{
@@ -3478,9 +4968,18 @@ export namespace Prisma {
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
     totalAmount?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    recipientName?: StringNullableFilter<"Order"> | string | null
+    contactPhone?: StringNullableFilter<"Order"> | string | null
+    deliveryAddressLine1?: StringNullableFilter<"Order"> | string | null
+    deliveryAddressLine2?: StringNullableFilter<"Order"> | string | null
+    deliveryCity?: StringNullableFilter<"Order"> | string | null
+    deliveryRegion?: StringNullableFilter<"Order"> | string | null
+    deliveryPostalCode?: StringNullableFilter<"Order"> | string | null
+    deliveryCountryCode?: StringNullableFilter<"Order"> | string | null
     createdAt?: DateTimeFilter<"Order"> | Date | string
     updatedAt?: DateTimeFilter<"Order"> | Date | string
     items?: OrderItemListRelationFilter
+    idempotencyAttempts?: CheckoutIdempotencyListRelationFilter
   }, "id">
 
   export type OrderOrderByWithAggregationInput = {
@@ -3488,6 +4987,14 @@ export namespace Prisma {
     userId?: SortOrder
     status?: SortOrder
     totalAmount?: SortOrder
+    recipientName?: SortOrderInput | SortOrder
+    contactPhone?: SortOrderInput | SortOrder
+    deliveryAddressLine1?: SortOrderInput | SortOrder
+    deliveryAddressLine2?: SortOrderInput | SortOrder
+    deliveryCity?: SortOrderInput | SortOrder
+    deliveryRegion?: SortOrderInput | SortOrder
+    deliveryPostalCode?: SortOrderInput | SortOrder
+    deliveryCountryCode?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: OrderCountOrderByAggregateInput
@@ -3505,6 +5012,14 @@ export namespace Prisma {
     userId?: StringWithAggregatesFilter<"Order"> | string
     status?: EnumOrderStatusWithAggregatesFilter<"Order"> | $Enums.OrderStatus
     totalAmount?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
+    recipientName?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    contactPhone?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryAddressLine1?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryAddressLine2?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryCity?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryRegion?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryPostalCode?: StringNullableWithAggregatesFilter<"Order"> | string | null
+    deliveryCountryCode?: StringNullableWithAggregatesFilter<"Order"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
   }
@@ -3542,6 +5057,7 @@ export namespace Prisma {
 
   export type OrderItemWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    orderId_productId?: OrderItemOrderIdProductIdCompoundUniqueInput
     AND?: OrderItemWhereInput | OrderItemWhereInput[]
     OR?: OrderItemWhereInput[]
     NOT?: OrderItemWhereInput | OrderItemWhereInput[]
@@ -3555,7 +5071,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"OrderItem"> | Date | string
     updatedAt?: DateTimeFilter<"OrderItem"> | Date | string
     order?: XOR<OrderScalarRelationFilter, OrderWhereInput>
-  }, "id">
+  }, "id" | "orderId_productId">
 
   export type OrderItemOrderByWithAggregationInput = {
     id?: SortOrder
@@ -3591,14 +5107,119 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"OrderItem"> | Date | string
   }
 
+  export type CheckoutIdempotencyWhereInput = {
+    AND?: CheckoutIdempotencyWhereInput | CheckoutIdempotencyWhereInput[]
+    OR?: CheckoutIdempotencyWhereInput[]
+    NOT?: CheckoutIdempotencyWhereInput | CheckoutIdempotencyWhereInput[]
+    id?: StringFilter<"CheckoutIdempotency"> | string
+    userId?: StringFilter<"CheckoutIdempotency"> | string
+    idempotencyKey?: StringFilter<"CheckoutIdempotency"> | string
+    requestFingerprint?: StringFilter<"CheckoutIdempotency"> | string
+    status?: StringFilter<"CheckoutIdempotency"> | string
+    orderId?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    responseBody?: JsonNullableFilter<"CheckoutIdempotency">
+    reservedItems?: JsonNullableFilter<"CheckoutIdempotency">
+    compensationError?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    finalizationCart?: JsonNullableFilter<"CheckoutIdempotency">
+    errorMessage?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    createdAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+    updatedAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+    order?: XOR<OrderNullableScalarRelationFilter, OrderWhereInput> | null
+  }
+
+  export type CheckoutIdempotencyOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    status?: SortOrder
+    orderId?: SortOrderInput | SortOrder
+    responseBody?: SortOrderInput | SortOrder
+    reservedItems?: SortOrderInput | SortOrder
+    compensationError?: SortOrderInput | SortOrder
+    finalizationCart?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    order?: OrderOrderByWithRelationInput
+  }
+
+  export type CheckoutIdempotencyWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId_idempotencyKey?: CheckoutIdempotencyUserIdIdempotencyKeyCompoundUniqueInput
+    AND?: CheckoutIdempotencyWhereInput | CheckoutIdempotencyWhereInput[]
+    OR?: CheckoutIdempotencyWhereInput[]
+    NOT?: CheckoutIdempotencyWhereInput | CheckoutIdempotencyWhereInput[]
+    userId?: StringFilter<"CheckoutIdempotency"> | string
+    idempotencyKey?: StringFilter<"CheckoutIdempotency"> | string
+    requestFingerprint?: StringFilter<"CheckoutIdempotency"> | string
+    status?: StringFilter<"CheckoutIdempotency"> | string
+    orderId?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    responseBody?: JsonNullableFilter<"CheckoutIdempotency">
+    reservedItems?: JsonNullableFilter<"CheckoutIdempotency">
+    compensationError?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    finalizationCart?: JsonNullableFilter<"CheckoutIdempotency">
+    errorMessage?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    createdAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+    updatedAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+    order?: XOR<OrderNullableScalarRelationFilter, OrderWhereInput> | null
+  }, "id" | "userId_idempotencyKey">
+
+  export type CheckoutIdempotencyOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    status?: SortOrder
+    orderId?: SortOrderInput | SortOrder
+    responseBody?: SortOrderInput | SortOrder
+    reservedItems?: SortOrderInput | SortOrder
+    compensationError?: SortOrderInput | SortOrder
+    finalizationCart?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CheckoutIdempotencyCountOrderByAggregateInput
+    _max?: CheckoutIdempotencyMaxOrderByAggregateInput
+    _min?: CheckoutIdempotencyMinOrderByAggregateInput
+  }
+
+  export type CheckoutIdempotencyScalarWhereWithAggregatesInput = {
+    AND?: CheckoutIdempotencyScalarWhereWithAggregatesInput | CheckoutIdempotencyScalarWhereWithAggregatesInput[]
+    OR?: CheckoutIdempotencyScalarWhereWithAggregatesInput[]
+    NOT?: CheckoutIdempotencyScalarWhereWithAggregatesInput | CheckoutIdempotencyScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CheckoutIdempotency"> | string
+    userId?: StringWithAggregatesFilter<"CheckoutIdempotency"> | string
+    idempotencyKey?: StringWithAggregatesFilter<"CheckoutIdempotency"> | string
+    requestFingerprint?: StringWithAggregatesFilter<"CheckoutIdempotency"> | string
+    status?: StringWithAggregatesFilter<"CheckoutIdempotency"> | string
+    orderId?: StringNullableWithAggregatesFilter<"CheckoutIdempotency"> | string | null
+    responseBody?: JsonNullableWithAggregatesFilter<"CheckoutIdempotency">
+    reservedItems?: JsonNullableWithAggregatesFilter<"CheckoutIdempotency">
+    compensationError?: StringNullableWithAggregatesFilter<"CheckoutIdempotency"> | string | null
+    finalizationCart?: JsonNullableWithAggregatesFilter<"CheckoutIdempotency">
+    errorMessage?: StringNullableWithAggregatesFilter<"CheckoutIdempotency"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"CheckoutIdempotency"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CheckoutIdempotency"> | Date | string
+  }
+
   export type OrderCreateInput = {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
     totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: OrderItemCreateNestedManyWithoutOrderInput
+    idempotencyAttempts?: CheckoutIdempotencyCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateInput = {
@@ -3606,9 +5227,18 @@ export namespace Prisma {
     userId: string
     status?: $Enums.OrderStatus
     totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: OrderItemUncheckedCreateNestedManyWithoutOrderInput
+    idempotencyAttempts?: CheckoutIdempotencyUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUpdateInput = {
@@ -3616,9 +5246,18 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: OrderItemUpdateManyWithoutOrderNestedInput
+    idempotencyAttempts?: CheckoutIdempotencyUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateInput = {
@@ -3626,9 +5265,18 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: OrderItemUncheckedUpdateManyWithoutOrderNestedInput
+    idempotencyAttempts?: CheckoutIdempotencyUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderCreateManyInput = {
@@ -3636,6 +5284,14 @@ export namespace Prisma {
     userId: string
     status?: $Enums.OrderStatus
     totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3645,6 +5301,14 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3654,6 +5318,14 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3748,6 +5420,117 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CheckoutIdempotencyCreateInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    order?: OrderCreateNestedOneWithoutIdempotencyAttemptsInput
+  }
+
+  export type CheckoutIdempotencyUncheckedCreateInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    orderId?: string | null
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CheckoutIdempotencyUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    order?: OrderUpdateOneWithoutIdempotencyAttemptsNestedInput
+  }
+
+  export type CheckoutIdempotencyUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    orderId?: NullableStringFieldUpdateOperationsInput | string | null
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CheckoutIdempotencyCreateManyInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    orderId?: string | null
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CheckoutIdempotencyUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CheckoutIdempotencyUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    orderId?: NullableStringFieldUpdateOperationsInput | string | null
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -3781,6 +5564,21 @@ export namespace Prisma {
     not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3798,7 +5596,22 @@ export namespace Prisma {
     none?: OrderItemWhereInput
   }
 
+  export type CheckoutIdempotencyListRelationFilter = {
+    every?: CheckoutIdempotencyWhereInput
+    some?: CheckoutIdempotencyWhereInput
+    none?: CheckoutIdempotencyWhereInput
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
   export type OrderItemOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CheckoutIdempotencyOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -3807,6 +5620,14 @@ export namespace Prisma {
     userId?: SortOrder
     status?: SortOrder
     totalAmount?: SortOrder
+    recipientName?: SortOrder
+    contactPhone?: SortOrder
+    deliveryAddressLine1?: SortOrder
+    deliveryAddressLine2?: SortOrder
+    deliveryCity?: SortOrder
+    deliveryRegion?: SortOrder
+    deliveryPostalCode?: SortOrder
+    deliveryCountryCode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3820,6 +5641,14 @@ export namespace Prisma {
     userId?: SortOrder
     status?: SortOrder
     totalAmount?: SortOrder
+    recipientName?: SortOrder
+    contactPhone?: SortOrder
+    deliveryAddressLine1?: SortOrder
+    deliveryAddressLine2?: SortOrder
+    deliveryCity?: SortOrder
+    deliveryRegion?: SortOrder
+    deliveryPostalCode?: SortOrder
+    deliveryCountryCode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3829,6 +5658,14 @@ export namespace Prisma {
     userId?: SortOrder
     status?: SortOrder
     totalAmount?: SortOrder
+    recipientName?: SortOrder
+    contactPhone?: SortOrder
+    deliveryAddressLine1?: SortOrder
+    deliveryAddressLine2?: SortOrder
+    deliveryCity?: SortOrder
+    deliveryRegion?: SortOrder
+    deliveryPostalCode?: SortOrder
+    deliveryCountryCode?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3881,6 +5718,24 @@ export namespace Prisma {
     _max?: NestedDecimalFilter<$PrismaModel>
   }
 
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3909,6 +5764,11 @@ export namespace Prisma {
   export type OrderScalarRelationFilter = {
     is?: OrderWhereInput
     isNot?: OrderWhereInput
+  }
+
+  export type OrderItemOrderIdProductIdCompoundUniqueInput = {
+    orderId: string
+    productId: string
   }
 
   export type OrderItemCountOrderByAggregateInput = {
@@ -3977,6 +5837,107 @@ export namespace Prisma {
     _min?: NestedIntFilter<$PrismaModel>
     _max?: NestedIntFilter<$PrismaModel>
   }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type OrderNullableScalarRelationFilter = {
+    is?: OrderWhereInput | null
+    isNot?: OrderWhereInput | null
+  }
+
+  export type CheckoutIdempotencyUserIdIdempotencyKeyCompoundUniqueInput = {
+    userId: string
+    idempotencyKey: string
+  }
+
+  export type CheckoutIdempotencyCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    status?: SortOrder
+    orderId?: SortOrder
+    responseBody?: SortOrder
+    reservedItems?: SortOrder
+    compensationError?: SortOrder
+    finalizationCart?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CheckoutIdempotencyMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    status?: SortOrder
+    orderId?: SortOrder
+    compensationError?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CheckoutIdempotencyMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    status?: SortOrder
+    orderId?: SortOrder
+    compensationError?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
 
   export type OrderItemCreateNestedManyWithoutOrderInput = {
     create?: XOR<OrderItemCreateWithoutOrderInput, OrderItemUncheckedCreateWithoutOrderInput> | OrderItemCreateWithoutOrderInput[] | OrderItemUncheckedCreateWithoutOrderInput[]
@@ -3985,11 +5946,25 @@ export namespace Prisma {
     connect?: OrderItemWhereUniqueInput | OrderItemWhereUniqueInput[]
   }
 
+  export type CheckoutIdempotencyCreateNestedManyWithoutOrderInput = {
+    create?: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput> | CheckoutIdempotencyCreateWithoutOrderInput[] | CheckoutIdempotencyUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: CheckoutIdempotencyCreateOrConnectWithoutOrderInput | CheckoutIdempotencyCreateOrConnectWithoutOrderInput[]
+    createMany?: CheckoutIdempotencyCreateManyOrderInputEnvelope
+    connect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+  }
+
   export type OrderItemUncheckedCreateNestedManyWithoutOrderInput = {
     create?: XOR<OrderItemCreateWithoutOrderInput, OrderItemUncheckedCreateWithoutOrderInput> | OrderItemCreateWithoutOrderInput[] | OrderItemUncheckedCreateWithoutOrderInput[]
     connectOrCreate?: OrderItemCreateOrConnectWithoutOrderInput | OrderItemCreateOrConnectWithoutOrderInput[]
     createMany?: OrderItemCreateManyOrderInputEnvelope
     connect?: OrderItemWhereUniqueInput | OrderItemWhereUniqueInput[]
+  }
+
+  export type CheckoutIdempotencyUncheckedCreateNestedManyWithoutOrderInput = {
+    create?: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput> | CheckoutIdempotencyCreateWithoutOrderInput[] | CheckoutIdempotencyUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: CheckoutIdempotencyCreateOrConnectWithoutOrderInput | CheckoutIdempotencyCreateOrConnectWithoutOrderInput[]
+    createMany?: CheckoutIdempotencyCreateManyOrderInputEnvelope
+    connect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -4006,6 +5981,10 @@ export namespace Prisma {
     decrement?: Decimal | DecimalJsLike | number | string
     multiply?: Decimal | DecimalJsLike | number | string
     divide?: Decimal | DecimalJsLike | number | string
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
   }
 
   export type DateTimeFieldUpdateOperationsInput = {
@@ -4026,6 +6005,20 @@ export namespace Prisma {
     deleteMany?: OrderItemScalarWhereInput | OrderItemScalarWhereInput[]
   }
 
+  export type CheckoutIdempotencyUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput> | CheckoutIdempotencyCreateWithoutOrderInput[] | CheckoutIdempotencyUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: CheckoutIdempotencyCreateOrConnectWithoutOrderInput | CheckoutIdempotencyCreateOrConnectWithoutOrderInput[]
+    upsert?: CheckoutIdempotencyUpsertWithWhereUniqueWithoutOrderInput | CheckoutIdempotencyUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: CheckoutIdempotencyCreateManyOrderInputEnvelope
+    set?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    disconnect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    delete?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    connect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    update?: CheckoutIdempotencyUpdateWithWhereUniqueWithoutOrderInput | CheckoutIdempotencyUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: CheckoutIdempotencyUpdateManyWithWhereWithoutOrderInput | CheckoutIdempotencyUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: CheckoutIdempotencyScalarWhereInput | CheckoutIdempotencyScalarWhereInput[]
+  }
+
   export type OrderItemUncheckedUpdateManyWithoutOrderNestedInput = {
     create?: XOR<OrderItemCreateWithoutOrderInput, OrderItemUncheckedCreateWithoutOrderInput> | OrderItemCreateWithoutOrderInput[] | OrderItemUncheckedCreateWithoutOrderInput[]
     connectOrCreate?: OrderItemCreateOrConnectWithoutOrderInput | OrderItemCreateOrConnectWithoutOrderInput[]
@@ -4038,6 +6031,20 @@ export namespace Prisma {
     update?: OrderItemUpdateWithWhereUniqueWithoutOrderInput | OrderItemUpdateWithWhereUniqueWithoutOrderInput[]
     updateMany?: OrderItemUpdateManyWithWhereWithoutOrderInput | OrderItemUpdateManyWithWhereWithoutOrderInput[]
     deleteMany?: OrderItemScalarWhereInput | OrderItemScalarWhereInput[]
+  }
+
+  export type CheckoutIdempotencyUncheckedUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput> | CheckoutIdempotencyCreateWithoutOrderInput[] | CheckoutIdempotencyUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: CheckoutIdempotencyCreateOrConnectWithoutOrderInput | CheckoutIdempotencyCreateOrConnectWithoutOrderInput[]
+    upsert?: CheckoutIdempotencyUpsertWithWhereUniqueWithoutOrderInput | CheckoutIdempotencyUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: CheckoutIdempotencyCreateManyOrderInputEnvelope
+    set?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    disconnect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    delete?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    connect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
+    update?: CheckoutIdempotencyUpdateWithWhereUniqueWithoutOrderInput | CheckoutIdempotencyUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: CheckoutIdempotencyUpdateManyWithWhereWithoutOrderInput | CheckoutIdempotencyUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: CheckoutIdempotencyScalarWhereInput | CheckoutIdempotencyScalarWhereInput[]
   }
 
   export type OrderCreateNestedOneWithoutItemsInput = {
@@ -4060,6 +6067,22 @@ export namespace Prisma {
     upsert?: OrderUpsertWithoutItemsInput
     connect?: OrderWhereUniqueInput
     update?: XOR<XOR<OrderUpdateToOneWithWhereWithoutItemsInput, OrderUpdateWithoutItemsInput>, OrderUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type OrderCreateNestedOneWithoutIdempotencyAttemptsInput = {
+    create?: XOR<OrderCreateWithoutIdempotencyAttemptsInput, OrderUncheckedCreateWithoutIdempotencyAttemptsInput>
+    connectOrCreate?: OrderCreateOrConnectWithoutIdempotencyAttemptsInput
+    connect?: OrderWhereUniqueInput
+  }
+
+  export type OrderUpdateOneWithoutIdempotencyAttemptsNestedInput = {
+    create?: XOR<OrderCreateWithoutIdempotencyAttemptsInput, OrderUncheckedCreateWithoutIdempotencyAttemptsInput>
+    connectOrCreate?: OrderCreateOrConnectWithoutIdempotencyAttemptsInput
+    upsert?: OrderUpsertWithoutIdempotencyAttemptsInput
+    disconnect?: OrderWhereInput | boolean
+    delete?: OrderWhereInput | boolean
+    connect?: OrderWhereUniqueInput
+    update?: XOR<XOR<OrderUpdateToOneWithWhereWithoutIdempotencyAttemptsInput, OrderUpdateWithoutIdempotencyAttemptsInput>, OrderUncheckedUpdateWithoutIdempotencyAttemptsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -4092,6 +6115,20 @@ export namespace Prisma {
     gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
+  }
+
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type NestedDateTimeFilter<$PrismaModel = never> = {
@@ -4159,6 +6196,34 @@ export namespace Prisma {
     _max?: NestedDecimalFilter<$PrismaModel>
   }
 
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -4199,6 +6264,29 @@ export namespace Prisma {
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
   }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type OrderItemCreateWithoutOrderInput = {
     id?: string
@@ -4234,6 +6322,46 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CheckoutIdempotencyCreateWithoutOrderInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CheckoutIdempotencyUncheckedCreateWithoutOrderInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CheckoutIdempotencyCreateOrConnectWithoutOrderInput = {
+    where: CheckoutIdempotencyWhereUniqueInput
+    create: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput>
+  }
+
+  export type CheckoutIdempotencyCreateManyOrderInputEnvelope = {
+    data: CheckoutIdempotencyCreateManyOrderInput | CheckoutIdempotencyCreateManyOrderInput[]
+    skipDuplicates?: boolean
+  }
+
   export type OrderItemUpsertWithWhereUniqueWithoutOrderInput = {
     where: OrderItemWhereUniqueInput
     update: XOR<OrderItemUpdateWithoutOrderInput, OrderItemUncheckedUpdateWithoutOrderInput>
@@ -4266,13 +6394,57 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"OrderItem"> | Date | string
   }
 
+  export type CheckoutIdempotencyUpsertWithWhereUniqueWithoutOrderInput = {
+    where: CheckoutIdempotencyWhereUniqueInput
+    update: XOR<CheckoutIdempotencyUpdateWithoutOrderInput, CheckoutIdempotencyUncheckedUpdateWithoutOrderInput>
+    create: XOR<CheckoutIdempotencyCreateWithoutOrderInput, CheckoutIdempotencyUncheckedCreateWithoutOrderInput>
+  }
+
+  export type CheckoutIdempotencyUpdateWithWhereUniqueWithoutOrderInput = {
+    where: CheckoutIdempotencyWhereUniqueInput
+    data: XOR<CheckoutIdempotencyUpdateWithoutOrderInput, CheckoutIdempotencyUncheckedUpdateWithoutOrderInput>
+  }
+
+  export type CheckoutIdempotencyUpdateManyWithWhereWithoutOrderInput = {
+    where: CheckoutIdempotencyScalarWhereInput
+    data: XOR<CheckoutIdempotencyUpdateManyMutationInput, CheckoutIdempotencyUncheckedUpdateManyWithoutOrderInput>
+  }
+
+  export type CheckoutIdempotencyScalarWhereInput = {
+    AND?: CheckoutIdempotencyScalarWhereInput | CheckoutIdempotencyScalarWhereInput[]
+    OR?: CheckoutIdempotencyScalarWhereInput[]
+    NOT?: CheckoutIdempotencyScalarWhereInput | CheckoutIdempotencyScalarWhereInput[]
+    id?: StringFilter<"CheckoutIdempotency"> | string
+    userId?: StringFilter<"CheckoutIdempotency"> | string
+    idempotencyKey?: StringFilter<"CheckoutIdempotency"> | string
+    requestFingerprint?: StringFilter<"CheckoutIdempotency"> | string
+    status?: StringFilter<"CheckoutIdempotency"> | string
+    orderId?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    responseBody?: JsonNullableFilter<"CheckoutIdempotency">
+    reservedItems?: JsonNullableFilter<"CheckoutIdempotency">
+    compensationError?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    finalizationCart?: JsonNullableFilter<"CheckoutIdempotency">
+    errorMessage?: StringNullableFilter<"CheckoutIdempotency"> | string | null
+    createdAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+    updatedAt?: DateTimeFilter<"CheckoutIdempotency"> | Date | string
+  }
+
   export type OrderCreateWithoutItemsInput = {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
     totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    idempotencyAttempts?: CheckoutIdempotencyCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateWithoutItemsInput = {
@@ -4280,8 +6452,17 @@ export namespace Prisma {
     userId: string
     status?: $Enums.OrderStatus
     totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    idempotencyAttempts?: CheckoutIdempotencyUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderCreateOrConnectWithoutItemsInput = {
@@ -4305,8 +6486,17 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    idempotencyAttempts?: CheckoutIdempotencyUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateWithoutItemsInput = {
@@ -4314,8 +6504,105 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    idempotencyAttempts?: CheckoutIdempotencyUncheckedUpdateManyWithoutOrderNestedInput
+  }
+
+  export type OrderCreateWithoutIdempotencyAttemptsInput = {
+    id?: string
+    userId: string
+    status?: $Enums.OrderStatus
+    totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: OrderItemCreateNestedManyWithoutOrderInput
+  }
+
+  export type OrderUncheckedCreateWithoutIdempotencyAttemptsInput = {
+    id?: string
+    userId: string
+    status?: $Enums.OrderStatus
+    totalAmount: Decimal | DecimalJsLike | number | string
+    recipientName?: string | null
+    contactPhone?: string | null
+    deliveryAddressLine1?: string | null
+    deliveryAddressLine2?: string | null
+    deliveryCity?: string | null
+    deliveryRegion?: string | null
+    deliveryPostalCode?: string | null
+    deliveryCountryCode?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: OrderItemUncheckedCreateNestedManyWithoutOrderInput
+  }
+
+  export type OrderCreateOrConnectWithoutIdempotencyAttemptsInput = {
+    where: OrderWhereUniqueInput
+    create: XOR<OrderCreateWithoutIdempotencyAttemptsInput, OrderUncheckedCreateWithoutIdempotencyAttemptsInput>
+  }
+
+  export type OrderUpsertWithoutIdempotencyAttemptsInput = {
+    update: XOR<OrderUpdateWithoutIdempotencyAttemptsInput, OrderUncheckedUpdateWithoutIdempotencyAttemptsInput>
+    create: XOR<OrderCreateWithoutIdempotencyAttemptsInput, OrderUncheckedCreateWithoutIdempotencyAttemptsInput>
+    where?: OrderWhereInput
+  }
+
+  export type OrderUpdateToOneWithWhereWithoutIdempotencyAttemptsInput = {
+    where?: OrderWhereInput
+    data: XOR<OrderUpdateWithoutIdempotencyAttemptsInput, OrderUncheckedUpdateWithoutIdempotencyAttemptsInput>
+  }
+
+  export type OrderUpdateWithoutIdempotencyAttemptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: OrderItemUpdateManyWithoutOrderNestedInput
+  }
+
+  export type OrderUncheckedUpdateWithoutIdempotencyAttemptsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    recipientName?: NullableStringFieldUpdateOperationsInput | string | null
+    contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine1?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryAddressLine2?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCity?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryPostalCode?: NullableStringFieldUpdateOperationsInput | string | null
+    deliveryCountryCode?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: OrderItemUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderItemCreateManyOrderInput = {
@@ -4326,6 +6613,21 @@ export namespace Prisma {
     quantity: number
     unitPrice: Decimal | DecimalJsLike | number | string
     subtotal: Decimal | DecimalJsLike | number | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CheckoutIdempotencyCreateManyOrderInput = {
+    id?: string
+    userId: string
+    idempotencyKey: string
+    requestFingerprint: string
+    status: string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4362,6 +6664,51 @@ export namespace Prisma {
     quantity?: IntFieldUpdateOperationsInput | number
     unitPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CheckoutIdempotencyUpdateWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CheckoutIdempotencyUncheckedUpdateWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CheckoutIdempotencyUncheckedUpdateManyWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    responseBody?: NullableJsonNullValueInput | InputJsonValue
+    reservedItems?: NullableJsonNullValueInput | InputJsonValue
+    compensationError?: NullableStringFieldUpdateOperationsInput | string | null
+    finalizationCart?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

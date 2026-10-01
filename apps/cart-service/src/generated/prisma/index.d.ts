@@ -993,13 +993,24 @@ export namespace Prisma {
 
   export type AggregateCart = {
     _count: CartCountAggregateOutputType | null
+    _avg: CartAvgAggregateOutputType | null
+    _sum: CartSumAggregateOutputType | null
     _min: CartMinAggregateOutputType | null
     _max: CartMaxAggregateOutputType | null
+  }
+
+  export type CartAvgAggregateOutputType = {
+    version: number | null
+  }
+
+  export type CartSumAggregateOutputType = {
+    version: number | null
   }
 
   export type CartMinAggregateOutputType = {
     id: string | null
     userId: string | null
+    version: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1007,6 +1018,7 @@ export namespace Prisma {
   export type CartMaxAggregateOutputType = {
     id: string | null
     userId: string | null
+    version: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1014,15 +1026,25 @@ export namespace Prisma {
   export type CartCountAggregateOutputType = {
     id: number
     userId: number
+    version: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
 
+  export type CartAvgAggregateInputType = {
+    version?: true
+  }
+
+  export type CartSumAggregateInputType = {
+    version?: true
+  }
+
   export type CartMinAggregateInputType = {
     id?: true
     userId?: true
+    version?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1030,6 +1052,7 @@ export namespace Prisma {
   export type CartMaxAggregateInputType = {
     id?: true
     userId?: true
+    version?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1037,6 +1060,7 @@ export namespace Prisma {
   export type CartCountAggregateInputType = {
     id?: true
     userId?: true
+    version?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1080,6 +1104,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: CartAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CartSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: CartMinAggregateInputType
@@ -1110,6 +1146,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: CartCountAggregateInputType | true
+    _avg?: CartAvgAggregateInputType
+    _sum?: CartSumAggregateInputType
     _min?: CartMinAggregateInputType
     _max?: CartMaxAggregateInputType
   }
@@ -1117,9 +1155,12 @@ export namespace Prisma {
   export type CartGroupByOutputType = {
     id: string
     userId: string
+    version: number
     createdAt: Date
     updatedAt: Date
     _count: CartCountAggregateOutputType | null
+    _avg: CartAvgAggregateOutputType | null
+    _sum: CartSumAggregateOutputType | null
     _min: CartMinAggregateOutputType | null
     _max: CartMaxAggregateOutputType | null
   }
@@ -1141,6 +1182,7 @@ export namespace Prisma {
   export type CartSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
+    version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     items?: boolean | Cart$itemsArgs<ExtArgs>
@@ -1150,6 +1192,7 @@ export namespace Prisma {
   export type CartSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
+    version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["cart"]>
@@ -1157,6 +1200,7 @@ export namespace Prisma {
   export type CartSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
+    version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["cart"]>
@@ -1164,11 +1208,12 @@ export namespace Prisma {
   export type CartSelectScalar = {
     id?: boolean
     userId?: boolean
+    version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type CartOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "createdAt" | "updatedAt", ExtArgs["result"]["cart"]>
+  export type CartOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["cart"]>
   export type CartInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Cart$itemsArgs<ExtArgs>
     _count?: boolean | CartCountOutputTypeDefaultArgs<ExtArgs>
@@ -1184,6 +1229,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
+      version: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["cart"]>
@@ -1612,6 +1658,7 @@ export namespace Prisma {
   interface CartFieldRefs {
     readonly id: FieldRef<"Cart", 'String'>
     readonly userId: FieldRef<"Cart", 'String'>
+    readonly version: FieldRef<"Cart", 'Int'>
     readonly createdAt: FieldRef<"Cart", 'DateTime'>
     readonly updatedAt: FieldRef<"Cart", 'DateTime'>
   }
@@ -3219,6 +3266,7 @@ export namespace Prisma {
   export const CartScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
+    version: 'version',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -3285,20 +3333,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'DateTime'
-   */
-  export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
-    
-
-
-  /**
-   * Reference to a field of type 'DateTime[]'
-   */
-  export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-    
-
-
-  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -3309,6 +3343,20 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'DateTime'
+   */
+  export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
+    
+
+
+  /**
+   * Reference to a field of type 'DateTime[]'
+   */
+  export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
     
 
 
@@ -3349,6 +3397,7 @@ export namespace Prisma {
     NOT?: CartWhereInput | CartWhereInput[]
     id?: StringFilter<"Cart"> | string
     userId?: StringFilter<"Cart"> | string
+    version?: IntFilter<"Cart"> | number
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     items?: CartItemListRelationFilter
@@ -3357,6 +3406,7 @@ export namespace Prisma {
   export type CartOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
+    version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     items?: CartItemOrderByRelationAggregateInput
@@ -3368,6 +3418,7 @@ export namespace Prisma {
     AND?: CartWhereInput | CartWhereInput[]
     OR?: CartWhereInput[]
     NOT?: CartWhereInput | CartWhereInput[]
+    version?: IntFilter<"Cart"> | number
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     items?: CartItemListRelationFilter
@@ -3376,11 +3427,14 @@ export namespace Prisma {
   export type CartOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
+    version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: CartCountOrderByAggregateInput
+    _avg?: CartAvgOrderByAggregateInput
     _max?: CartMaxOrderByAggregateInput
     _min?: CartMinOrderByAggregateInput
+    _sum?: CartSumOrderByAggregateInput
   }
 
   export type CartScalarWhereWithAggregatesInput = {
@@ -3389,6 +3443,7 @@ export namespace Prisma {
     NOT?: CartScalarWhereWithAggregatesInput | CartScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Cart"> | string
     userId?: StringWithAggregatesFilter<"Cart"> | string
+    version?: IntWithAggregatesFilter<"Cart"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
   }
@@ -3474,6 +3529,7 @@ export namespace Prisma {
   export type CartCreateInput = {
     id?: string
     userId: string
+    version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemCreateNestedManyWithoutCartInput
@@ -3482,6 +3538,7 @@ export namespace Prisma {
   export type CartUncheckedCreateInput = {
     id?: string
     userId: string
+    version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemUncheckedCreateNestedManyWithoutCartInput
@@ -3490,6 +3547,7 @@ export namespace Prisma {
   export type CartUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUpdateManyWithoutCartNestedInput
@@ -3498,6 +3556,7 @@ export namespace Prisma {
   export type CartUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUncheckedUpdateManyWithoutCartNestedInput
@@ -3506,6 +3565,7 @@ export namespace Prisma {
   export type CartCreateManyInput = {
     id?: string
     userId: string
+    version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3513,6 +3573,7 @@ export namespace Prisma {
   export type CartUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3520,6 +3581,7 @@ export namespace Prisma {
   export type CartUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3622,6 +3684,17 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3646,13 +3719,19 @@ export namespace Prisma {
   export type CartCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type CartAvgOrderByAggregateInput = {
+    version?: SortOrder
   }
 
   export type CartMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3660,8 +3739,13 @@ export namespace Prisma {
   export type CartMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type CartSumOrderByAggregateInput = {
+    version?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -3682,6 +3766,22 @@ export namespace Prisma {
     _max?: NestedStringFilter<$PrismaModel>
   }
 
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3694,17 +3794,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
-  }
-
-  export type IntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
   }
 
   export type DecimalFilter<$PrismaModel = never> = {
@@ -3794,22 +3883,6 @@ export namespace Prisma {
     priceSnapshot?: SortOrder
   }
 
-  export type IntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedIntFilter<$PrismaModel>
-    _min?: NestedIntFilter<$PrismaModel>
-    _max?: NestedIntFilter<$PrismaModel>
-  }
-
   export type DecimalWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -3862,6 +3935,14 @@ export namespace Prisma {
     set?: string
   }
 
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -3900,14 +3981,6 @@ export namespace Prisma {
     connect?: CartWhereUniqueInput
   }
 
-  export type IntFieldUpdateOperationsInput = {
-    set?: number
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
-  }
-
   export type DecimalFieldUpdateOperationsInput = {
     set?: Decimal | DecimalJsLike | number | string
     increment?: Decimal | DecimalJsLike | number | string
@@ -3942,6 +4015,17 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type NestedDateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3970,7 +4054,7 @@ export namespace Prisma {
     _max?: NestedStringFilter<$PrismaModel>
   }
 
-  export type NestedIntFilter<$PrismaModel = never> = {
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
     notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -3978,7 +4062,23 @@ export namespace Prisma {
     lte?: number | IntFieldRefInput<$PrismaModel>
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -4018,33 +4118,6 @@ export namespace Prisma {
     startsWith?: string | StringFieldRefInput<$PrismaModel>
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedIntFilter<$PrismaModel>
-    _min?: NestedIntFilter<$PrismaModel>
-    _max?: NestedIntFilter<$PrismaModel>
-  }
-
-  export type NestedFloatFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatFilter<$PrismaModel> | number
   }
 
   export type NestedDecimalWithAggregatesFilter<$PrismaModel = never> = {
@@ -4157,6 +4230,7 @@ export namespace Prisma {
   export type CartCreateWithoutItemsInput = {
     id?: string
     userId: string
+    version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4164,6 +4238,7 @@ export namespace Prisma {
   export type CartUncheckedCreateWithoutItemsInput = {
     id?: string
     userId: string
+    version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4187,6 +4262,7 @@ export namespace Prisma {
   export type CartUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4194,6 +4270,7 @@ export namespace Prisma {
   export type CartUncheckedUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

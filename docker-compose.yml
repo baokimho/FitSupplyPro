@@ -16,6 +16,11 @@ services:
     container_name: api-gateway
     env_file:
       - ./apps/api-gateway/.env
+    environment:
+      CART_SERVICE_URL: http://cart-service:3005
+      PAYMENT_SERVICE_URL: http://payment-service:3006
+      SHIPPING_SERVICE_URL: http://shipping-service:3007
+      NOTIFICATION_SERVICE_URL: http://notification-service:3008
     ports:
       - "3000:3000"
     volumes:

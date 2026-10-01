@@ -125,6 +125,14 @@ exports.Prisma.OrderScalarFieldEnum = {
   userId: 'userId',
   status: 'status',
   totalAmount: 'totalAmount',
+  recipientName: 'recipientName',
+  contactPhone: 'contactPhone',
+  deliveryAddressLine1: 'deliveryAddressLine1',
+  deliveryAddressLine2: 'deliveryAddressLine2',
+  deliveryCity: 'deliveryCity',
+  deliveryRegion: 'deliveryRegion',
+  deliveryPostalCode: 'deliveryPostalCode',
+  deliveryCountryCode: 'deliveryCountryCode',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -142,14 +150,46 @@ exports.Prisma.OrderItemScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.CheckoutIdempotencyScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  idempotencyKey: 'idempotencyKey',
+  requestFingerprint: 'requestFingerprint',
+  status: 'status',
+  orderId: 'orderId',
+  responseBody: 'responseBody',
+  reservedItems: 'reservedItems',
+  compensationError: 'compensationError',
+  finalizationCart: 'finalizationCart',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
 };
 
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
+};
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
 };
 exports.OrderStatus = exports.$Enums.OrderStatus = {
   PENDING: 'PENDING',
@@ -159,7 +199,8 @@ exports.OrderStatus = exports.$Enums.OrderStatus = {
 
 exports.Prisma.ModelName = {
   Order: 'Order',
-  OrderItem: 'OrderItem'
+  OrderItem: 'OrderItem',
+  CheckoutIdempotency: 'CheckoutIdempotency'
 };
 
 /**

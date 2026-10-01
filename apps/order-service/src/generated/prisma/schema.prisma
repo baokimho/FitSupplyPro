@@ -9,12 +9,21 @@ datasource db {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  userId      String
-  status      OrderStatus @default(PENDING)
-  totalAmount Decimal     @db.Decimal(10, 2)
+  id                   String      @id @default(uuid())
+  userId               String
+  status               OrderStatus @default(PENDING)
+  totalAmount          Decimal     @db.Decimal(10, 2)
+  recipientName        String?
+  contactPhone         String?
+  deliveryAddressLine1 String?
+  deliveryAddressLine2 String?
+  deliveryCity         String?
+  deliveryRegion       String?
+  deliveryPostalCode   String?
+  deliveryCountryCode  String?
 
-  items OrderItem[]
+  items               OrderItem[]
+  idempotencyAttempts CheckoutIdempotency[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -37,6 +46,7 @@ model OrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([orderId, productId])
   @@index([orderId])
   @@index([productId])
 }
@@ -45,4 +55,24 @@ enum OrderStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+model CheckoutIdempotency {
+  id                 String   @id @default(uuid())
+  userId             String
+  idempotencyKey     String
+  requestFingerprint String
+  status             String
+  orderId            String?
+  responseBody       Json?
+  reservedItems      Json?
+  compensationError  String?
+  finalizationCart   Json?
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  order              Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, idempotencyKey])
+  @@index([orderId])
 }

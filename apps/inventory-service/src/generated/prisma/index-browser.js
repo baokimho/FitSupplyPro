@@ -130,6 +130,15 @@ exports.Prisma.InventoryScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.InventoryOperationScalarFieldEnum = {
+  id: 'id',
+  operationId: 'operationId',
+  productId: 'productId',
+  type: 'type',
+  quantity: 'quantity',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -142,7 +151,8 @@ exports.Prisma.QueryMode = {
 
 
 exports.Prisma.ModelName = {
-  Inventory: 'Inventory'
+  Inventory: 'Inventory',
+  InventoryOperation: 'InventoryOperation'
 };
 
 /**
