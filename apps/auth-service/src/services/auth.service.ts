@@ -7,6 +7,7 @@ import {
   verifyAuthToken,
   BadRequestError,
   ServiceUnavailableError,
+  isAuthTokenError,
 } from "@shared/utils";
 import type { AuthTokenType, AuthUser, JWKSResponse } from "@shared/utils";
 import type { PrismaClientOrTx } from "../types/db.type.js";
@@ -148,8 +149,9 @@ export async function saveRefreshToken(
   token: string,
 ): Promise<{ id: string }> {
   const tokenHash = hashRefreshToken(token);
+  const publicKey = await getPublicKey();
   try {
-    const decoded = await verifyAuthToken(token, await getPublicKey(), "refresh");
+    const decoded = await verifyAuthToken(token, publicKey, "refresh");
     if (typeof decoded.exp !== "number") {
       throw new BadRequestError("Refresh token missing exp");
     }
@@ -162,8 +164,11 @@ export async function saveRefreshToken(
         expiresAt,
       },
     });
-  } catch {
-    throw new BadRequestError("Invalid refresh token");
+  } catch (error) {
+    if (isAuthTokenError(error) || error instanceof UnauthorizedError || error instanceof BadRequestError) {
+      throw new BadRequestError("Invalid refresh token", undefined, "BAD_REQUEST", error);
+    }
+    throw error;
   }
 }
 

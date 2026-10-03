@@ -1,4 +1,4 @@
-import { importJWK, jwtVerify, type CryptoKey, type JWTPayload, type JWK } from "jose";
+import { errors, importJWK, jwtVerify, type CryptoKey, type JWTPayload, type JWK } from "jose";
 import { UnauthorizedError } from "../errors/httpErrors.js";
 
 export type AuthTokenType = "access" | "refresh";
@@ -32,6 +32,15 @@ export type JWKSResponse = {
 const JWT_ISSUER = "fitsupply-auth-service";
 const JWT_AUDIENCE = "fitsupply-api";
 const authServiceUrl = process.env.AUTH_SERVICE_URL || "http://auth-service:3001";
+
+export function isAuthTokenError(error: unknown): boolean {
+  return error instanceof errors.JWTExpired ||
+    error instanceof errors.JWTClaimValidationFailed ||
+    error instanceof errors.JWTInvalid ||
+    error instanceof errors.JWSInvalid ||
+    error instanceof errors.JOSEAlgNotAllowed ||
+    error instanceof errors.JWSSignatureVerificationFailed;
+}
 
 let cachedPublicKey: CryptoKey | null = null;
 let publicKeyPromise: Promise<CryptoKey> | null = null;
