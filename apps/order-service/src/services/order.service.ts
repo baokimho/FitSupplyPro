@@ -1,3 +1,4 @@
+import { config } from "../config/index.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -80,11 +81,11 @@ type DeliverySnapshot = {
   countryCode: string;
 };
 
-const catalogServiceUrl = process.env.CATALOG_SERVICE_URL || "http://catalog-service:3002";
-const inventoryServiceUrl = process.env.INVENTORY_SERVICE_URL || "http://inventory-service:3004";
-const cartServiceUrl = process.env.CART_SERVICE_URL || "http://cart-service:3005";
-const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:3008";
-const internalSecret = process.env.GATEWAY_SECRET || "";
+const catalogServiceUrl = config.catalogServiceUrl;
+const inventoryServiceUrl = config.inventoryServiceUrl;
+const cartServiceUrl = config.cartServiceUrl;
+const notificationServiceUrl = config.notificationServiceUrl;
+const internalSecret = config.gatewaySecret;
 
 const jsonHeaders = {
   "content-type": "application/json",

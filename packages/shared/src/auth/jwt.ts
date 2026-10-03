@@ -42,43 +42,52 @@ export function isAuthTokenError(error: unknown): boolean {
     error instanceof errors.JWSSignatureVerificationFailed;
 }
 
-let cachedPublicKey: CryptoKey | null = null;
-let publicKeyPromise: Promise<CryptoKey> | null = null;
+export function createPublicKeyLoader(authServiceUrl: string, gatewaySecret: string | (() => string)) {
+  let cachedPublicKey: CryptoKey | null = null;
+  let publicKeyPromise: Promise<CryptoKey> | null = null;
+
+  return async function getPublicKey(): Promise<CryptoKey> {
+    if (cachedPublicKey) {
+      return cachedPublicKey;
+    }
+
+    if (!publicKeyPromise) {
+      publicKeyPromise = (async () => {
+        const response = await fetch(new URL("/jwks", authServiceUrl), {
+          headers: {
+            "x-internal-secret": typeof gatewaySecret === "function" ? gatewaySecret() : gatewaySecret,
+          }
+        }
+      );
+
+        if (!response.ok) {
+          throw new Error(`Unable to load public key from auth service: ${response.status}`);
+        }
+
+        const jwks = (await response.json()) as JWKSResponse;
+        const publicKey = jwks.keys[0];
+
+        if (!publicKey) {
+          throw new Error("Auth service JWKS is empty");
+        }
+
+        cachedPublicKey = (await importJWK(publicKey, "RS256")) as CryptoKey;
+        return cachedPublicKey;
+      })().catch((error) => {
+        publicKeyPromise = null;
+        throw error;
+      });
+    }
+
+    return publicKeyPromise;
+  };
+}
+
+let defaultPublicKeyLoader: ReturnType<typeof createPublicKeyLoader> | undefined;
 
 export async function getPublicKey(): Promise<CryptoKey> {
-  if (cachedPublicKey) {
-    return cachedPublicKey;
-  }
-
-  if (!publicKeyPromise) {
-    publicKeyPromise = (async () => {
-      const response = await fetch(new URL("/jwks", authServiceUrl), {
-        headers: {
-          "x-internal-secret": process.env.GATEWAY_SECRET || "",
-        }
-      }
-    );
-
-      if (!response.ok) {
-        throw new Error(`Unable to load public key from auth service: ${response.status}`);
-      }
-
-      const jwks = (await response.json()) as JWKSResponse;
-      const publicKey = jwks.keys[0];
-
-      if (!publicKey) {
-        throw new Error("Auth service JWKS is empty");
-      }
-
-      cachedPublicKey = (await importJWK(publicKey, "RS256")) as CryptoKey;
-      return cachedPublicKey;
-    })().catch((error) => {
-      publicKeyPromise = null;
-      throw error;
-    });
-  }
-
-  return publicKeyPromise;
+  defaultPublicKeyLoader ??= createPublicKeyLoader(authServiceUrl, () => process.env.GATEWAY_SECRET || "");
+  return defaultPublicKeyLoader();
 }
 
 export async function verifyAuthToken(

@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const inventoryUrl = process.env.INVENTORY_SERVICE_URL || "http://localhost:3004";
+const inventoryUrl = config.inventoryServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const inventoryProxy = createProxyMiddleware<Request, Response>({

@@ -1,21 +1,17 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import { errorHandler, requireGatewaySecret } from "@shared/utils";
+import { config } from "./config/index.js";
+import { errorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import inventoryRoutes from "./routes/inventory.route.js";
 import { connectDb } from "./config/connect-db.js";
 
-dotenv.config();
 
-if (!process.env.GATEWAY_SECRET) {
-  throw new Error("GATEWAY_SECRET is not set");
-}
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(requireGatewaySecret);
+app.use(createGatewaySecretMiddleware(config.gatewaySecret));
 app.use(inventoryRoutes);
 
 app.use((_req, res) => {
@@ -26,7 +22,7 @@ app.use((_req, res) => {
 
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3004;
+const PORT = config.port;
 
 async function bootstrap() {
   try {

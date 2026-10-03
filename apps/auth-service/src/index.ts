@@ -1,24 +1,21 @@
+import { initializeAuthKeys } from "./services/auth.service.js";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import { config } from "./config/index.js";
 import prisma from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
-import { requireGatewaySecret } from "@shared/utils";
+import { createGatewaySecretMiddleware } from "@shared/utils";
 import authRoutes from "./auth.routes.js";
 import { errorHandler } from "@shared/utils";
 
-dotenv.config();
 
-if (!process.env.GATEWAY_SECRET) {
-  throw new Error("GATEWAY_SECRET is not set");
-}
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(requireGatewaySecret);
+app.use(createGatewaySecretMiddleware(config.gatewaySecret));
 app.use((req, _res, next) => {
   console.log("[AUTH SERVICE]", req.method, req.url);
   next();
@@ -32,10 +29,11 @@ app.get("/health", (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = config.port;
 let refreshTokenCleanupJob: NodeJS.Timeout | null = null;
 
 async function bootstrap() {
+  await initializeAuthKeys();
   await connectDb();
   refreshTokenCleanupJob = startRefreshTokenCleanupJob();
 

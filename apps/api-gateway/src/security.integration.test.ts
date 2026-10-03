@@ -5,6 +5,8 @@ import { requireGatewaySecret } from "@shared/utils";
 import type { ClientRequest } from "http";
 import type { Request } from "express";
 
+vi.mock("./config/index.js", () => ({ config: { gatewaySecret: "test-gateway-secret" } }));
+
 vi.mock("./middleware/auth.middleware.js", () => ({
   authMiddleware: (req: Request, _res: express.Response, next: express.NextFunction) => {
     req.user = {

@@ -7,6 +7,9 @@ import { saveRefreshToken } from "./auth.service.js";
 import express from "express";
 import request from "supertest";
 
+const config = vi.hoisted(() => ({ jwtPublicKeyBase64: undefined as string | undefined, jwtPrivateKeyBase64: undefined as string | undefined }));
+vi.mock("../config/index.js", () => ({ config }));
+
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: "postgresql://fitsupply_test:unused@localhost/auth_test_db" }) });
 let privateKey: CryptoKey;
 
@@ -23,7 +26,7 @@ describe("refresh-token error translation", () => {
   beforeAll(async () => {
     const keys = await generateKeyPair("RS256", { extractable: true });
     privateKey = keys.privateKey;
-    vi.stubEnv("JWT_PUBLIC_KEY_BASE64", Buffer.from(JSON.stringify(await exportJWK(keys.publicKey))).toString("base64"));
+    config.jwtPublicKeyBase64 = Buffer.from(JSON.stringify(await exportJWK(keys.publicKey))).toString("base64");
   });
 
   afterEach(() => {
@@ -31,7 +34,7 @@ describe("refresh-token error translation", () => {
   });
 
   afterAll(async () => {
-    vi.unstubAllEnvs();
+    config.jwtPublicKeyBase64 = undefined;
     await prisma.$disconnect();
   });
 
@@ -46,14 +49,14 @@ describe("refresh-token error translation", () => {
 
   it("preserves key-loading infrastructure errors instead of returning 400", async () => {
     const token = await makeToken();
-    const priorKey = process.env.JWT_PUBLIC_KEY_BASE64;
-    vi.stubEnv("JWT_PUBLIC_KEY_BASE64", "not-json");
+    const priorKey = config.jwtPublicKeyBase64;
+    config.jwtPublicKeyBase64 = "not-json";
     try {
       const error = await saveRefreshToken(prisma, "test-user", token).catch((error: unknown) => error);
       expect(error).toBeInstanceOf(ServiceUnavailableError);
       expect(error).toMatchObject({ status: 503, code: "SERVICE_UNAVAILABLE" });
     } finally {
-      vi.stubEnv("JWT_PUBLIC_KEY_BASE64", priorKey);
+      config.jwtPublicKeyBase64 = priorKey;
     }
   });
 

@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const paymentUrl = process.env.PAYMENT_SERVICE_URL || "http://localhost:3006";
+const paymentUrl = config.paymentServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const paymentProxy = createProxyMiddleware<Request, Response>({

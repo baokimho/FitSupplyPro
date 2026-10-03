@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const cartUrl = process.env.CART_SERVICE_URL || "http://localhost:3005";
+const cartUrl = config.cartServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const cartProxy = createProxyMiddleware<Request, Response>({

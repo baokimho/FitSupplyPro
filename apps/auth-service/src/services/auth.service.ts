@@ -1,3 +1,4 @@
+import { config } from "../config/index.js";
 import crypto from "crypto";
 import path from "path";
 import { readFileSync } from "fs";
@@ -26,7 +27,7 @@ let cachedPrivateJWK: JWK | null = null;
 let cachedPrivateKey: CryptoKey | null = null;
 
 function loadJWKFromEnvOrFile(envVar: string, filePath: string, missingMessage: string): JWK {
-  const encodedKey = process.env[envVar];
+  const encodedKey = envVar === privateKeyEnvVar ? config.jwtPrivateKeyBase64 : config.jwtPublicKeyBase64;
 
   if (encodedKey) {
     try {
@@ -81,6 +82,11 @@ export async function getPublicKey(): Promise<CryptoKey> {
   );
 
   return (await importJWK(publicKey, "RS256")) as CryptoKey;
+}
+
+export async function initializeAuthKeys(): Promise<void> {
+  await getPrivateKey();
+  await getPublicKey();
 }
 
 export function hashPassword(password: string): string {

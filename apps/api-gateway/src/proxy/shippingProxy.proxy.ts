@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const shippingUrl = process.env.SHIPPING_SERVICE_URL || "http://localhost:3007";
+const shippingUrl = config.shippingServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const shippingProxy = createProxyMiddleware<Request, Response>({

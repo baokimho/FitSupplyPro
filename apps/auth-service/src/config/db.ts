@@ -1,14 +1,9 @@
-import "dotenv/config";
+import { config } from "./index.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/index.js";
 import pg from "pg";
-import { ServiceUnavailableError } from "@shared/utils";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new ServiceUnavailableError("DATABASE_URL is not set");
-}
+const connectionString = config.databaseUrl;
 
 const pool = new pg.Pool({ connectionString })
 const adapter = new PrismaPg(pool)
@@ -23,7 +18,7 @@ const prisma =
     adapter: adapter,
   });
 
-if (process.env.NODE_ENV !== "production") {
+if (config.nodeEnv !== "production") {
   globalForPrisma.prisma = prisma;
 }
 

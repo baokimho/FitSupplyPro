@@ -50,4 +50,12 @@ notification-service  notification_test_db
 
 No development `DATABASE_URL` or development Compose resource is used by this stack.
 
+## Auth Keys
+
+The test auth container mounts `tests/fixtures/auth-keys` read-only at `/app/keys`.
+These matching RSA JWK fixtures are public test credentials, never production keys.
+Auth uses its existing `keys/private.json` and `keys/public.json` fallback and validates
+both keys before listening. The mount also applies to the `fitsupply-e2e` project used
+by `npm run test:e2e`. Development and production must supply their own keys.
+
 Task 3 only provides the Compose test environment. Shared test helpers, factories, formal migration orchestration, seed baselines, coverage configuration, and purchase-flow hardening belong to later tasks.

@@ -69,12 +69,14 @@ services:
       context: .
       dockerfile: ./apps/auth-service/Dockerfile
     container_name: fitsupply-stack-auth-service-test
+    volumes:
+      - ./tests/fixtures/auth-keys:/app/keys:ro
     environment:
       NODE_ENV: test
       PORT: 3001
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/auth_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && npm --prefix apps/auth-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && node apps/auth-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s

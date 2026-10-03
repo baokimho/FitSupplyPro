@@ -1,13 +1,12 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import { config } from "./config/index.js";
 import router from "./routes.js";
 import helmet from "helmet";
 import morgan from "morgan";
 import { errorHandler } from "@shared/utils";
 
 
-dotenv.config();
 
 const app = express();
 
@@ -18,7 +17,7 @@ app.set("trust proxy", 1);
 app.use(router);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
+const PORT = config.port;
 
 app.listen(PORT, () => {
   console.log(`Api Gateway running on port ${PORT}`);

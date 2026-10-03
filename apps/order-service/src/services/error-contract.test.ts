@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createOrderService } from "./order.service.js";
 
+vi.mock("../config/index.js", async () => {
+  const { loadConfig } = await import("../config/env.js");
+  return { config: loadConfig({ DATABASE_URL: "postgresql://test:test@localhost/test_db", GATEWAY_SECRET: "test-secret" }) };
+});
 vi.mock("../config/db.js", () => ({ default: {} }));
 const body = { items: [{ productId: "product-1", quantity: 1 }], delivery: { recipientName: "Test", contactPhone: "+3581234567", addressLine1: "Test street", addressLine2: undefined, city: "Helsinki", region: undefined, postalCode: "00100", countryCode: "FI" } };
 

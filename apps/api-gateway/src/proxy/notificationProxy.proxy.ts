@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const notificationUrl = process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3008";
+const notificationUrl = config.notificationServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const notificationProxy = createProxyMiddleware<Request, Response>({

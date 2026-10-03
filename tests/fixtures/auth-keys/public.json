@@ -1,0 +1,8 @@
+{
+  "kty": "RSA",
+  "n": "uxkIToTxLgCvwZCjvZQbPmTKrGlONPp90Ul1wcomLcK3l0tJ34TmRj1_gihZ2EPD94Dm_Zdmn94j5KdGjaOXWXlwIB1zCp3Bifw68YVoX8BxhT9cP2WLdKgVvihE9KaKTQmeTcypoyn-nBDS9r4haRDl6RNIM-chsylgu1AFb_7KHbhxdJG70FhMRH2pcDpCKfxvMuXMAyoZpt-WCEl-1KTRTiGQcANB6XA6sK6yAJrZ6yzkQHXGwAPA8LAIyJOoqyWB3hBoiE-KM5wJ_mCGE0YEgmg3Ottiy-B8XgZRj6IrFJ8WiqL_-OPr3B3N5_kD9_BFcFzgQA8iWglB9hPleQ",
+  "e": "AQAB",
+  "kid": "fitsupply-test-only",
+  "alg": "RS256",
+  "use": "sig"
+}

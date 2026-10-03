@@ -7,7 +7,11 @@ import { authMiddleware } from "./middleware/auth.middleware.js";
 import { authLimiter } from "./middleware/rateLimit.middleware.js";
 
 const mocks = vi.hoisted(() => ({ configs: [] as Array<Options<Request, Response>>, verify: vi.fn(), key: vi.fn() }));
-vi.mock("@shared/utils", async (importOriginal) => ({ ...await importOriginal<typeof import("@shared/utils")>(), verifyAuthToken: mocks.verify, getPublicKey: mocks.key }));
+vi.mock("@shared/utils", async (importOriginal) => ({ ...await importOriginal<typeof import("@shared/utils")>(), verifyAuthToken: mocks.verify, createPublicKeyLoader: () => mocks.key }));
+vi.mock("./config/index.js", async () => {
+  const { loadConfig } = await import("./config/env.js");
+  return { config: loadConfig({ GATEWAY_SECRET: "test-secret", AUTH_SERVICE_URL: "http://auth.test" }) };
+});
 vi.mock("http-proxy-middleware", () => ({ createProxyMiddleware: (config: Options<Request, Response>) => { mocks.configs.push(config); return vi.fn(); } }));
 import "./proxy/authProxy.proxy.js";
 import "./proxy/cartProxy.proxy.js";

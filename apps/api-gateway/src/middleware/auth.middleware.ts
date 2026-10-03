@@ -1,7 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { wrapAsync, verifyAuthToken, getPublicKey } from "@shared/utils";
+import { wrapAsync, verifyAuthToken, createPublicKeyLoader } from "@shared/utils";
 import type { AuthSessionUser } from "@shared/utils";
+
+import { config } from "../config/index.js";
+
+const getPublicKey = createPublicKeyLoader(config.jwksAuthServiceUrl, config.gatewaySecret);
 
 export type GatewayUser = AuthSessionUser;
 

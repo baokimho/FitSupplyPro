@@ -1,3 +1,4 @@
+import { config } from "../config/index.js";
 import type { ClientRequest } from "http";
 import type { Request } from "express";
 
@@ -10,7 +11,7 @@ type GatewayRequest = Request & {
 
 export function attachUserHeaders(proxyReq: ClientRequest, req: Request) {
   const gatewayRequest = req as GatewayRequest;
-  const internalSecret = process.env.GATEWAY_SECRET;
+  const internalSecret = config.gatewaySecret;
 
   proxyReq.removeHeader("x-user-id");
   proxyReq.removeHeader("x-user-role");

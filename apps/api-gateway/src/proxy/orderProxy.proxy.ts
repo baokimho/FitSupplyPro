@@ -1,9 +1,10 @@
+import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders } from "./userHeaders.proxy.js";
 
-const orderUrl = process.env.ORDER_SERVICE_URL || "http://localhost:3003";
+const orderUrl = config.orderServiceUrl;
 const proxyTimeoutMs = 5000;
 
 export const orderProxy = createProxyMiddleware<Request, Response>({

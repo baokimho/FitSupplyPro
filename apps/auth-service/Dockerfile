@@ -30,6 +30,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/apps/auth-service/package.json ./apps/auth-service/package.json
 COPY --from=build /app/apps/auth-service/dist ./apps/auth-service/dist
+COPY --from=build /app/apps/auth-service/src/generated/prisma ./apps/auth-service/dist/generated/prisma
 COPY --from=build /app/apps/auth-service/prisma.config.ts ./apps/auth-service/prisma.config.ts
 COPY --from=build /app/apps/auth-service/prisma ./apps/auth-service/prisma
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
