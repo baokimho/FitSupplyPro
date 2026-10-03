@@ -8,14 +8,14 @@ export function requireGatewaySecret(req: Request, res: Response, next: NextFunc
 
   if (!expectedSecret) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "GATEWAY_SECRET is not set",
+      error: { code: "INTERNAL_ERROR", message: "GATEWAY_SECRET is not set" },
     });
   }
 
   const receivedSecret = req.get(INTERNAL_SECRET_HEADER);
   if (receivedSecret !== expectedSecret) {
     return res.status(StatusCodes.FORBIDDEN).json({
-      message: "Forbidden",
+      error: { code: "FORBIDDEN", message: "Forbidden" },
     });
   }
 

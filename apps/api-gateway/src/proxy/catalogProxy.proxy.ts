@@ -20,7 +20,7 @@ export const catalogProxy = createProxyMiddleware<Request, Response>({
         return;
       }
       response.status(StatusCodes.SERVICE_UNAVAILABLE).json({
-        message: "Service unavailable",
+        error: { code: "SERVICE_UNAVAILABLE", message: "Service unavailable" },
       });
     },
   },

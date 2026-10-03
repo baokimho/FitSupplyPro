@@ -69,6 +69,10 @@ router.use("/payment", authMiddleware, blockInternalRoute, paymentLimiter, payme
 router.use("/shipping", authMiddleware, blockInternalRoute, shippingLimiter, shippingProxy);
 router.use("/notification", authMiddleware, blockInternalRoute, notificationLimiter, notificationProxy);
 
+router.use((_req, res) => {
+  res.status(404).json({ error: { code: "NOT_FOUND", message: "Route not found" } });
+});
+
 router.use(errorHandler);
 
 export default router;

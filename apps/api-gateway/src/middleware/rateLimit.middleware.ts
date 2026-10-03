@@ -14,7 +14,7 @@ const standardRateLimitOptions = {
   skip: (req: Request) => req.method === "OPTIONS",
   handler: (_req: Request, res: Response) => {
     res.status(StatusCodes.TOO_MANY_REQUESTS).json({
-      message: "Too many requests",
+      error: { code: "TOO_MANY_REQUESTS", message: "Too many requests" },
     });
   },
 } as const;

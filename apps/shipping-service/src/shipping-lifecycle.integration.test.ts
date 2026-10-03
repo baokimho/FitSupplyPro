@@ -69,13 +69,13 @@ beforeEach(async () => {
     if (match) {
       const order = orderSnapshots.get(match[1]);
       if (!order) {
-        return new Response(JSON.stringify({ message: "Order not found" }), { status: 404 });
+        return new Response(JSON.stringify({ error: { code: "NOT_FOUND", message: "Order not found" } }), { status: 404 });
       }
 
       return new Response(JSON.stringify(order), { status: 200 });
     }
 
-    return new Response(JSON.stringify({ message: "Unexpected request" }), { status: 500 });
+    return new Response(JSON.stringify({ error: { code: "INTERNAL_ERROR", message: "Unexpected request" } }), { status: 500 });
   });
 });
 

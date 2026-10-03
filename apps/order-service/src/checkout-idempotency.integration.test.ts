@@ -98,7 +98,7 @@ function installFetchDouble() {
     if (url.includes("/internal/cart/items") && method === "DELETE") {
       const body = JSON.parse(String(init?.body ?? "{}")) as { cartItemIds?: string[]; cartId?: string; cartVersion?: number };
       if (body.cartId && (body.cartId !== "cart-1" || body.cartVersion !== cartVersion)) {
-        return jsonResponse({ message: "Cart changed during checkout" }, 409);
+        return jsonResponse({ error: { code: "CONFLICT", message: "Cart changed during checkout" } }, 409);
       }
       removeCalls.push(body.cartItemIds ?? []);
       cartItems = cartItems.filter((item) => !(body.cartItemIds ?? []).includes(item.id));
@@ -130,7 +130,7 @@ function installFetchDouble() {
       }
       const current = inventory.get(productId);
       if (failReserveProducts.has(productId) || !current || current.stock - current.reservedStock < body.quantity) {
-        return jsonResponse({ message: "Insufficient stock" }, 400);
+        return jsonResponse({ error: { code: "BAD_REQUEST", message: "Insufficient stock" } }, 400);
       }
       current.reservedStock += body.quantity;
       reserveCalls.push({ productId, quantity: body.quantity });
@@ -142,7 +142,7 @@ function installFetchDouble() {
       const productId = match?.[1] ?? "";
       const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number };
       if (failReleaseProducts.has(productId)) {
-        return jsonResponse({ message: "release failed" }, 500);
+        return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "release failed" } }, 500);
       }
       const current = inventory.get(productId);
       if (current) current.reservedStock = Math.max(0, current.reservedStock - body.quantity);
@@ -157,16 +157,16 @@ function installFetchDouble() {
       const existing = body.operationId ? inventoryOperations.get(body.operationId) : undefined;
       if (existing) {
         if (existing.productId !== productId || existing.action !== "CONSUME" || existing.quantity !== body.quantity) {
-          return jsonResponse({ message: "Inventory operation id was reused with different input" }, 409);
+          return jsonResponse({ error: { code: "CONFLICT", message: "Inventory operation id was reused with different input" } }, 409);
         }
         return jsonResponse({});
       }
       if (failConsumeProducts.has(productId)) {
-        return jsonResponse({ message: "consume failed" }, 500);
+        return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "consume failed" } }, 500);
       }
       const current = inventory.get(productId);
       if (!current || current.reservedStock < body.quantity || current.stock < body.quantity) {
-        return jsonResponse({ message: "Reserved stock is insufficient" }, 400);
+        return jsonResponse({ error: { code: "BAD_REQUEST", message: "Reserved stock is insufficient" } }, 400);
       }
       if (body.operationId) {
         inventoryOperations.set(body.operationId, { productId, action: "CONSUME", quantity: body.quantity });
@@ -179,7 +179,7 @@ function installFetchDouble() {
     const productMatch = url.match(/\/products\/([^/]+)$/);
     if (productMatch && method === "GET") {
       const product = products.get(productMatch[1]);
-      if (!product) return jsonResponse({ message: "Product not found" }, 400);
+      if (!product) return jsonResponse({ error: { code: "BAD_REQUEST", message: "Product not found" } }, 400);
       return jsonResponse({ success: true, data: product });
     }
 
@@ -187,7 +187,7 @@ function installFetchDouble() {
       return jsonResponse({});
     }
 
-    return jsonResponse({ message: `Unhandled request: ${method} ${url}` }, 500);
+    return jsonResponse({ error: { code: "INTERNAL_ERROR", message: `Unhandled request: ${method} ${url}` } }, 500);
   }));
 }
 
@@ -260,7 +260,7 @@ describe("checkout idempotency", () => {
 
   it("does not depend on process memory for replay", async () => {
     const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-db");
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ message: "should not call downstream" }, 500)));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "INTERNAL_ERROR", message: "should not call downstream" } }, 500)));
 
     const second = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-db");
 

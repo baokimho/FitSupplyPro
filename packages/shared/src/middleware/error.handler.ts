@@ -104,8 +104,6 @@ export default function errorHandler(
 
   const publicDetails = details === undefined ? {} : { details };
   res.status(status).json({
-    message,
-    ...publicDetails,
     error: { code, message, ...publicDetails },
   });
 }

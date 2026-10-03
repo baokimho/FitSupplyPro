@@ -63,7 +63,8 @@ describe("api-gateway security boundaries", () => {
   it("blocks customer catalog product mutations but allows admin", async () => {
     const app = createGatewayApp();
 
-    await request(app).post("/catalog/products").expect(403);
+    const forbidden = await request(app).post("/catalog/products").expect(403);
+    expect(forbidden.body).toEqual({ error: { code: "FORBIDDEN", message: "Forbidden" } });
     await request(app).put("/catalog/products/product-1").expect(403);
     await request(app).delete("/catalog/products/product-1").expect(403);
     await request(app).patch("/catalog/products/product-1/publish").expect(403);
@@ -90,6 +91,11 @@ describe("api-gateway security boundaries", () => {
     await request(app).get("/payment/payments/me").expect(200);
     await request(app).get("/shipping/shipments/me").expect(200);
     await request(app).get("/notification/notifications/me").expect(200);
+  });
+
+  it("returns nested error for unmatched gateway route", async () => {
+    const response = await request(createGatewayApp()).get("/unknown").expect(404);
+    expect(response.body).toEqual({ error: { code: "NOT_FOUND", message: "Route not found" } });
   });
 
   it("blocks public proxy access to service internal routes", async () => {
@@ -119,7 +125,8 @@ describe("api-gateway security boundaries", () => {
     app.use(requireGatewaySecret);
     app.post("/internal/notifications", (_req, res) => res.status(201).json({ ok: true }));
 
-    await request(app).post("/internal/notifications").expect(403);
+    const forbidden = await request(app).post("/internal/notifications").expect(403);
+    expect(forbidden.body).toEqual({ error: { code: "FORBIDDEN", message: "Forbidden" } });
     await request(app).post("/internal/notifications").set("x-internal-secret", "wrong").expect(403);
     await request(app)
       .post("/internal/notifications")

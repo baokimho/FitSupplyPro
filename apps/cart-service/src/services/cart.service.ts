@@ -117,10 +117,21 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
     });
   }
 
-  const text = await response.text();
-  const data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  let data: unknown;
+  try {
+    const text = await response.text();
+    data = text ? JSON.parse(text) : {};
+  } catch (error) {
+    if (response.ok) throw error;
+    data = {};
+  }
 
   if (!response.ok) {
+    const downstreamError = typeof data === "object" && data !== null && "error" in data &&
+      typeof data.error === "object" && data.error !== null ? data.error : {};
+    const message = "message" in downstreamError && typeof downstreamError.message === "string" ? downstreamError.message : undefined;
+    const code = "code" in downstreamError && typeof downstreamError.code === "string" ? downstreamError.code : undefined;
+    const details = "details" in downstreamError ? downstreamError.details : undefined;
     console.error("Cart service downstream request failed", {
       url,
       method: init?.method ?? "GET",
@@ -130,8 +141,9 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
 
     if (response.status === 404) {
       throw new NotFoundError(
-        typeof data.message === "string" ? data.message : "Resource not found",
-        data,
+        message ?? "Resource not found",
+        details,
+        code,
       );
     }
 
@@ -139,13 +151,14 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
       throw new ServiceUnavailableError("Downstream service unavailable", {
         url,
         status: response.status,
-        response: data,
+        ...(details === undefined ? {} : { details }),
       });
     }
 
     throw new BadRequestError(
-      typeof data.message === "string" ? data.message : "Downstream request failed",
-      data,
+      message ?? "Downstream request failed",
+      details,
+      code,
     );
   }
 

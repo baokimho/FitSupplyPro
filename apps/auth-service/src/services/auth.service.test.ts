@@ -75,7 +75,7 @@ describe("refresh-token error translation", () => {
     app.use(errorHandler);
     const response = await request(app).post("/");
     expect(response.status).toBe(503);
-    expect(response.body).toEqual({ message: "Database unavailable", error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
+    expect(response.body).toEqual({ error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
 

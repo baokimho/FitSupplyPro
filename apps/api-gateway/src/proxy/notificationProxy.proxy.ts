@@ -30,7 +30,7 @@ export const notificationProxy = createProxyMiddleware<Request, Response>({
       }
 
       response.status(StatusCodes.SERVICE_UNAVAILABLE).json({
-        message: "Service unavailable",
+        error: { code: "SERVICE_UNAVAILABLE", message: "Service unavailable" },
       });
     },
   },

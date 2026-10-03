@@ -64,7 +64,7 @@ function installFetchDouble() {
     if (url.includes("/confirm")) {
       orderConfirmCalls += 1;
       if (failOrderConfirm) {
-        return jsonResponse({ message: "consume failed" }, 500);
+        return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "consume failed" } }, 500);
       }
       return jsonResponse({});
     }
@@ -72,7 +72,7 @@ function installFetchDouble() {
     if (url.includes("/cancel")) {
       orderCancelCalls += 1;
       if (failOrderCancel) {
-        return jsonResponse({ message: "release failed" }, 500);
+        return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "release failed" } }, 500);
       }
       return jsonResponse({});
     }
@@ -80,7 +80,7 @@ function installFetchDouble() {
     if (url.includes("/internal/notifications")) {
       return jsonResponse({});
     }
-    return jsonResponse({ message: `Unhandled request: ${url}` }, 500);
+    return jsonResponse({ error: { code: "INTERNAL_ERROR", message: `Unhandled request: ${url}` } }, 500);
   }));
 }
 
@@ -135,7 +135,7 @@ describe("payment idempotency", () => {
 
   it("replays a completed request without calling downstream order service", async () => {
     const first = await createPaymentService("user-1", { orderId }, "payment-key-replay");
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ message: "should not call downstream" }, 500)));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "INTERNAL_ERROR", message: "should not call downstream" } }, 500)));
 
     const second = await createPaymentService("user-1", { orderId }, "payment-key-replay");
 
@@ -163,7 +163,7 @@ describe("payment idempotency", () => {
       await separatePrisma.$disconnect();
       await separatePool.end();
     }
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ message: "should not call downstream" }, 500)));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "INTERNAL_ERROR", message: "should not call downstream" } }, 500)));
 
     const second = await createPaymentService("user-1", { orderId }, "payment-key-separate-db");
 
@@ -183,7 +183,7 @@ describe("payment idempotency", () => {
       },
       data: { status: "FAILED", paymentId: null, responseBody: undefined },
     });
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ message: "should not call downstream" }, 500)));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "INTERNAL_ERROR", message: "should not call downstream" } }, 500)));
 
     const second = await createPaymentService("user-1", { orderId }, "payment-key-interrupted");
 

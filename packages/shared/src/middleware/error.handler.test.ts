@@ -21,6 +21,7 @@ import {
 } from "../errors/httpErrors.js";
 import errorHandler from "./error.handler.js";
 import { validateRequest } from "./validate.middleware.js";
+import { requireGatewaySecret } from "./internalGateway.middleware.js";
 
 const defaults = [
   { ErrorClass: BadRequestError, status: 400, code: "BAD_REQUEST", message: "Bad Request" },
@@ -35,7 +36,11 @@ function respondWith(error: unknown) {
   const app = express();
   app.get("/", (_req, _res, next) => next(error));
   app.use(errorHandler);
-  return request(app).get("/");
+  return request(app).get("/").then((response) => {
+    expect(response.body).not.toHaveProperty("message");
+    expect(response.body).not.toHaveProperty("details");
+    return response;
+  });
 }
 
 describe("shared error contract", () => {
@@ -45,6 +50,16 @@ describe("shared error contract", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("keeps missing gateway-secret response nested", async () => {
+    vi.stubEnv("GATEWAY_SECRET", "");
+    const app = express();
+    app.use(requireGatewaySecret);
+    const response = await request(app).get("/");
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ error: { code: "INTERNAL_ERROR", message: "GATEWAY_SECRET is not set" } });
   });
 
   it.each(defaults)("$code preserves default status, message and envelope", async ({ ErrorClass, status, code, message }) => {
@@ -55,7 +70,7 @@ describe("shared error contract", () => {
     expect(error.code).toBe(code);
     const response = await respondWith(error);
     expect(response.status).toBe(status);
-    expect(response.body).toEqual({ message, error: { code, message } });
+    expect(response.body).toEqual({ error: { code, message } });
   });
 
   it.each(defaults)("$code preserves existing message/details arguments", async ({ ErrorClass, status, code }) => {
@@ -65,7 +80,6 @@ describe("shared error contract", () => {
     const response = await respondWith(error);
     expect(response.status).toBe(status);
     expect(response.body).toEqual({
-      message: error.message, details,
       error: { code, message: error.message, details },
     });
   });
@@ -78,7 +92,6 @@ describe("shared error contract", () => {
     const response = await respondWith(error);
     expect(response.status).toBe(409);
     expect(response.body).toEqual({
-      message: error.message, details: error.details,
       error: { code: "INSUFFICIENT_STOCK", message: error.message, details: error.details },
     });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
@@ -90,13 +103,13 @@ describe("shared error contract", () => {
     expect((await respondWith(error)).status).toBe(418);
     const custom = new HttpError(422, "Custom message", undefined, "CUSTOM_ERROR");
     expect((await respondWith(custom)).body).toEqual({
-      message: "Custom message", error: { code: "CUSTOM_ERROR", message: "Custom message" },
+      error: { code: "CUSTOM_ERROR", message: "Custom message" },
     });
   });
 
   it.each([null, false, 0, "", { field: "id" }])("includes defined details: %j", async (details) => {
     const response = await respondWith(new BadRequestError("Bad input", details));
-    expect(response.body.details).toEqual(details);
+    expect(response.body.error.details).toEqual(details);
     expect(response.body.error.details).toEqual(details);
   });
 
@@ -107,9 +120,11 @@ describe("shared error contract", () => {
     app.use(errorHandler);
     const response = await request(app).post("/").send({ quantity: -1, password: "private-input" });
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Validation error");
-    expect(response.body.error).toEqual({ code: "VALIDATION_ERROR", message: "Validation error", details: response.body.details });
-    expect(response.body.details).toEqual([expect.objectContaining({ code: "too_small", path: ["quantity"] })]);
+    expect(response.body).not.toHaveProperty("message");
+    expect(response.body).not.toHaveProperty("details");
+    expect(response.body.error.message).toBe("Validation error");
+    expect(response.body.error).toEqual({ code: "VALIDATION_ERROR", message: "Validation error", details: response.body.error.details });
+    expect(response.body.error.details).toEqual([expect.objectContaining({ code: "too_small", path: ["quantity"] })]);
     expect(JSON.stringify(response.body)).not.toContain("private-input");
   });
 
@@ -122,7 +137,7 @@ describe("shared error contract", () => {
     const response = await respondWith(error);
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
-      message: "Internal server error", error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
@@ -135,7 +150,7 @@ describe("shared error contract", () => {
     const response = await request(app).post("/").set("Content-Type", "application/json").send('{"private":');
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
-      message: "Internal server error", error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   });
 
@@ -150,7 +165,7 @@ describe("shared error contract", () => {
     });
     const response = await respondWith(error);
     expect(response.status).toBe(status);
-    expect(response.body).toEqual({ message, error: { code, message } });
+    expect(response.body).toEqual({ error: { code, message } });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
 
@@ -164,7 +179,7 @@ describe("shared error contract", () => {
   ])("normalizes real token errors without exposing internals", async (error) => {
     const response = await respondWith(error);
     expect(response.status).toBe(401);
-    expect(response.body).toEqual({ message: "Unauthorized", error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    expect(response.body).toEqual({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
 
@@ -172,7 +187,7 @@ describe("shared error contract", () => {
     const error = new PrismaClientInitializationError("private host credentials DATABASE_URL", "7.8.0", errorCode);
     const response = await respondWith(error);
     expect(response.status).toBe(503);
-    expect(response.body).toEqual({ message: "Database unavailable", error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
+    expect(response.body).toEqual({ error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
 
@@ -183,7 +198,7 @@ describe("shared error contract", () => {
     });
     const response = await respondWith(error);
     expect(response.status).toBe(503);
-    expect(response.body).toEqual({ message: "Database unavailable", error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
+    expect(response.body).toEqual({ error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
   });
 
   it.each([
@@ -207,7 +222,7 @@ describe("shared error contract", () => {
   ])("keeps unknown, malformed and infrastructure errors safe", async (error) => {
     const response = await respondWith(error);
     expect(response.status).toBe(500);
-    expect(response.body).toEqual({ message: "Internal server error", error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
+    expect(response.body).toEqual({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
     expect(console.error).toHaveBeenCalledWith("Error handled:", error);
   });
 
@@ -219,7 +234,7 @@ describe("shared error contract", () => {
     res.status.mockReturnValue(res);
     expect(() => errorHandler(error, {} as Request, res as unknown as Response, vi.fn())).not.toThrow();
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error", error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
+    expect(res.json).toHaveBeenCalledWith({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
     expect(vi.mocked(console.error).mock.calls[0][1]).toBe(error);
   });
 
@@ -228,14 +243,14 @@ describe("shared error contract", () => {
     res.status.mockReturnValue(res);
     errorHandler(error, {} as Request, res as unknown as Response, vi.fn());
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error", error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
+    expect(res.json).toHaveBeenCalledWith({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
   });
 
   it("recognizes Prisma runtime errors without requiring meta", async () => {
     const error = new PrismaClientKnownRequestError("private unique constraint", { code: "P2002", clientVersion: "7.8.0" });
     const response = await respondWith(error);
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ message: "Unique constraint failed", error: { code: "CONFLICT", message: "Unique constraint failed" } });
+    expect(response.body).toEqual({ error: { code: "CONFLICT", message: "Unique constraint failed" } });
   });
 
   it("recognizes actual Prisma driver-adapter errors inside raw-query metadata", async () => {
@@ -243,13 +258,13 @@ describe("shared error contract", () => {
     const error = new PrismaClientKnownRequestError("private raw SQL", { code: "P2010", clientVersion: "7.8.0", meta: { driverAdapterError: adapter } });
     const response = await respondWith(error);
     expect(response.status).toBe(503);
-    expect(response.body).toEqual({ message: "Database unavailable", error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
+    expect(response.body).toEqual({ error: { code: "SERVICE_UNAVAILABLE", message: "Database unavailable" } });
   });
 
   it("removes custom validation input and schema params", async () => {
     const error = new z.ZodError([{ code: "custom", path: ["quantity"], message: "Invalid quantity", input: "private-input", params: { schema: "private-schema" } }]);
     const response = await respondWith(error);
-    expect(response.body.details).toEqual([{ code: "custom", path: ["quantity"], message: "Invalid quantity" }]);
+    expect(response.body.error.details).toEqual([{ code: "custom", path: ["quantity"], message: "Invalid quantity" }]);
   });
 
   it.each(["expired", "signature", "malformed"])("normalizes actual jwtVerify %s failures", async (kind) => {
@@ -261,6 +276,6 @@ describe("shared error contract", () => {
     expect(error).toBeInstanceOf(errors.JOSEError);
     const response = await respondWith(error);
     expect(response.status).toBe(401);
-    expect(response.body).toEqual({ message: "Unauthorized", error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
+    expect(response.body).toEqual({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } });
   });
 });

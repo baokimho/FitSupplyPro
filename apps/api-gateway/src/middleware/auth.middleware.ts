@@ -12,7 +12,7 @@ export const authMiddleware = wrapAsync(async (req: Request, res: Response, next
 	const token = authHeader?.split(" ")[1];
 
 	if (!token) {
-		return res.status(StatusCodes.UNAUTHORIZED).json({ message: "Missing token" });
+		return res.status(StatusCodes.UNAUTHORIZED).json({ error: { code: "UNAUTHORIZED", message: "Missing token" } });
 	}
 
 	const payload = await verifyAuthToken(token, await getPublicKey(), "access");
@@ -23,7 +23,7 @@ export const authMiddleware = wrapAsync(async (req: Request, res: Response, next
 		typeof payload.name !== "string" ||
 		typeof payload.role !== "string"
 	) {
-		return res.status(StatusCodes.UNAUTHORIZED).json({ message: "Invalid token" });
+		return res.status(StatusCodes.UNAUTHORIZED).json({ error: { code: "UNAUTHORIZED", message: "Invalid token" } });
 	}
 
 	const user: AuthSessionUser = {
