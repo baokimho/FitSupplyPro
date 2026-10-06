@@ -26,12 +26,6 @@ import { blockInternalRoute, requireRole } from "./middleware/accessControl.midd
 const router = Router();
 const requireAdmin = requireRole("ADMIN");
 
-router.get("/health", (req, res) => {
-  res.json({
-    service: "api-gateway",
-    status: "ok",
-  });
-});
 
 router.use("/auth/login", authLimiter);
 router.use("/auth/register", authLimiter);

@@ -152,6 +152,11 @@ async function checkout(customerToken: string, productId: string, suffix: string
 }
 
 describe("cross-service purchase lifecycle through api-gateway", () => {
+  it("reports safe process health and local gateway readiness with correlation", async () => {
+    expect(await requestJson("GET", "/health")).toEqual({ status: "ok", service: "api-gateway" });
+    expect(await requestJson("GET", "/ready")).toEqual({ status: "ready", service: "api-gateway" });
+  });
+
   it("runs happy path from auth to delivered shipment with notifications", async () => {
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const admin = await login(adminEmail, adminPassword);

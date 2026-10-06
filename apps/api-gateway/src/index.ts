@@ -1,4 +1,5 @@
 import express from "express";
+import { healthRouter } from "./health.js";
 import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
@@ -12,6 +13,7 @@ const app = express();
 
 app.use(correlationMiddleware("gateway"));
 app.use(httpLogger(logger));
+app.use(healthRouter);
 
 app.use(helmet());
 app.use(cors({ exposedHeaders: ["x-request-id"] }));

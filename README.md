@@ -417,7 +417,8 @@ services require it. Gateway sends `x-internal-secret` to downstream services an
 JWKS; order sends it to catalog/inventory/cart/notification. Receivers validate
 the same header. Match the secret across every communicating service, including
 the other implemented services in full Compose. This does not replace user JWT,
-role, or ownership checks. Even direct domain `/health` requests need the secret.
+role, or ownership checks. Scoped `/health` and `/ready` probes are safe and public;
+other domain routes still require the secret.
 
 Real database passwords, internal secrets, and private keys belong in ignored
 local env files or deployment secret management, never committed files. Base64
@@ -552,6 +553,16 @@ context. Completion, error, and gateway proxy logs retain explicit request conte
 Gateway proxies, JWKS loading, and existing order downstream calls forward it.
 Background/process logs have no fabricated request IDs. This is correlation only;
 no span IDs, OpenTelemetry, or tracing platform is introduced.
+
+`/health` returns 200 `{ status: "ok", service }` when the process can respond;
+it never checks databases/downstream services. `/ready` returns 200
+`{ status: "ready", service }` or 503 `{ status: "not_ready", service }`.
+Gateway readiness is local only. Auth/catalog/inventory/order readiness runs
+read-only `SELECT 1` against its own database; downstream outages remain runtime
+failures, not cascading readiness failures. Probes run before business auth and
+never expose internal URLs or dependency diagnostics. Readiness responses have a
+fixed 3-second deadline; it bounds the response, not driver query cancellation.
+Test Compose uses `/ready` for scoped startup ordering/availability checks.
 
 ## Docker Notes
 

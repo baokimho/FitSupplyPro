@@ -1,4 +1,5 @@
 import express from "express";
+import { healthRouter } from "./health.js";
 import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
@@ -13,16 +14,11 @@ const app = express();
 
 app.use(correlationMiddleware("service"));
 app.use(httpLogger(logger));
+app.use(healthRouter);
 
 app.use(cors());
 app.use(express.json());
 app.use(createGatewaySecretMiddleware(config.gatewaySecret));
-app.get("/health", (_req, res) => {
-  res.json({
-    service: "order-service",
-    status: "ok",
-  });
-});
 app.use(attachOrderUser);
 app.use(orderRoutes);
 

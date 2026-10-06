@@ -16,12 +16,6 @@ import {
 
 const router = Router();
 
-router.get("/health", (req, res) => {
-  res.json({
-    service: "catalog-service",
-    status: "ok",
-  });
-});
 
 router.post(
   "/categories",

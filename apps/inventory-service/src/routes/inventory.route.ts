@@ -23,12 +23,6 @@ import {
 
 const router = Router();
 
-router.get("/health", (_req, res) => {
-  res.json({
-    service: "inventory-service",
-    status: "ok",
-  });
-});
 
 router.post("/", validateRequest("body", createInventorySchema), wrapAsync(createInventory));
 router.post(
