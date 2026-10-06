@@ -36,6 +36,7 @@ async function requestJson<T>(
   });
   const text = await response.text();
   expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(response.headers.get("access-control-expose-headers")).toContain("x-request-id");
   const data = text ? JSON.parse(text) : {};
   const expected = options.expected ?? (method === "POST" ? 201 : 200);
 

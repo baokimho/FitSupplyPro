@@ -471,7 +471,7 @@ Phase 1 is complete for api-gateway, auth-service, catalog-service,
 inventory-service, and order-service: consistent API error contract, hardened
 shared middleware, validated config primitives, typed service-local config,
 standardized environment examples/documentation, shared structured logging, and
-five-service logging migration. Final regression: 278 unit, 92 integration, and
+five-service logging migration. Phase 1 checkpoint: 278 unit, 92 integration, and
 3 Docker E2E tests passed; typecheck, lint, build, and Compose configuration passed.
 All five scoped services were healthy during E2E; disposable test stacks are
 removed by the existing runners. Phase 2 reliability work is documented below.
@@ -527,15 +527,20 @@ Scoped runtime source has no `console.*`; its only `process.env` reads are the
 five `src/config/index.ts` boundaries. Scripts/seeds, tests, generated Prisma code,
 and the four unscoped services remain outside this migration. The default shared
 `errorHandler` retains its console fallback for those legacy consumers; scoped
-services use `createErrorHandler(logger)`. Prisma tooling and shared test helpers
-also retain intentional environment reads.
+services use `createErrorHandler(logger)`. Shared JWT/gateway-secret compatibility
+exports, Prisma tooling, and shared test helpers retain intentional environment reads.
 
-Request/correlation IDs, tracing, OpenTelemetry, metrics, advanced health/readiness,
-graceful-shutdown standardization, retries, circuit breakers, and
-messaging/outbox/saga work are intentionally deferred to later phases. Existing
-auth shutdown behavior is preserved; Phase 1 adds none of these architectures.
+Correlation, health/readiness, and graceful shutdown were deferred from Phase 1
+and are now covered by Phase 2. Tracing platforms, OpenTelemetry, metrics, retries,
+circuit breakers, and messaging/outbox/saga remain deferred.
 
 ## Phase 2 Reliability Foundation
+
+Phase 2 is complete for gateway, auth, catalog, inventory, and order. Final
+regression: 326 unit, 93 integration, and 4 Docker E2E tests passed; typecheck,
+lint, build, and Compose configuration passed. All five services were ready/healthy;
+real SIGTERM/SIGINT checks completed without forced kill. Phase 3 has not started.
+No new config variables, services, RabbitMQ, or OpenTelemetry were introduced.
 
 Correlation uses `x-request-id` (one inbound HTTP hop) and `x-trace-id` (one
 synchronous workflow). IDs must be UUIDs: 36 characters, no whitespace/control
@@ -553,6 +558,8 @@ context. Completion, error, and gateway proxy logs retain explicit request conte
 Gateway proxies, JWKS loading, and existing order downstream calls forward it.
 Background/process logs have no fabricated request IDs. This is correlation only;
 no span IDs, OpenTelemetry, or tracing platform is introduced.
+Correlation is guaranteed across scoped hops. Unscoped legacy intermediates may
+start a new trace when calling scoped services; their migration is outside Phase 2.
 
 `/health` returns 200 `{ status: "ok", service }` when the process can respond;
 it never checks databases/downstream services. `/ready` returns 200
@@ -563,6 +570,8 @@ failures, not cascading readiness failures. Probes run before business auth and
 never expose internal URLs or dependency diagnostics. Readiness responses have a
 fixed 3-second deadline; it bounds the response, not driver query cancellation.
 Test Compose uses `/ready` for scoped startup ordering/availability checks.
+Gateway Helmet/CORS runs before probes and the drain guard, so security headers
+and browser access to `x-request-id` apply consistently to every gateway response.
 
 Scoped services handle SIGTERM/SIGINT through shared `installShutdown`: readiness
 turns false first, new business work is rejected, the HTTP server drains, then
@@ -578,6 +587,8 @@ restart the container after source edits. Host `npm run dev --workspace <service
 still offers watch mode. Default Compose stop grace (10 seconds) exceeds the
 application deadline. Process lifecycle logs include service/signal, without
 invented request IDs.
+Readiness handlers reached during drain return 503; after the listener closes,
+new connections are refused rather than receiving an HTTP probe response.
 
 ## Docker Notes
 
@@ -615,7 +626,7 @@ Known non-blocking gaps:
 
 These are not current backend freeze blockers because the full E2E suite exercises authentication, catalog admin setup/browse, and notification read behavior through the gateway. Add targeted service-level tests later when changing those services.
 
-## Next Phase
+## Deferred Operational Work
 
 Backend feature work should pause after freeze. Next work should focus on DevOps and operational maturity:
 

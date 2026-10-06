@@ -13,11 +13,11 @@ const app = express();
 
 app.use(correlationMiddleware("gateway"));
 app.use(httpLogger(logger));
-app.use(healthRouter);
-app.use(shutdownGuard(readiness));
 
 app.use(helmet());
 app.use(cors({ exposedHeaders: ["x-request-id"] }));
+app.use(healthRouter);
+app.use(shutdownGuard(readiness));
 app.set("trust proxy", 1);
 app.use(router);
 app.use(createErrorHandler(logger));

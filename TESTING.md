@@ -60,18 +60,25 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 
 | Workspace | Unit | Integration | Coverage |
 | --- | --- | --- | --- |
-| `api-gateway` | 3 files: config, logger, error contract | 1 file: security boundaries | available |
-| `auth-service` | 5 files: config, logger, keys, auth errors, cleanup | gap: no integration tests | available |
-| `catalog-service` | 2 files: config, logger | gap: no integration tests | available |
-| `inventory-service` | 2 files: config, logger | 1 file: inventory reservations | available |
-| `order-service` | 3 files: config, logger, downstream errors | 1 file: checkout idempotency/lifecycle | available |
+| `api-gateway` | 4 files: config, logger, error contract, probes | 1 file: security/correlation boundaries | available |
+| `auth-service` | 7 files: config, logger, keys, auth errors, cleanup, probes, DB cleanup | gap: no integration tests | available |
+| `catalog-service` | 4 files: config, logger, probes, DB cleanup | gap: no integration tests | available |
+| `inventory-service` | 4 files: config, logger, probes, DB cleanup | 1 file: inventory reservations | available |
+| `order-service` | 5 files: config, logger, downstream errors, probes, DB cleanup | 1 file: checkout idempotency/lifecycle | available |
 | `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
 | `payment-service` | 1 file: error contract | 1 file: payment idempotency/lifecycle | available |
 | `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
 | `notification-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `@shared/utils` | 6 files: JWT, config, logging, middleware/errors | 2 files: test infrastructure/factories | available |
+| `@shared/utils` | 9 files: JWT, config, logging, middleware/errors, correlation, probes, shutdown | 2 files: test infrastructure/factories | available |
 
 Phase 1 closeout: 278 unit tests, 92 integration tests, and 3 Docker-backed E2E
 tests passed. Existing gaps above remain explicit; the E2E suite exercises all
 services. Coverage is available through `npm run coverage`, but coverage reports
 were not generated as part of Phase 1 closeout.
+
+Phase 2 closeout: 326 unit, 93 integration, and 4 E2E tests passed. Coverage reports
+were not generated. Added checks cover concurrent correlation isolation, proxy/order
+propagation, public request ID/CORS exposure, liveness/readiness and probe deadlines,
+drain rejection, real HTTP draining, duplicate signals, shutdown deadlines, and owned
+Prisma/pool cleanup. Disposable Docker checks verified all five services ready and
+clean signal exits. Unscoped service integration gaps above remain explicit.
