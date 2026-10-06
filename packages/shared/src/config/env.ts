@@ -1,6 +1,6 @@
 export type NodeEnv = "development" | "test" | "production";
 
-type ConfigurationReason = "is required" | "must not be blank" | "must be an integer port from 1 to 65535" | "must be a complete HTTP(S) URL" | "must be development, test, or production";
+type ConfigurationReason = "is required" | "must not be blank" | "must be an integer port from 1 to 65535" | "must be a complete HTTP(S) URL" | "must be development, test, or production" | "must be fatal, error, warn, info, debug, trace, or silent";
 
 /** Internal startup error. Reasons are fixed rules, never environment values. */
 export class ConfigurationError extends Error {
