@@ -4,7 +4,7 @@ import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import { attachUserHeaders } from "./userHeaders.proxy.js";
+import { attachUserHeaders, restoreRequestId } from "./userHeaders.proxy.js";
 
 const cartUrl = config.cartServiceUrl;
 const proxyTimeoutMs = 5000;
@@ -16,8 +16,9 @@ export const cartProxy = createProxyMiddleware<Request, Response>({
   proxyTimeout: proxyTimeoutMs,
   on: {
     proxyReq: attachUserHeaders,
+    proxyRes: restoreRequestId,
     error: (err, req, res) => {
-      logger.error({ err, targetService: "cart-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503 }, "proxy request failed");
+      logger.error({ ...req.correlation, err, targetService: "cart-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503 }, "proxy request failed");
       const response = res as Response;
 
       if (response.headersSent) {

@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { requireGatewaySecret } from "@shared/utils";
+import { requireGatewaySecret, correlationMiddleware, validCorrelationId } from "@shared/utils";
 import type { ClientRequest } from "http";
 import type { Request } from "express";
 
@@ -35,10 +35,11 @@ vi.mock("./proxy/paymentProxy.proxy.js", () => ({ paymentProxy: proxyHandler("pa
 vi.mock("./proxy/shippingProxy.proxy.js", () => ({ shippingProxy: proxyHandler("shipping") }));
 
 const { default: router } = await import("./routes.js");
-const { attachUserHeaders } = await import("./proxy/userHeaders.proxy.js");
+const { attachUserHeaders, restoreRequestId } = await import("./proxy/userHeaders.proxy.js");
 
 function createGatewayApp() {
   const app = express();
+  app.use(correlationMiddleware("gateway"));
   app.use(express.json());
   app.use(router);
   return app;
@@ -119,6 +120,21 @@ describe("api-gateway security boundaries", () => {
     expect(proxyReq.headers.get("x-user-id")).toBe("customer-1");
     expect(proxyReq.headers.get("x-user-role")).toBe("CUSTOMER");
     expect(proxyReq.headers.get("x-internal-secret")).toBe("test-gateway-secret");
+  });
+
+  it("forwards trace with new hop ID and preserves gateway response ID", () => {
+    const requestId = "fce5c467-811f-42c7-b665-9a93b6d8300b";
+    const traceId = "6a8eca39-843d-4864-bbba-bcdd32ac311d";
+    const proxyReq = new HeaderCapture();
+    proxyReq.setHeader("x-trace-id", "spoofed");
+    const req = { correlation: { requestId, traceId } } as Request;
+    attachUserHeaders(proxyReq as unknown as ClientRequest, req);
+    expect(proxyReq.headers.get("x-trace-id")).toBe(traceId);
+    expect(validCorrelationId(proxyReq.headers.get("x-request-id"))).toBe(true);
+    expect(proxyReq.headers.get("x-request-id")).not.toBe(requestId);
+    const proxyRes = { headers: { "x-request-id": "downstream-id" } };
+    restoreRequestId(proxyRes as unknown as import("http").IncomingMessage, req);
+    expect(proxyRes.headers["x-request-id"]).toBe(requestId);
   });
 
   it("allows direct internal calls only with the shared gateway secret", async () => {

@@ -106,7 +106,7 @@ export default function errorHandler(
 
   try {
     if (logger) {
-      const context = { method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: status, code };
+      const context = { ...req.correlation, method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: status, code };
       if (status >= 500) logger.error({ ...context, err }, "request failed");
       else logger.debug(context, "request rejected");
     } else {

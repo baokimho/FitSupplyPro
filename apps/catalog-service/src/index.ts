@@ -2,7 +2,7 @@ import express from "express";
 import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import { httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
+import { correlationMiddleware, httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import categoryRoutes from "./routes/categories.route.js";
 import brandRoutes from "./routes/brands.route.js";
 import productRoutes from "./routes/products.route.js";
@@ -12,6 +12,7 @@ import { connectDb } from "./config/connect-db.js";
 
 const app = express();
 
+app.use(correlationMiddleware("service"));
 app.use(httpLogger(logger));
 
 app.use(cors());

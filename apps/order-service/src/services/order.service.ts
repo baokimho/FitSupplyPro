@@ -1,6 +1,6 @@
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
-import { logPath } from "@shared/utils";
+import { logPath, correlationHeaders } from "@shared/utils";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -196,7 +196,9 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const context = { targetService, operation: `${init?.method ?? "GET"} ${logPath(new URL(url).pathname)}` };
 
   try {
-    response = await fetch(url, init);
+    const headers = new Headers(init?.headers);
+    for (const [name, value] of Object.entries(correlationHeaders())) headers.set(name, value);
+    response = await fetch(url, { ...init, headers });
   } catch (error) {
     logger.debug(context, "downstream connection failed");
     throw new ServiceUnavailableError("Downstream service unavailable", context, undefined, error);

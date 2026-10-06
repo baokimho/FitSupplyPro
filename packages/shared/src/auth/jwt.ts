@@ -1,5 +1,6 @@
 import { errors, importJWK, jwtVerify, type CryptoKey, type JWTPayload, type JWK } from "jose";
 import { UnauthorizedError } from "../errors/httpErrors.js";
+import { correlationHeaders } from "../http/correlation.js";
 
 export type AuthTokenType = "access" | "refresh";
 
@@ -55,6 +56,7 @@ export function createPublicKeyLoader(authServiceUrl: string, gatewaySecret: str
       publicKeyPromise = (async () => {
         const response = await fetch(new URL("/jwks", authServiceUrl), {
           headers: {
+            ...correlationHeaders(),
             "x-internal-secret": typeof gatewaySecret === "function" ? gatewaySecret() : gatewaySecret,
           }
         }

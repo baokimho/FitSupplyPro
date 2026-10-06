@@ -473,7 +473,7 @@ standardized environment examples/documentation, shared structured logging, and
 five-service logging migration. Final regression: 278 unit, 92 integration, and
 3 Docker E2E tests passed; typecheck, lint, build, and Compose configuration passed.
 All five scoped services were healthy during E2E; disposable test stacks are
-removed by the existing runners. Phase 2 has not started.
+removed by the existing runners. Phase 2 reliability work is documented below.
 
 ### Error handling
 
@@ -533,6 +533,25 @@ Request/correlation IDs, tracing, OpenTelemetry, metrics, advanced health/readin
 graceful-shutdown standardization, retries, circuit breakers, and
 messaging/outbox/saga work are intentionally deferred to later phases. Existing
 auth shutdown behavior is preserved; Phase 1 adds none of these architectures.
+
+## Phase 2 Reliability Foundation
+
+Correlation uses `x-request-id` (one inbound HTTP hop) and `x-trace-id` (one
+synchronous workflow). IDs must be UUIDs: 36 characters, no whitespace/control
+characters, and no repeated header values. Invalid/missing values are replaced.
+The gateway accepts a valid client request ID but always creates a fresh trace ID.
+Each outgoing call gets a new request ID; internal services preserve its trace ID.
+The gateway returns its own `x-request-id`, exposed through CORS, including proxy
+responses. Trace IDs are internal and are not returned as response headers.
+
+Shared `correlationMiddleware` runs before HTTP logging/body parsing/auth.
+`AsyncLocalStorage` isolates context across asynchronous order helpers without
+changing business signatures; request typing also exposes `req.correlation`.
+Shared logger instances automatically include request/trace fields inside request
+context. Completion, error, and gateway proxy logs retain explicit request context.
+Gateway proxies, JWKS loading, and existing order downstream calls forward it.
+Background/process logs have no fabricated request IDs. This is correlation only;
+no span IDs, OpenTelemetry, or tracing platform is introduced.
 
 ## Docker Notes
 

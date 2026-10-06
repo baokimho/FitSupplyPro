@@ -1,5 +1,6 @@
 import pino, { type DestinationStream, type Logger } from "pino";
 import { ConfigurationError, type NodeEnv } from "../config/env.js";
+import { getCorrelation } from "../http/correlation.js";
 
 export type { Logger } from "pino";
 export type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
@@ -44,6 +45,7 @@ export function createLogger(
   return pino({
     base: { service: options.service, environment: options.environment },
     level: options.level ?? "info",
+    mixin: () => ({ ...getCorrelation() }),
     serializers: { err: serializeError },
     redact: { paths: redactPaths, censor: "[Redacted]" },
   }, destination);

@@ -19,7 +19,8 @@ import { notificationProxy } from "./proxy/notificationProxy.proxy.js";
 import { orderProxy } from "./proxy/orderProxy.proxy.js";
 import { paymentProxy } from "./proxy/paymentProxy.proxy.js";
 import { shippingProxy } from "./proxy/shippingProxy.proxy.js";
-import { errorHandler } from "@shared/utils";
+import { createErrorHandler } from "@shared/utils";
+import { logger } from "./logger.js";
 import { blockInternalRoute, requireRole } from "./middleware/accessControl.middleware.js";
 
 const router = Router();
@@ -73,6 +74,6 @@ router.use((_req, res) => {
   res.status(404).json({ error: { code: "NOT_FOUND", message: "Route not found" } });
 });
 
-router.use(errorHandler);
+router.use(createErrorHandler(logger));
 
 export default router;

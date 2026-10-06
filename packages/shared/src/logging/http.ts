@@ -12,7 +12,7 @@ export function httpLogger(logger: Logger): RequestHandler {
     const method = req.method;
     const path = logPath(req.originalUrl);
     res.once("finish", () => {
-      const fields = { method, path, statusCode: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 };
+      const fields = { ...req.correlation, method, path, statusCode: res.statusCode, durationMs: Number(process.hrtime.bigint() - started) / 1e6 };
       logger.info(fields, "request completed");
     });
     next();

@@ -8,12 +8,13 @@ import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
 import { createGatewaySecretMiddleware } from "@shared/utils";
 import authRoutes from "./auth.routes.js";
-import { httpLogger, createErrorHandler } from "@shared/utils";
+import { correlationMiddleware, httpLogger, createErrorHandler } from "@shared/utils";
 
 
 
 const app = express();
 
+app.use(correlationMiddleware("service"));
 app.use(httpLogger(logger));
 
 app.use(cors());

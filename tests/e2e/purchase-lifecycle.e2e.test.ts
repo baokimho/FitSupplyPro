@@ -35,6 +35,7 @@ async function requestJson<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   const text = await response.text();
+  expect(response.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/i);
   const data = text ? JSON.parse(text) : {};
   const expected = options.expected ?? (method === "POST" ? 201 : 200);
 

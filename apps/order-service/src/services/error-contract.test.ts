@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createOrderService } from "./order.service.js";
 import { logger } from "../logger.js";
-import { createErrorHandler } from "@shared/utils";
+import { createErrorHandler, correlationMiddleware, validCorrelationId } from "@shared/utils";
 import express from "express";
 import request from "supertest";
 
@@ -24,6 +24,22 @@ describe("order downstream error contract", () => {
   it("handles non-JSON catalog failures safely", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("private upstream text", { status: 400 })));
     await expect(createOrderService("user-1", body)).rejects.toMatchObject({ status: 400, code: "BAD_REQUEST", message: "Downstream request failed" });
+  });
+
+  it("propagates trace and internal secret through existing catalog calls with a new hop ID", async () => {
+    const fetch = vi.fn(async (_url: string, _init?: RequestInit) => new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetch);
+    const app = express();
+    app.use(correlationMiddleware("service"));
+    app.post("/", async (_req, res) => res.json(await createOrderService("user-1", body)));
+    app.use(createErrorHandler(logger));
+    const traceId = "6a8eca39-843d-4864-bbba-bcdd32ac311d";
+    const response = await request(app).post("/").set("x-trace-id", traceId);
+    const headers = new Headers(fetch.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("x-trace-id")).toBe(traceId);
+    expect(validCorrelationId(headers.get("x-request-id"))).toBe(true);
+    expect(headers.get("x-request-id")).not.toBe(response.headers["x-request-id"]);
+    expect(headers.get("x-internal-secret")).toBe("test-secret");
   });
 
   it("logs only safe downstream context, never upstream payload", async () => {
