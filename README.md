@@ -17,7 +17,7 @@ Status: backend functional closure complete. Feature work is frozen after final 
 | `apps/payment-service` | Mock payment records, one payment per order, payment idempotency, authoritative state transitions |
 | `apps/shipping-service` | Shipment records, one shipment per order, shipment snapshot from confirmed order, fulfillment status transitions |
 | `apps/notification-service` | Notification persistence and customer read-state |
-| `packages/shared` | Shared errors, middleware, validation, JWT/user header helpers, internal secret middleware |
+| `packages/shared` | Shared errors, middleware, config validation, structured logging, JWT/user header helpers, internal secret middleware |
 
 ## Architecture
 
@@ -132,6 +132,7 @@ Migrations are real Prisma migrations under each service's `prisma/migrations` d
 - Prisma
 - Zod
 - JOSE/JWT
+- Pino structured logging
 - Docker Compose
 - Vitest and Supertest
 - ESLint
@@ -289,6 +290,7 @@ key-file fallback is stated. Formats and sensitivity are shared across services:
 | Variable type | Expected format | Sensitive? |
 | --- | --- | --- |
 | `NODE_ENV` | Exactly `development`, `test`, or `production` | No |
+| `LOG_LEVEL` | Exactly `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`; default `info` | No |
 | `PORT` | Decimal integer TCP port, 1–65535 | No |
 | `GATEWAY_SECRET` | Nonblank string; exact matching content | Yes |
 | `DATABASE_URL` | PostgreSQL connection URL (`postgresql://` or `postgres://`); URL-encode credentials | Yes |
@@ -304,6 +306,7 @@ connection validity is handled by the database client, not the URL primitive.
 | Name | Required/default | Used for | Development Compose example |
 | --- | --- | --- | --- |
 | `NODE_ENV` | Optional; `development` | Runtime environment | `development` |
+| `LOG_LEVEL` | Optional; `info` | Structured log threshold | `info` |
 | `PORT` | Optional; `3000` | HTTP listener | `3000` |
 | `GATEWAY_SECRET` | Required | Trusted proxy headers and JWKS request authentication | `change-me-for-local-development` |
 | `AUTH_SERVICE_URL` | Optional; proxy `http://localhost:3001`, JWKS `http://auth-service:3001` | Auth proxy and `/jwks` public-key loader | `http://auth-service:3001` |
@@ -323,6 +326,7 @@ The distinct auth proxy/JWKS defaults are current behavior. An explicit
 | Name | Required/default | Used for | Development Compose example |
 | --- | --- | --- | --- |
 | `NODE_ENV` | Optional; `development` | Runtime environment and Prisma client reuse | `development` |
+| `LOG_LEVEL` | Optional; `info` | Structured log threshold | `info` |
 | `PORT` | Optional; `3001` | HTTP listener | `3001` |
 | `GATEWAY_SECRET` | Required | Incoming internal-secret middleware, including `/jwks` | `change-me-for-local-development` |
 | `DATABASE_URL` | Required | Prisma PostgreSQL pool | `postgresql://fitsupply:change-me-for-local-development@postgres:5432/auth_db` |
@@ -334,6 +338,7 @@ The distinct auth proxy/JWKS defaults are current behavior. An explicit
 | Name | Required/default | Used for | Development Compose example |
 | --- | --- | --- | --- |
 | `NODE_ENV` | Optional; `development` | Runtime environment and Prisma client reuse | `development` |
+| `LOG_LEVEL` | Optional; `info` | Structured log threshold | `info` |
 | `PORT` | Optional; `3002` | HTTP listener | `3002` |
 | `GATEWAY_SECRET` | Required | Incoming internal-secret middleware | `change-me-for-local-development` |
 | `DATABASE_URL` | Required | Prisma PostgreSQL pool | `postgresql://fitsupply:change-me-for-local-development@postgres:5432/catalog_db` |
@@ -343,6 +348,7 @@ The distinct auth proxy/JWKS defaults are current behavior. An explicit
 | Name | Required/default | Used for | Development Compose example |
 | --- | --- | --- | --- |
 | `NODE_ENV` | Optional; `development` | Runtime environment and Prisma client reuse | `development` |
+| `LOG_LEVEL` | Optional; `info` | Structured log threshold | `info` |
 | `PORT` | Optional; `3004` | HTTP listener | `3004` |
 | `GATEWAY_SECRET` | Required | Incoming internal-secret middleware | `change-me-for-local-development` |
 | `DATABASE_URL` | Required | Prisma PostgreSQL pool | `postgresql://fitsupply:change-me-for-local-development@postgres:5432/inventory_db` |
@@ -352,6 +358,7 @@ The distinct auth proxy/JWKS defaults are current behavior. An explicit
 | Name | Required/default | Used for | Development Compose example |
 | --- | --- | --- | --- |
 | `NODE_ENV` | Optional; `development` | Runtime environment and Prisma client reuse | `development` |
+| `LOG_LEVEL` | Optional; `info` | Structured log threshold | `info` |
 | `PORT` | Optional; `3003` | HTTP listener | `3003` |
 | `GATEWAY_SECRET` | Required | Incoming middleware and outgoing internal HTTP calls | `change-me-for-local-development` |
 | `DATABASE_URL` | Required | Prisma PostgreSQL pool | `postgresql://fitsupply:change-me-for-local-development@postgres:5432/order_db` |
@@ -456,6 +463,76 @@ and injects the matrix URLs and test secret. `npm run test:e2e` fixes the gatewa
 URL and admin values shown above, seeds that identity, and uses the isolated test
 Compose keys. E2E env overrides apply when invoking the test directly, not the
 wrapper's seeded identity. No test variables belong in production service env files.
+
+## Phase 1 Backend Hardening
+
+Phase 1 is complete for api-gateway, auth-service, catalog-service,
+inventory-service, and order-service: consistent API error contract, hardened
+shared middleware, validated config primitives, typed service-local config,
+standardized environment examples/documentation, shared structured logging, and
+five-service logging migration. Final regression: 278 unit, 92 integration, and
+3 Docker E2E tests passed; typecheck, lint, build, and Compose configuration passed.
+All five scoped services were healthy during E2E; disposable test stacks are
+removed by the existing runners. Phase 2 has not started.
+
+### Error handling
+
+Use the HTTP error classes exported by `@shared/utils`, defined in
+`packages/shared/src/errors/httpErrors.ts`. Controllers forward failures through
+`wrapAsync` or Express 5 async handling; avoid logging the same exception again
+in each layer. The shared handler maps expected errors to their status/code and
+unexpected errors to 500 / `INTERNAL_ERROR`. Responses retain the nested
+`{ error: { code, message, details? } }` envelope. Put only public, safe domain
+context in `details`; internal diagnostics belong in the error's `cause`, never
+response details.
+
+### Logging
+
+Pino is owned by `packages/shared`. Each scoped service's `src/logger.ts` creates
+its own instance from `createLogger`, using service identity, validated
+`config.nodeEnv`, and `config.logLevel`. Application modules import that local
+logger; use child loggers for useful operation context. JSON goes to stdout with
+`service`, `environment`, numeric Pino `level`, `time`, and `msg`. No transport
+or pretty-printing dependency is required.
+
+`LOG_LEVEL` defaults to `info`; allowed values appear in the configuration tables.
+Use debug for diagnostics/expected rejection context, info for startup and HTTP
+completion, warn for recoverable background/notification failures, error for
+request/proxy failures, and fatal for failed startup.
+
+```ts
+import { logger } from "./logger.js";
+
+logger.info({ port }, "service started");
+logger.error({ err }, "operation failed");
+```
+
+Entrypoints install `httpLogger(logger)` before body parsing/auth and
+`createErrorHandler(logger)` after routes. Completion events include method,
+original path without query/fragment, statusCode, and durationMs. Each service
+hop has its own completion event. Expected 4xx errors have debug context only;
+5xx failures retain internal Error diagnostics separately from safe responses.
+
+Never log entire config, environment, bodies, headers, upstream response payloads,
+passwords, JWTs, cookies, gateway secrets, database credentials, or RSA key material.
+The factory uses Pino redaction for known sensitive fields at root and within two
+object levels, including child bindings and request-shaped objects. Error
+serialization keeps type/message/stack (including cause diagnostics), omits
+arbitrary attached payloads, and masks credential URLs, bearer text, and PEM key
+blocks. This is defense in depth, not arbitrary recursive/text sanitization: use
+allowlisted context and keep secrets out of messages and arbitrary field names.
+
+Scoped runtime source has no `console.*`; its only `process.env` reads are the
+five `src/config/index.ts` boundaries. Scripts/seeds, tests, generated Prisma code,
+and the four unscoped services remain outside this migration. The default shared
+`errorHandler` retains its console fallback for those legacy consumers; scoped
+services use `createErrorHandler(logger)`. Prisma tooling and shared test helpers
+also retain intentional environment reads.
+
+Request/correlation IDs, tracing, OpenTelemetry, metrics, advanced health/readiness,
+graceful-shutdown standardization, retries, circuit breakers, and
+messaging/outbox/saga work are intentionally deferred to later phases. Existing
+auth shutdown behavior is preserved; Phase 1 adds none of these architectures.
 
 ## Docker Notes
 

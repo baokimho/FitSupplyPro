@@ -60,13 +60,18 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 
 | Workspace | Unit | Integration | Coverage |
 | --- | --- | --- | --- |
-| `api-gateway` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `auth-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `catalog-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `inventory-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `order-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `cart-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `payment-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `shipping-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
+| `api-gateway` | 3 files: config, logger, error contract | 1 file: security boundaries | available |
+| `auth-service` | 5 files: config, logger, keys, auth errors, cleanup | gap: no integration tests | available |
+| `catalog-service` | 2 files: config, logger | gap: no integration tests | available |
+| `inventory-service` | 2 files: config, logger | 1 file: inventory reservations | available |
+| `order-service` | 3 files: config, logger, downstream errors | 1 file: checkout idempotency/lifecycle | available |
+| `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
+| `payment-service` | 1 file: error contract | 1 file: payment idempotency/lifecycle | available |
+| `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
 | `notification-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `@shared/utils` | gap: no unit tests | `packages/shared/src/testing/*.integration.test.ts` | reports generated |
+| `@shared/utils` | 6 files: JWT, config, logging, middleware/errors | 2 files: test infrastructure/factories | available |
+
+Phase 1 closeout: 278 unit tests, 92 integration tests, and 3 Docker-backed E2E
+tests passed. Existing gaps above remain explicit; the E2E suite exercises all
+services. Coverage is available through `npm run coverage`, but coverage reports
+were not generated as part of Phase 1 closeout.
