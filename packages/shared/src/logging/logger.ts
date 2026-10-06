@@ -18,7 +18,7 @@ const sensitiveFields = [
   "password", "passwordHash", "token", "accessToken", "refreshToken", "tokenHash",
   "DATABASE_URL", "databaseUrl", "GATEWAY_SECRET", "gatewaySecret",
   "JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "jwtPrivateKeyBase64", "jwtPublicKeyBase64",
-  "privateKey", "publicKey", "x-gateway-secret",
+  "privateKey", "publicKey", "x-gateway-secret", "x-internal-secret",
 ];
 
 // Defense in depth for known fields, including child bindings and request-shaped objects.

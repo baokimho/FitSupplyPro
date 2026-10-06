@@ -1,3 +1,4 @@
+import { logger } from "../logger.js";
 import prisma from "./db.js";
 import { cleanupRefreshTokens } from "../services/auth.service.js";
 
@@ -12,13 +13,13 @@ export async function runRefreshTokenCleanup(): Promise<number> {
     const deletedCount = await cleanupRefreshTokens(prisma);
 
     if (deletedCount > 0) {
-      console.log(`Deleted ${deletedCount} expired refresh tokens`);
+      logger.info({ deletedCount, operation: "refresh-token-cleanup" }, "expired refresh tokens deleted");
     }
 
     return deletedCount;
   } catch (error) {
     if (isPrismaAuthError(error)) {
-      console.warn("Skipping refresh token cleanup because database authentication failed");
+      logger.warn({ operation: "refresh-token-cleanup" }, "cleanup skipped: database authentication failed");
       return 0;
     }
 
@@ -29,7 +30,7 @@ export async function runRefreshTokenCleanup(): Promise<number> {
 export function startRefreshTokenCleanupJob(): NodeJS.Timeout {
   return setInterval(() => {
     void runRefreshTokenCleanup().catch((error) => {
-      console.error("Failed to clean refresh tokens:", error);
+      logger.error({ err: error, operation: "refresh-token-cleanup" }, "refresh token cleanup failed");
     });
   }, REFRESH_TOKEN_CLEANUP_INTERVAL_MS);
 }

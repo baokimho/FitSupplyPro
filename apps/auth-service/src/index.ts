@@ -1,5 +1,6 @@
 import { initializeAuthKeys } from "./services/auth.service.js";
 import express from "express";
+import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
 import prisma from "./config/db.js";
@@ -7,19 +8,17 @@ import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
 import { createGatewaySecretMiddleware } from "@shared/utils";
 import authRoutes from "./auth.routes.js";
-import { errorHandler } from "@shared/utils";
+import { httpLogger, createErrorHandler } from "@shared/utils";
 
 
 
 const app = express();
 
+app.use(httpLogger(logger));
+
 app.use(cors());
 app.use(express.json());
 app.use(createGatewaySecretMiddleware(config.gatewaySecret));
-app.use((req, _res, next) => {
-  console.log("[AUTH SERVICE]", req.method, req.url);
-  next();
-});
 app.use(authRoutes);
 
 app.get("/health", (req, res) => {
@@ -38,12 +37,12 @@ async function bootstrap() {
   refreshTokenCleanupJob = startRefreshTokenCleanupJob();
 
   const server = app.listen(PORT, () => {
-    console.log(`Auth service running on port ${PORT}`);
+    logger.info({ port: PORT }, "service started");
   });
 
   // Graceful shutdown
   process.on("SIGTERM", async () => {
-    console.log("SIGTERM received, shutting down gracefully...");
+    logger.info({ signal: "SIGTERM" }, "shutdown requested");
     server.close(async () => {
       if (refreshTokenCleanupJob) {
         clearInterval(refreshTokenCleanupJob);
@@ -55,7 +54,7 @@ async function bootstrap() {
   });
 
   process.on("SIGINT", async () => {
-    console.log("SIGINT received, shutting down gracefully...");
+    logger.info({ signal: "SIGINT" }, "shutdown requested");
     server.close(async () => {
       if (refreshTokenCleanupJob) {
         clearInterval(refreshTokenCleanupJob);
@@ -71,9 +70,9 @@ app.use((_req, res) => {
   res.status(404).json({ error: { code: "NOT_FOUND", message: "Route not found" } });
 });
 
-app.use(errorHandler);
+app.use(createErrorHandler(logger));
 
 bootstrap().catch((error) => {
-  console.error("Failed to start auth service:", error);
+  logger.fatal({ err: error }, "service startup failed");
   process.exit(1);
 });

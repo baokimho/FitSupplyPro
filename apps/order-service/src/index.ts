@@ -1,7 +1,8 @@
 import express from "express";
+import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import { errorHandler, createGatewaySecretMiddleware } from "@shared/utils";
+import { httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import { connectDb } from "./config/connect-db.js";
 import { attachOrderUser } from "./middleware/user-context.middleware.js";
 import orderRoutes from "./routes/order.route.js";
@@ -9,6 +10,8 @@ import orderRoutes from "./routes/order.route.js";
 
 
 const app = express();
+
+app.use(httpLogger(logger));
 
 app.use(cors());
 app.use(express.json());
@@ -19,15 +22,6 @@ app.get("/health", (_req, res) => {
     status: "ok",
   });
 });
-app.use((req, _res, next) => {
-  console.info("[ORDER SERVICE]", {
-    method: req.method,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    hasUserIdHeader: Boolean(req.get("x-user-id")),
-  });
-  next();
-});
 app.use(attachOrderUser);
 app.use(orderRoutes);
 
@@ -37,7 +31,7 @@ app.use((_req, res) => {
   });
 });
 
-app.use(errorHandler);
+app.use(createErrorHandler(logger));
 
 const PORT = config.port;
 
@@ -46,10 +40,10 @@ async function bootstrap() {
     await connectDb();
 
     app.listen(PORT, () => {
-      console.log(`Order service running on port ${PORT}`);
+      logger.info({ port: PORT }, "service started");
     });
   } catch (err) {
-    console.error("Failed to start order service:", err);
+    logger.fatal({ err: err }, "service startup failed");
     process.exitCode = 1;
   }
 }

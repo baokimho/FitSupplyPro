@@ -1,3 +1,5 @@
+import { logger } from "../logger.js";
+import { logPath } from "@shared/utils";
 import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
@@ -14,7 +16,8 @@ export const inventoryProxy = createProxyMiddleware<Request, Response>({
   proxyTimeout: proxyTimeoutMs,
   on: {
     proxyReq: attachUserHeaders,
-    error: (_err, _req, res) => {
+    error: (err, req, res) => {
+      logger.error({ err, targetService: "inventory-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503 }, "proxy request failed");
       const response = res as Response;
 
       if (response.headersSent) {

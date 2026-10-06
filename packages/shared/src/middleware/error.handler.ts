@@ -1,7 +1,14 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, ErrorRequestHandler } from "express";
 import HttpError from "../errors/httpErrors.js";
 import { ZodError } from "zod";
 import { isAuthTokenError } from "../auth/jwt.js";
+import type { Logger } from "../logging/logger.js";
+import { logPath } from "../logging/http.js";
+
+/** Service-owned logger; retain legacy default handler for unscoped consumers. */
+export function createErrorHandler(logger: Logger): ErrorRequestHandler {
+  return (err: unknown, req, res, next) => errorHandler(err, req, res, next, logger);
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -39,17 +46,12 @@ export default function errorHandler(
   req: Request,
   res: Response,
   next: NextFunction,
+  logger: Logger | undefined = undefined,
 ) {
   let status = 500;
   let code = "INTERNAL_ERROR";
   let message = "Internal server error";
   let details: unknown = undefined;
-
-  try {
-    console.error("Error handled:", err);
-  } catch {
-    // ignore
-  }
 
   try {
     if (err instanceof ZodError) {
@@ -100,6 +102,18 @@ export default function errorHandler(
     code = "INTERNAL_ERROR";
     message = "Internal server error";
     details = undefined;
+  }
+
+  try {
+    if (logger) {
+      const context = { method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: status, code };
+      if (status >= 500) logger.error({ ...context, err }, "request failed");
+      else logger.debug(context, "request rejected");
+    } else {
+      console.error("Error handled:", err);
+    }
+  } catch {
+    // Logging failures/throwing error properties must not break the safe response.
   }
 
   const publicDetails = details === undefined ? {} : { details };

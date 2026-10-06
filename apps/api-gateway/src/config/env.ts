@@ -1,7 +1,8 @@
-import { parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
+import { parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
 
 export function loadConfig(env: NodeJS.ProcessEnv) {
   return {
+    logLevel: parseLogLevel("LOG_LEVEL", env.LOG_LEVEL),
     nodeEnv: parseNodeEnv("NODE_ENV", env.NODE_ENV, "development"),
     port: parsePort("PORT", env.PORT, 3000),
     gatewaySecret: requireEnvString("GATEWAY_SECRET", env.GATEWAY_SECRET),

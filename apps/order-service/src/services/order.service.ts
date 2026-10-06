@@ -1,4 +1,6 @@
 import { config } from "../config/index.js";
+import { logger } from "../logger.js";
+import { logPath } from "@shared/utils";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -187,14 +189,17 @@ const toOrderResponseWithDelivery = async (order: OrderWithItems) =>
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   let response: Response;
+  const targetService = [
+    [catalogServiceUrl, "catalog-service"], [inventoryServiceUrl, "inventory-service"],
+    [cartServiceUrl, "cart-service"], [notificationServiceUrl, "notification-service"],
+  ].find(([base]) => url.startsWith(`${base}/`))?.[1];
+  const context = { targetService, operation: `${init?.method ?? "GET"} ${logPath(new URL(url).pathname)}` };
 
   try {
     response = await fetch(url, init);
   } catch (error) {
-    throw new ServiceUnavailableError("Downstream service unavailable", {
-      url,
-      cause: error instanceof Error ? error.message : "Unknown error",
-    });
+    logger.debug(context, "downstream connection failed");
+    throw new ServiceUnavailableError("Downstream service unavailable", context, undefined, error);
   }
 
   let data: unknown;
@@ -212,18 +217,12 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
     const message = "message" in downstreamError && typeof downstreamError.message === "string" ? downstreamError.message : undefined;
     const code = "code" in downstreamError && typeof downstreamError.code === "string" ? downstreamError.code : undefined;
     const details = "details" in downstreamError ? downstreamError.details : undefined;
-    console.error("Order service downstream request failed", {
-      url,
-      method: init?.method ?? "GET",
-      status: response.status,
-      response: data,
-    });
+    logger.debug({ ...context, statusCode: response.status }, "downstream request rejected");
 
     if (response.status >= 500) {
       throw new ServiceUnavailableError("Downstream service unavailable", {
-        url,
-        status: response.status,
-        ...(details === undefined ? {} : { details }),
+        ...context,
+        statusCode: response.status,
       });
     }
 
@@ -409,7 +408,7 @@ const getProductById = async (productId: string) => {
     }
 
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Catalog service unavailable", error.details);
+      throw new ServiceUnavailableError("Catalog service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -430,7 +429,7 @@ const getInventoryMap = async (productIds: string[]) => {
     return new Map(response.items.map((item) => [item.productId, item]));
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Inventory service unavailable", error.details);
+      throw new ServiceUnavailableError("Inventory service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -453,7 +452,7 @@ const reserveStock = async (productId: string, quantity: number, operationId?: s
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Inventory service unavailable", error.details);
+      throw new ServiceUnavailableError("Inventory service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -476,7 +475,7 @@ const releaseStock = async (productId: string, quantity: number, reason: string,
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Inventory service unavailable", error.details);
+      throw new ServiceUnavailableError("Inventory service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -499,7 +498,7 @@ const consumeStock = async (productId: string, quantity: number, reason: string,
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Inventory service unavailable", error.details);
+      throw new ServiceUnavailableError("Inventory service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -515,7 +514,7 @@ const getUserCart = async (userId: string) => {
     });
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Cart service unavailable", error.details);
+      throw new ServiceUnavailableError("Cart service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -538,7 +537,7 @@ const removeCheckedOutCartItems = async (
     });
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
-      throw new ServiceUnavailableError("Cart service unavailable", error.details);
+      throw new ServiceUnavailableError("Cart service unavailable", error.details, undefined, error);
     }
 
     throw error;
@@ -559,11 +558,13 @@ const createNotification = async (
       }),
     });
   } catch (error) {
-    console.error("Failed to create order notification", {
+    logger.warn({
       userId,
       type: body.type,
-      error,
-    });
+      err: error,
+      targetService: "notification-service",
+      operation: "create-notification",
+    }, "order notification failed");
   }
 };
 
@@ -601,12 +602,11 @@ export const createOrderService = async (
 
   const productIds = [...aggregatedItems.keys()];
 
-  console.info("Creating order", {
+  logger.debug({
     userId,
-    productIds,
-    catalogServiceUrl,
-    inventoryServiceUrl,
-  });
+    itemCount: productIds.length,
+    operation: "create-order",
+  }, "creating order");
 
   const products = await Promise.all(
     productIds.map(async (productId) => {
@@ -748,9 +748,7 @@ export const createOrderService = async (
 
         throw new ServiceUnavailableError("Checkout compensation failed", {
           checkoutAttemptId,
-          originalError: error instanceof Error ? error.message : "Checkout failed",
-          compensationError: compensationError instanceof Error ? compensationError.message : "Compensation failed",
-        });
+        }, undefined, compensationError);
       }
     }
 
@@ -793,8 +791,7 @@ export const checkoutOrderService = async (
         await markCompensationFailed(attempt.row.id, error);
         throw new ServiceUnavailableError("Checkout compensation failed", {
           checkoutAttemptId: attempt.row.id,
-          compensationError: error instanceof Error ? error.message : "Compensation failed",
-        });
+        }, undefined, error);
       }
 
       throw new ConflictError("Checkout failed and was compensated");
@@ -839,8 +836,7 @@ export const checkoutOrderService = async (
     } catch (error) {
       throw new ServiceUnavailableError("Checkout finalization failed", {
         checkoutAttemptId: attempt.row.id,
-        error: error instanceof Error ? error.message : "Cart finalization failed",
-      });
+      }, undefined, error);
     }
     await completeCheckoutIdempotency(attempt.row.id, order);
 

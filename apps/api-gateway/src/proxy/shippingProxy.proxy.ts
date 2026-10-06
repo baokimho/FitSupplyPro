@@ -1,3 +1,5 @@
+import { logger } from "../logger.js";
+import { logPath } from "@shared/utils";
 import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
@@ -13,17 +15,9 @@ export const shippingProxy = createProxyMiddleware<Request, Response>({
   timeout: proxyTimeoutMs,
   proxyTimeout: proxyTimeoutMs,
   on: {
-    proxyReq: (proxyReq, req) => {
-      console.info("Shipping proxy forwarding request", {
-        method: req.method,
-        originalUrl: req.originalUrl,
-        proxiedPath: req.url,
-        targetUrl: `${shippingUrl}${req.url}`,
-      });
-
-      attachUserHeaders(proxyReq, req);
-    },
-    error: (_err, _req, res) => {
+    proxyReq: attachUserHeaders,
+    error: (err, req, res) => {
+      logger.error({ err, targetService: "shipping-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503 }, "proxy request failed");
       const response = res as Response;
 
       if (response.headersSent) {

@@ -1,13 +1,16 @@
 import express from "express";
+import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import { errorHandler, createGatewaySecretMiddleware } from "@shared/utils";
+import { httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import inventoryRoutes from "./routes/inventory.route.js";
 import { connectDb } from "./config/connect-db.js";
 
 
 
 const app = express();
+
+app.use(httpLogger(logger));
 
 app.use(cors());
 app.use(express.json());
@@ -20,7 +23,7 @@ app.use((_req, res) => {
   });
 });
 
-app.use(errorHandler);
+app.use(createErrorHandler(logger));
 
 const PORT = config.port;
 
@@ -29,10 +32,10 @@ async function bootstrap() {
     await connectDb();
 
     app.listen(PORT, () => {
-      console.log(`Inventory service running on port ${PORT}`);
+      logger.info({ port: PORT }, "service started");
     });
   } catch (err) {
-    console.error("Failed to start inventory service:", err);
+    logger.fatal({ err: err }, "service startup failed");
     process.exitCode = 1;
   }
 }

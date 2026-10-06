@@ -38,3 +38,14 @@ describe("auth-service config", () => {
     expect(() => loadConfig({ ...env, [variable]: "" })).toThrow(ConfigurationError);
   });
 });
+
+describe("logging config", () => {
+  it("defaults to info and accepts debug", () => {
+    expect(loadConfig(env).logLevel).toBe("info");
+    expect(loadConfig({ ...env, LOG_LEVEL: "debug" }).logLevel).toBe("debug");
+  });
+
+  it.each(["", "unknown"])("rejects invalid LOG_LEVEL: %s", (LOG_LEVEL) => {
+    expect(() => loadConfig({ ...env, LOG_LEVEL })).toThrow(ConfigurationError);
+  });
+});

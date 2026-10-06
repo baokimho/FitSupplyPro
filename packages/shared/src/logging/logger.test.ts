@@ -53,8 +53,8 @@ describe("structured logging", () => {
   it("redacts known secret fields at root, context, headers, body, and child bindings", () => {
     const { logger, entries, lines } = capture();
     const fields = { password: "pw-secret", token: "jwt-secret", accessToken: "access-secret", refreshToken: "refresh-secret", databaseUrl: "db-secret", GATEWAY_SECRET: "internal-credential-value", JWT_PRIVATE_KEY_BASE64: "key-secret", jwtPublicKeyBase64: "public-secret", authorization: "auth-secret", cookie: "cookie-secret" };
-    logger.child({ gatewaySecret: "binding-secret" }).info({ ...fields, config: fields, req: { headers: { Authorization: "header-secret", "x-gateway-secret": "internal-secret", "set-cookie": "response-secret" }, body: fields } }, "safe event");
-    for (const value of [...Object.values(fields), "binding-secret", "header-secret", "internal-secret", "response-secret"]) expect(lines.join("")).not.toContain(value);
+    logger.child({ gatewaySecret: "binding-secret" }).info({ ...fields, config: fields, req: { headers: { Authorization: "header-secret", "x-gateway-secret": "proxy-header-credential", "x-internal-secret": "trusted-header-secret", "set-cookie": "response-secret" }, body: fields } }, "safe event");
+    for (const value of [...Object.values(fields), "binding-secret", "header-secret", "proxy-header-credential", "trusted-header-secret", "response-secret"]) expect(lines.join("")).not.toContain(value);
     expect(entries()[0]).toMatchObject({ password: "[Redacted]", gatewaySecret: "[Redacted]", req: { body: { token: "[Redacted]" } } });
     expect(fields.password).toBe("pw-secret");
   });

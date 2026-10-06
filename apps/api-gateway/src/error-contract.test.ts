@@ -5,6 +5,7 @@ import type { Options } from "http-proxy-middleware";
 import { errorHandler } from "@shared/utils";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { authLimiter } from "./middleware/rateLimit.middleware.js";
+import { logger } from "./logger.js";
 
 const mocks = vi.hoisted(() => ({ configs: [] as Array<Options<Request, Response>>, verify: vi.fn(), key: vi.fn() }));
 vi.mock("@shared/utils", async (importOriginal) => ({ ...await importOriginal<typeof import("@shared/utils")>(), verifyAuthToken: mocks.verify, createPublicKeyLoader: () => mocks.key }));
@@ -47,6 +48,7 @@ describe("gateway direct error envelopes", () => {
   });
 
   it("keeps all eight proxy-failure responses nested", () => {
+    const logged = vi.spyOn(logger, "error").mockImplementation(() => {});
     expect(mocks.configs).toHaveLength(8);
     for (const config of mocks.configs) {
       const res = { headersSent: false, status: vi.fn(), json: vi.fn() };
@@ -56,5 +58,12 @@ describe("gateway direct error envelopes", () => {
       expect(res.status).toHaveBeenCalledWith(503);
       expect(res.json).toHaveBeenCalledWith({ error: { code: "SERVICE_UNAVAILABLE", message: "Service unavailable" } });
     }
+    expect(logged).toHaveBeenCalledTimes(8);
+    for (const [context, message] of logged.mock.calls) {
+      expect(context).toMatchObject({ err: expect.any(Error), targetService: expect.stringMatching(/-service$/), operation: "proxy", statusCode: 503 });
+      expect(context).not.toHaveProperty("headers");
+      expect(message).toBe("proxy request failed");
+    }
+    logged.mockRestore();
   });
 });

@@ -1,7 +1,8 @@
 import express from "express";
+import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import { errorHandler, createGatewaySecretMiddleware } from "@shared/utils";
+import { httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import categoryRoutes from "./routes/categories.route.js";
 import brandRoutes from "./routes/brands.route.js";
 import productRoutes from "./routes/products.route.js";
@@ -10,6 +11,8 @@ import { connectDb } from "./config/connect-db.js";
 
 
 const app = express();
+
+app.use(httpLogger(logger));
 
 app.use(cors());
 app.use(express.json());
@@ -24,7 +27,7 @@ app.use((req, res) => {
   });
 });
 
-app.use(errorHandler);
+app.use(createErrorHandler(logger));
 
 const PORT = config.port;
 
@@ -33,10 +36,10 @@ async function bootstrap() {
     await connectDb();
 
     app.listen(PORT, () => {
-      console.log(`Catalog service running on port ${PORT}`);
+      logger.info({ port: PORT }, "service started");
     });
   } catch (err) {
-    console.error("Failed to start catalog service:", err);
+    logger.fatal({ err: err }, "service startup failed");
     process.exitCode = 1;
   }
 }

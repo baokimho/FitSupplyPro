@@ -347,9 +347,9 @@ describe("checkout idempotency", () => {
     failReserveProducts.add("product-2");
     failReleaseProducts.add("product-1");
 
-    await expect(
-      checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation"),
-    ).rejects.toMatchObject({ status: 503, message: "Checkout compensation failed" });
+    const failure = await checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation").catch((error: unknown) => error);
+    expect(failure).toMatchObject({ status: 503, message: "Checkout compensation failed", cause: expect.any(Error), details: { checkoutAttemptId: expect.any(String) } });
+    expect(failure).toHaveProperty("details", { checkoutAttemptId: expect.any(String) });
 
     const [failedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
     expect(failedAttempt.status).toBe("COMPENSATION_FAILED");
