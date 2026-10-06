@@ -39,7 +39,7 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:3008
     ports:
       - "3500:3000"
-    command: sh -c "npm --prefix packages/shared run build && npm --prefix apps/api-gateway run dev"
+    command: sh -c "exec node apps/api-gateway/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
@@ -76,7 +76,7 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/auth_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
-    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && node apps/auth-service/dist/index.js"
+    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && exec node apps/auth-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
@@ -97,7 +97,7 @@ services:
       PORT: 3002
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/catalog_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && exec node apps/catalog-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3002/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
@@ -118,7 +118,7 @@ services:
       PORT: 3004
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/inventory_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && exec node apps/inventory-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3004/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
@@ -143,7 +143,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:3004
       CART_SERVICE_URL: http://cart-service:3005
       NOTIFICATION_SERVICE_URL: http://notification-service:3008
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && npm --prefix apps/order-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && exec node apps/order-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3003/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s

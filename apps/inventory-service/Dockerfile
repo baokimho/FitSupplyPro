@@ -22,6 +22,9 @@ RUN npm exec --workspace inventory-service -- prisma generate \
   --config prisma.config.ts \
   --schema prisma/schema.prisma
 
+RUN npm run build --workspace @shared/utils && npm run build --workspace inventory-service
+COPY apps/inventory-service/src/generated/prisma ./apps/inventory-service/dist/generated/prisma
+
 EXPOSE 3004
 
-CMD ["npm", "--prefix", "apps/inventory-service", "run", "dev"]
+CMD ["node", "apps/inventory-service/dist/index.js"]

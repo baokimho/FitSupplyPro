@@ -21,6 +21,9 @@ COPY apps/order-service/prisma ./apps/order-service/prisma
 COPY apps/order-service/src ./apps/order-service/src
 COPY packages/shared ./packages/shared
 
+RUN npm run build --workspace @shared/utils && npm run build --workspace order-service
+COPY apps/order-service/src/generated/prisma ./apps/order-service/dist/generated/prisma
+
 EXPOSE 3003
 
-CMD ["npm", "--prefix", "apps/order-service", "run", "dev"]
+CMD ["node", "apps/order-service/dist/index.js"]

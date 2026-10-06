@@ -26,7 +26,7 @@ services:
     volumes:
       - ./apps/api-gateway/src:/app/apps/api-gateway/src
       - ./packages/shared:/app/packages/shared
-    command: npm --prefix apps/api-gateway run dev
+    command: node --import tsx apps/api-gateway/src/index.ts
     stdin_open: true
     tty: true
     depends_on:
@@ -53,7 +53,7 @@ services:
       - ./apps/auth-service/src:/app/apps/auth-service/src
       - ./apps/auth-service/prisma:/app/apps/auth-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && npm --prefix apps/auth-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/auth-service/prisma.config.ts --schema apps/auth-service/prisma/schema.prisma && exec node --import tsx apps/auth-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:
@@ -92,7 +92,7 @@ services:
       - ./apps/catalog-service/src:/app/apps/catalog-service/src
       - ./apps/catalog-service/prisma:/app/apps/catalog-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run seed && npm --prefix apps/catalog-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/catalog-service/prisma.config.ts --schema apps/catalog-service/prisma/schema.prisma && npm --prefix apps/catalog-service run seed && exec node --import tsx apps/catalog-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:
@@ -114,7 +114,7 @@ services:
       - ./apps/order-service/src:/app/apps/order-service/src
       - ./apps/order-service/prisma:/app/apps/order-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && npm --prefix apps/order-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && exec node --import tsx apps/order-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:
@@ -136,7 +136,7 @@ services:
       - ./apps/inventory-service/src:/app/apps/inventory-service/src
       - ./apps/inventory-service/prisma:/app/apps/inventory-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run seed && npm --prefix apps/inventory-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && npm --prefix apps/inventory-service run seed && exec node --import tsx apps/inventory-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:

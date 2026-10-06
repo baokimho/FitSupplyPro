@@ -23,6 +23,9 @@ RUN npm exec --workspace catalog-service -- prisma generate \
   --config prisma.config.ts \
   --schema prisma/schema.prisma
 
+RUN npm run build --workspace @shared/utils && npm run build --workspace catalog-service
+COPY apps/catalog-service/src/generated/prisma ./apps/catalog-service/dist/generated/prisma
+
 EXPOSE 3002
 
-CMD ["npm", "--prefix", "apps/catalog-service", "run", "dev"]
+CMD ["node", "apps/catalog-service/dist/index.js"]

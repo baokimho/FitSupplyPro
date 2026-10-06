@@ -1,15 +1,15 @@
 import { initializeAuthKeys } from "./services/auth.service.js";
 import express from "express";
-import { healthRouter } from "./health.js";
+import { healthRouter, readiness } from "./health.js";
 import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import prisma from "./config/db.js";
+import { closeDb } from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { startRefreshTokenCleanupJob } from "./config/refresh-token-cleanup.js";
 import { createGatewaySecretMiddleware } from "@shared/utils";
 import authRoutes from "./auth.routes.js";
-import { correlationMiddleware, httpLogger, createErrorHandler } from "@shared/utils";
+import { installShutdown, shutdownGuard, correlationMiddleware, httpLogger, createErrorHandler } from "@shared/utils";
 
 
 
@@ -18,6 +18,7 @@ const app = express();
 app.use(correlationMiddleware("service"));
 app.use(httpLogger(logger));
 app.use(healthRouter);
+app.use(shutdownGuard(readiness));
 
 app.use(cors());
 app.use(express.json());
@@ -37,29 +38,10 @@ async function bootstrap() {
     logger.info({ port: PORT }, "service started");
   });
 
-  // Graceful shutdown
-  process.on("SIGTERM", async () => {
-    logger.info({ signal: "SIGTERM" }, "shutdown requested");
-    server.close(async () => {
-      if (refreshTokenCleanupJob) {
-        clearInterval(refreshTokenCleanupJob);
-      }
-
-      await prisma.$disconnect();
-      process.exit(0);
-    });
-  });
-
-  process.on("SIGINT", async () => {
-    logger.info({ signal: "SIGINT" }, "shutdown requested");
-    server.close(async () => {
-      if (refreshTokenCleanupJob) {
-        clearInterval(refreshTokenCleanupJob);
-      }
-
-      await prisma.$disconnect();
-      process.exit(0);
-    });
+  installShutdown({
+    server, logger, state: readiness,
+    stopWork: () => { if (refreshTokenCleanupJob) clearInterval(refreshTokenCleanupJob); },
+    cleanup: [closeDb],
   });
 }
 

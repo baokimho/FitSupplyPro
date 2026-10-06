@@ -19,8 +19,8 @@ COPY apps/api-gateway/tsconfig.json ./apps/api-gateway/tsconfig.json
 COPY apps/api-gateway/src ./apps/api-gateway/src
 COPY packages/shared ./packages/shared
 
-RUN npm --prefix apps/api-gateway run build
+RUN npm run build --workspace @shared/utils && npm run build --workspace api-gateway
 
 EXPOSE 3000
 
-CMD ["npm", "--prefix", "apps/api-gateway", "run", "start"]
+CMD ["node", "apps/api-gateway/dist/index.js"]

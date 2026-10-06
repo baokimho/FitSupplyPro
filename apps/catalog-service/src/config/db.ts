@@ -23,3 +23,10 @@ if (config.nodeEnv !== "production") {
 }
 
 export default prisma;
+export async function closeDb(): Promise<void> {
+  try {
+    await prisma.$disconnect();
+  } finally {
+    await pool.end();
+  }
+}

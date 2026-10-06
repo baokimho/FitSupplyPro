@@ -564,6 +564,21 @@ never expose internal URLs or dependency diagnostics. Readiness responses have a
 fixed 3-second deadline; it bounds the response, not driver query cancellation.
 Test Compose uses `/ready` for scoped startup ordering/availability checks.
 
+Scoped services handle SIGTERM/SIGINT through shared `installShutdown`: readiness
+turns false first, new business work is rejected, the HTTP server drains, then
+Prisma and its owned PostgreSQL pool close. Auth's cleanup timer stops before
+draining. Repeated signals share one shutdown. A fixed 8-second deadline covers
+drain and cleanup; timeout/failure exits non-zero, normal shutdown exits naturally
+with code 0 after resources close. No shutdown environment variable is added.
+
+Runtime images/test Compose execute compiled Node directly (shell setup ends with
+`exec node`) so Docker SIGTERM reaches the service. Development Compose uses
+direct `node --import tsx` against mounted source for the same signal behavior;
+restart the container after source edits. Host `npm run dev --workspace <service>`
+still offers watch mode. Default Compose stop grace (10 seconds) exceeds the
+application deadline. Process lifecycle logs include service/signal, without
+invented request IDs.
+
 ## Docker Notes
 
 Service Dockerfiles install workspace dependencies from the root lockfile context and copy each workspace manifest before `npm install`. Prisma-generating images invoke Prisma through the installed workspace CLI, for example:

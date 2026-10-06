@@ -1,9 +1,10 @@
+import { closeDb } from "./config/db.js";
 import express from "express";
-import { healthRouter } from "./health.js";
+import { healthRouter, readiness } from "./health.js";
 import { logger } from "./logger.js";
 import cors from "cors";
 import { config } from "./config/index.js";
-import { correlationMiddleware, httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
+import { installShutdown, shutdownGuard, correlationMiddleware, httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import inventoryRoutes from "./routes/inventory.route.js";
 import { connectDb } from "./config/connect-db.js";
 
@@ -14,6 +15,7 @@ const app = express();
 app.use(correlationMiddleware("service"));
 app.use(httpLogger(logger));
 app.use(healthRouter);
+app.use(shutdownGuard(readiness));
 
 app.use(cors());
 app.use(express.json());
@@ -34,9 +36,10 @@ async function bootstrap() {
   try {
     await connectDb();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       logger.info({ port: PORT }, "service started");
     });
+    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
   } catch (err) {
     logger.fatal({ err: err }, "service startup failed");
     process.exitCode = 1;
