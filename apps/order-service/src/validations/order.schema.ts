@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-const maxOrderQuantity = Number.MAX_SAFE_INTEGER;
+export const maxOrderQuantity = 2_147_483_647;
+
+const orderId = z.string().trim().min(1).max(128);
 
 export const orderParamsSchema = z.object({
-  id: z.string().min(1, "Order id is required"),
+  id: orderId,
 });
 
 const trimmedString = (field: string, max: number) =>
@@ -37,8 +39,11 @@ export const createOrderSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().min(1, "Product id is required"),
-        quantity: z.coerce.number().int().positive("Quantity must be greater than 0").max(maxOrderQuantity, "Quantity is too large"),
+        productId: orderId,
+        quantity: z.preprocess(
+          (value) => typeof value === "string" ? Number(value) : value,
+          z.number().int().positive("Quantity must be greater than 0").max(maxOrderQuantity, "Quantity is too large"),
+        ),
       }),
     )
     .min(1, "Items must not be empty"),

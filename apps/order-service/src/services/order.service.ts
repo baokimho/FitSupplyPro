@@ -12,6 +12,8 @@ import {
 import { Prisma } from "../generated/prisma/index.js";
 import type { OrderStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
+import { createOrderSchema } from "../validations/order.schema.js";
+import { aggregateOrderItems } from "../domain/order-items.js";
 import type { CheckoutInput, CreateOrderInput, DeliveryDetailsInput } from "../validations/order.schema.js";
 
 type CatalogProduct = {
@@ -298,11 +300,11 @@ const completeCheckoutIdempotency = async (id: string, order: OrderResponse) => 
   `;
 };
 
-const failCheckoutIdempotency = async (id: string, error: unknown) => {
+const failCheckoutIdempotency = async (id: string, error: unknown, compensationCompleted = false) => {
   await prisma.$executeRaw`
     UPDATE "CheckoutIdempotency"
     SET "status" = 'FAILED', "errorMessage" = ${error instanceof Error ? error.message : "Checkout failed"}, "updatedAt" = NOW()
-    WHERE "id" = ${id}
+    WHERE "id" = ${id} AND (${compensationCompleted} OR "status" NOT IN ('COMPENSATION_FAILED', 'ORDER_CREATED'))
   `;
 };
 const parseReservedItems = (value: Prisma.JsonValue | null): ReservedInventoryItem[] => {
@@ -596,11 +598,8 @@ export const createOrderService = async (
   body: CreateOrderInput,
   checkoutAttemptId?: string,
 ) => {
-  const aggregatedItems = new Map<string, number>();
-
-  for (const item of body.items) {
-    aggregatedItems.set(item.productId, (aggregatedItems.get(item.productId) ?? 0) + item.quantity);
-  }
+  body = createOrderSchema.parse(body);
+  const aggregatedItems = aggregateOrderItems(body.items);
 
   const productIds = [...aggregatedItems.keys()];
 
@@ -658,17 +657,6 @@ export const createOrderService = async (
     }
   }
 
-  const reservedItems: Array<{ productId: string; quantity: number }> = [];
-
-  try {
-    for (const [productId, quantity] of aggregatedItems.entries()) {
-      await reserveStock(productId, quantity, checkoutAttemptId ? `${checkoutAttemptId}:reserve:${productId}` : undefined);
-      reservedItems.push({ productId, quantity });
-      if (checkoutAttemptId) {
-        await recordReservedItem(checkoutAttemptId, reservedItems);
-      }
-    }
-
   let totalAmount = new Prisma.Decimal(0);
 
   const itemsToCreate = [...aggregatedItems.entries()].map(([productId, quantity]) => {
@@ -697,7 +685,19 @@ export const createOrderService = async (
     };
   });
 
-    assertMoneyFits(totalAmount, "Order total");
+  assertMoneyFits(totalAmount, "Order total");
+  const reservationId = checkoutAttemptId ?? randomUUID();
+  const reservedItems: ReservedInventoryItem[] = [];
+
+  try {
+    for (const [productId, quantity] of aggregatedItems.entries()) {
+      await reserveStock(productId, quantity, `${reservationId}:reserve:${productId}`);
+      reservedItems.push({ productId, quantity });
+      if (checkoutAttemptId) {
+        await recordReservedItem(checkoutAttemptId, reservedItems);
+      }
+    }
+
     const delivery = toDeliverySnapshot(body.delivery);
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -735,25 +735,29 @@ export const createOrderService = async (
 
     return toOrderResponse(order, delivery);
   } catch (error) {
+    let compensationFailed = false;
     for (const item of [...reservedItems].reverse()) {
       try {
         await releaseStock(
           item.productId,
           item.quantity,
           "Order creation rollback",
-          checkoutAttemptId ? `${checkoutAttemptId}:release:${item.productId}` : undefined,
+          `${reservationId}:release:${item.productId}`,
         );
       } catch (compensationError) {
-        if (checkoutAttemptId) {
-          await markCompensationFailed(checkoutAttemptId, compensationError);
-        }
-
-        throw new ServiceUnavailableError("Checkout compensation failed", {
-          checkoutAttemptId,
-        }, undefined, compensationError);
+        compensationFailed = true;
+        logger.error({ err: compensationError, originalError: error, userId, reservationId,
+          productId: item.productId, quantity: item.quantity, operation: "create-order-compensation" },
+        "inventory compensation failed");
       }
     }
-
+    if (compensationFailed && checkoutAttemptId) {
+      try {
+        await markCompensationFailed(checkoutAttemptId, error);
+      } catch (stateError) {
+        logger.error({ err: stateError, checkoutAttemptId, operation: "record-compensation-failure" }, "compensation state persistence failed");
+      }
+    }
     throw error;
   }
 };
@@ -788,7 +792,7 @@ export const checkoutOrderService = async (
     if (attempt.row.status === "COMPENSATION_FAILED") {
       try {
         await compensateReservedItems(attempt.row.id, parseReservedItems(attempt.row.reservedItems));
-        await failCheckoutIdempotency(attempt.row.id, new Error("Checkout failed after compensation retry"));
+        await failCheckoutIdempotency(attempt.row.id, new Error("Checkout failed after compensation retry"), true);
       } catch (error) {
         await markCompensationFailed(attempt.row.id, error);
         throw new ServiceUnavailableError("Checkout compensation failed", {
@@ -845,7 +849,11 @@ export const checkoutOrderService = async (
     return order;
   } catch (error) {
     if (!(error instanceof Error && (error.message === "Checkout compensation failed" || error.message === "Checkout finalization failed"))) {
-      await failCheckoutIdempotency(attempt.row.id, error);
+      try {
+        await failCheckoutIdempotency(attempt.row.id, error);
+      } catch (stateError) {
+        logger.error({ err: stateError, checkoutAttemptId: attempt.row.id, operation: "record-checkout-failure" }, "checkout state persistence failed");
+      }
     }
     throw error;
   }

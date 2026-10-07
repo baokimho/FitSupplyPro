@@ -348,8 +348,7 @@ describe("checkout idempotency", () => {
     failReleaseProducts.add("product-1");
 
     const failure = await checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation").catch((error: unknown) => error);
-    expect(failure).toMatchObject({ status: 503, message: "Checkout compensation failed", cause: expect.any(Error), details: { checkoutAttemptId: expect.any(String) } });
-    expect(failure).toHaveProperty("details", { checkoutAttemptId: expect.any(String) });
+    expect(failure).toMatchObject({ status: 400, message: "Insufficient stock" });
 
     const [failedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
     expect(failedAttempt.status).toBe("COMPENSATION_FAILED");
@@ -475,7 +474,7 @@ describe("checkout idempotency", () => {
     expect(reserveCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
   });
 
-  it("rejects invalid authoritative catalog price and compensates reservation", async () => {
+  it("rejects invalid authoritative catalog price before reservation", async () => {
     setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.001", isPublished: true });
 
     await expect(
@@ -483,7 +482,8 @@ describe("checkout idempotency", () => {
     ).rejects.toMatchObject({ status: 400, message: "Product price is invalid" });
 
     expect(await countOrders()).toBe(0);
-    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(releaseCalls).toEqual([]);
+    expect(reserveCalls).toEqual([]);
     expect(removeCalls).toHaveLength(0);
   });
 
