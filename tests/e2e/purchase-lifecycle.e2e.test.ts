@@ -250,7 +250,7 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
       token: admin.accessToken,
       expected: 200,
     });
-    expect(paid.status).toBe("PAID");
+    expect(paid.status).toBe("SUCCEEDED");
 
     const confirmedOrder = await requestJson<{ status: string }>("GET", `/order/orders/${order.id}`, {
       token: customer.accessToken,

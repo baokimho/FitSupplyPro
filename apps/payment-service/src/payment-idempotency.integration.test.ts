@@ -51,7 +51,7 @@ function installFetchDouble() {
         await new Promise((resolve) => setTimeout(resolve, orderDelayMs));
       }
 
-      const id = url.endsWith(secondOrderId) ? secondOrderId : orderId;
+      const id = url.includes(secondOrderId) ? secondOrderId : orderId;
       const headers = new Headers(init?.headers);
       return jsonResponse({
         id,
@@ -119,6 +119,26 @@ beforeEach(async () => {
 });
 
 describe("payment idempotency", () => {
+  it("rejects missing Orders and another customer's Order", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "NOT_FOUND", message: "Order not found" } }, 404)));
+    await expect(createPaymentService("user-1", { orderId }, "missing")).rejects.toMatchObject({ status: 404 });
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-2", status: "PENDING", totalAmount: "19.99" })));
+    await expect(createPaymentService("user-1", { orderId }, "wrong-owner")).rejects.toMatchObject({ status: 403 });
+    expect(await countPayments()).toBe(0);
+  });
+
+  it("rejects Orders with an unfinished cancellation command", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", pendingStatus: "CANCELLED", totalAmount: "19.99" })));
+    await expect(createPaymentService("user-1", { orderId }, "pending-cancel")).rejects.toMatchObject({ status: 400 });
+    expect(await countPayments()).toBe(0);
+  });
+
+  it.each(["-0.01", "0.001", "100000000.00", "NaN"])("rejects invalid authoritative money %s", async (totalAmount) => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", totalAmount })));
+    await expect(createPaymentService("user-1", { orderId }, "bad-money")).rejects.toMatchObject({ status: 400 });
+    expect(await countPayments()).toBe(0);
+  });
+
   it("creates a payment on first successful request", async () => {
     const payment = await createPaymentService("user-1", { orderId }, "payment-key-1");
 
@@ -321,7 +341,7 @@ describe("payment idempotency", () => {
 
     const paid = await confirmPaymentService(payment.id, "user-1");
 
-    expect(paid.status).toBe("PAID");
+    expect(paid.status).toBe("SUCCEEDED");
     expect(orderConfirmCalls).toBe(1);
   });
 

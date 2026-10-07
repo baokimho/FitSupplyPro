@@ -12,10 +12,13 @@ import {
   getMyOrders,
   getOrderById,
   getInternalOrderShippingSnapshot,
+  getInternalOrderPaymentSnapshot,
 } from "../controllers/order.controller.js";
 import { checkoutSchema, createOrderSchema, orderParamsSchema } from "../validations/order.schema.js";
 
 const router = Router();
+
+router.get("/internal/orders/:id/payment-snapshot", validateRequest("params", orderParamsSchema), wrapAsync(getInternalOrderPaymentSnapshot));
 
 router.get("/internal/orders/:id/shipping-snapshot", validateRequest("params", orderParamsSchema), wrapAsync(getInternalOrderShippingSnapshot));
 router.patch("/internal/orders/:id/confirm", validateRequest("params", orderParamsSchema), wrapAsync(confirmInternalOrder));

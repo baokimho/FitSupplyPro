@@ -15,12 +15,12 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
 /**
  * Model Payment
- *
+ * 
  */
 export type Payment = $Result.DefaultSelection<Prisma.$PaymentPayload>
 /**
  * Model PaymentIdempotency
- *
+ * 
  */
 export type PaymentIdempotency = $Result.DefaultSelection<Prisma.$PaymentIdempotencyPayload>
 
@@ -30,7 +30,7 @@ export type PaymentIdempotency = $Result.DefaultSelection<Prisma.$PaymentIdempot
 export namespace $Enums {
   export const PaymentStatus: {
   PENDING: 'PENDING',
-  PAID: 'PAID',
+  SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
   CANCELLED: 'CANCELLED',
   REFUNDED: 'REFUNDED'
@@ -165,7 +165,7 @@ export class PrismaClient<
    *   prisma.user.create({ data: { name: 'Alice' } }),
    * ])
    * ```
-   *
+   * 
    * Read more in our [docs](https://www.prisma.io/docs/orm/prisma-client/queries/transactions).
    */
   $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: { maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }): $Utils.JsPromise<runtime.Types.Utils.UnwrapTuple<P>>
@@ -835,7 +835,7 @@ export namespace Prisma {
      * ```
      * // Shorthand for `emit: 'stdout'`
      * log: ['query', 'info', 'warn', 'error']
-     *
+     * 
      * // Emit as events only
      * log: [
      *   { emit: 'event', level: 'query' },
@@ -843,14 +843,14 @@ export namespace Prisma {
      *   { emit: 'event', level: 'warn' }
      *   { emit: 'event', level: 'error' }
      * ]
-     *
+     * 
      * / Emit as events and log to stdout
      * og: [
      *  { emit: 'stdout', level: 'query' },
      *  { emit: 'stdout', level: 'info' },
      *  { emit: 'stdout', level: 'warn' }
      *  { emit: 'stdout', level: 'error' }
-     *
+     * 
      * ```
      * Read more in our [docs](https://pris.ly/d/logging).
      */
@@ -875,7 +875,7 @@ export namespace Prisma {
     accelerateUrl?: string
     /**
      * Global configuration for omitting model fields by default.
-     *
+     * 
      * @example
      * ```
      * const prisma = new PrismaClient({
@@ -891,7 +891,7 @@ export namespace Prisma {
     /**
      * SQL commenter plugins that add metadata to SQL queries as comments.
      * Comments follow the sqlcommenter format: https://google.github.io/sqlcommenter/
-     *
+     * 
      * @example
      * ```
      * const prisma = new PrismaClient({
@@ -1018,6 +1018,9 @@ export namespace Prisma {
     provider: $Enums.PaymentProvider | null
     providerPaymentId: string | null
     progressState: string | null
+    pendingOperation: string | null
+    failureCode: string | null
+    orderConfirmedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1032,6 +1035,9 @@ export namespace Prisma {
     provider: $Enums.PaymentProvider | null
     providerPaymentId: string | null
     progressState: string | null
+    pendingOperation: string | null
+    failureCode: string | null
+    orderConfirmedAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1046,6 +1052,9 @@ export namespace Prisma {
     provider: number
     providerPaymentId: number
     progressState: number
+    pendingOperation: number
+    failureCode: number
+    orderConfirmedAt: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1070,6 +1079,9 @@ export namespace Prisma {
     provider?: true
     providerPaymentId?: true
     progressState?: true
+    pendingOperation?: true
+    failureCode?: true
+    orderConfirmedAt?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1084,6 +1096,9 @@ export namespace Prisma {
     provider?: true
     providerPaymentId?: true
     progressState?: true
+    pendingOperation?: true
+    failureCode?: true
+    orderConfirmedAt?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1098,6 +1113,9 @@ export namespace Prisma {
     provider?: true
     providerPaymentId?: true
     progressState?: true
+    pendingOperation?: true
+    failureCode?: true
+    orderConfirmedAt?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1110,55 +1128,55 @@ export namespace Prisma {
     where?: PaymentWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of Payments to fetch.
      */
     orderBy?: PaymentOrderByWithRelationInput | PaymentOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the start position
      */
     cursor?: PaymentWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` Payments from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` Payments.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Count returned Payments
     **/
     _count?: true | PaymentCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to average
     **/
     _avg?: PaymentAvgAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to sum
     **/
     _sum?: PaymentSumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: PaymentMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to find the maximum value
     **/
     _max?: PaymentMaxAggregateInputType
@@ -1199,6 +1217,9 @@ export namespace Prisma {
     provider: $Enums.PaymentProvider
     providerPaymentId: string | null
     progressState: string
+    pendingOperation: string | null
+    failureCode: string | null
+    orderConfirmedAt: Date | null
     createdAt: Date
     updatedAt: Date
     _count: PaymentCountAggregateOutputType | null
@@ -1232,6 +1253,9 @@ export namespace Prisma {
     provider?: boolean
     providerPaymentId?: boolean
     progressState?: boolean
+    pendingOperation?: boolean
+    failureCode?: boolean
+    orderConfirmedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["payment"]>
@@ -1246,6 +1270,9 @@ export namespace Prisma {
     provider?: boolean
     providerPaymentId?: boolean
     progressState?: boolean
+    pendingOperation?: boolean
+    failureCode?: boolean
+    orderConfirmedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["payment"]>
@@ -1260,6 +1287,9 @@ export namespace Prisma {
     provider?: boolean
     providerPaymentId?: boolean
     progressState?: boolean
+    pendingOperation?: boolean
+    failureCode?: boolean
+    orderConfirmedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["payment"]>
@@ -1274,11 +1304,14 @@ export namespace Prisma {
     provider?: boolean
     providerPaymentId?: boolean
     progressState?: boolean
+    pendingOperation?: boolean
+    failureCode?: boolean
+    orderConfirmedAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type PaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "orderId" | "amount" | "currency" | "status" | "provider" | "providerPaymentId" | "progressState" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
+  export type PaymentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "orderId" | "amount" | "currency" | "status" | "provider" | "providerPaymentId" | "progressState" | "pendingOperation" | "failureCode" | "orderConfirmedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
 
   export type $PaymentPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Payment"
@@ -1293,6 +1326,9 @@ export namespace Prisma {
       provider: $Enums.PaymentProvider
       providerPaymentId: string | null
       progressState: string
+      pendingOperation: string | null
+      failureCode: string | null
+      orderConfirmedAt: Date | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["payment"]>
@@ -1374,13 +1410,13 @@ export namespace Prisma {
      * @example
      * // Get all Payments
      * const payments = await prisma.payment.findMany()
-     *
+     * 
      * // Get first 10 Payments
      * const payments = await prisma.payment.findMany({ take: 10 })
-     *
+     * 
      * // Only select the `id`
      * const paymentWithIdOnly = await prisma.payment.findMany({ select: { id: true } })
-     *
+     * 
      */
     findMany<T extends PaymentFindManyArgs>(args?: SelectSubset<T, PaymentFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
@@ -1394,7 +1430,7 @@ export namespace Prisma {
      *     // ... data to create a Payment
      *   }
      * })
-     *
+     * 
      */
     create<T extends PaymentCreateArgs>(args: SelectSubset<T, PaymentCreateArgs<ExtArgs>>): Prisma__PaymentClient<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1408,7 +1444,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     *     
      */
     createMany<T extends PaymentCreateManyArgs>(args?: SelectSubset<T, PaymentCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1422,7 +1458,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     * 
      * // Create many Payments and only return the `id`
      * const paymentWithIdOnly = await prisma.payment.createManyAndReturn({
      *   select: { id: true },
@@ -1432,7 +1468,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     *
+     * 
      */
     createManyAndReturn<T extends PaymentCreateManyAndReturnArgs>(args?: SelectSubset<T, PaymentCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
@@ -1446,7 +1482,7 @@ export namespace Prisma {
      *     // ... filter to delete one Payment
      *   }
      * })
-     *
+     * 
      */
     delete<T extends PaymentDeleteArgs>(args: SelectSubset<T, PaymentDeleteArgs<ExtArgs>>): Prisma__PaymentClient<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1463,7 +1499,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     *
+     * 
      */
     update<T extends PaymentUpdateArgs>(args: SelectSubset<T, PaymentUpdateArgs<ExtArgs>>): Prisma__PaymentClient<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1477,7 +1513,7 @@ export namespace Prisma {
      *     // ... provide filter here
      *   }
      * })
-     *
+     * 
      */
     deleteMany<T extends PaymentDeleteManyArgs>(args?: SelectSubset<T, PaymentDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1496,7 +1532,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     *
+     * 
      */
     updateMany<T extends PaymentUpdateManyArgs>(args: SelectSubset<T, PaymentUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1513,7 +1549,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     * 
      * // Update zero or more Payments and only return the `id`
      * const paymentWithIdOnly = await prisma.payment.updateManyAndReturn({
      *   select: { id: true },
@@ -1526,7 +1562,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     *
+     * 
      */
     updateManyAndReturn<T extends PaymentUpdateManyAndReturnArgs>(args: SelectSubset<T, PaymentUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
@@ -1615,7 +1651,7 @@ export namespace Prisma {
      *     _all: true
      *   },
      * })
-     *
+     * 
     **/
     groupBy<
       T extends PaymentGroupByArgs,
@@ -1727,10 +1763,13 @@ export namespace Prisma {
     readonly provider: FieldRef<"Payment", 'PaymentProvider'>
     readonly providerPaymentId: FieldRef<"Payment", 'String'>
     readonly progressState: FieldRef<"Payment", 'String'>
+    readonly pendingOperation: FieldRef<"Payment", 'String'>
+    readonly failureCode: FieldRef<"Payment", 'String'>
+    readonly orderConfirmedAt: FieldRef<"Payment", 'DateTime'>
     readonly createdAt: FieldRef<"Payment", 'DateTime'>
     readonly updatedAt: FieldRef<"Payment", 'DateTime'>
   }
-
+    
 
   // Custom InputTypes
   /**
@@ -1787,31 +1826,31 @@ export namespace Prisma {
     where?: PaymentWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of Payments to fetch.
      */
     orderBy?: PaymentOrderByWithRelationInput | PaymentOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for searching for Payments.
      */
     cursor?: PaymentWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` Payments from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` Payments.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of Payments.
      */
     distinct?: PaymentScalarFieldEnum | PaymentScalarFieldEnum[]
@@ -1835,31 +1874,31 @@ export namespace Prisma {
     where?: PaymentWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of Payments to fetch.
      */
     orderBy?: PaymentOrderByWithRelationInput | PaymentOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for searching for Payments.
      */
     cursor?: PaymentWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` Payments from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` Payments.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of Payments.
      */
     distinct?: PaymentScalarFieldEnum | PaymentScalarFieldEnum[]
@@ -1883,31 +1922,31 @@ export namespace Prisma {
     where?: PaymentWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of Payments to fetch.
      */
     orderBy?: PaymentOrderByWithRelationInput | PaymentOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for listing Payments.
      */
     cursor?: PaymentWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` Payments from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` Payments.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of Payments.
      */
     distinct?: PaymentScalarFieldEnum | PaymentScalarFieldEnum[]
@@ -2200,43 +2239,43 @@ export namespace Prisma {
     where?: PaymentIdempotencyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of PaymentIdempotencies to fetch.
      */
     orderBy?: PaymentIdempotencyOrderByWithRelationInput | PaymentIdempotencyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the start position
      */
     cursor?: PaymentIdempotencyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` PaymentIdempotencies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` PaymentIdempotencies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Count returned PaymentIdempotencies
     **/
     _count?: true | PaymentIdempotencyCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: PaymentIdempotencyMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     *
+     * 
      * Select which fields to find the maximum value
     **/
     _max?: PaymentIdempotencyMaxAggregateInputType
@@ -2448,13 +2487,13 @@ export namespace Prisma {
      * @example
      * // Get all PaymentIdempotencies
      * const paymentIdempotencies = await prisma.paymentIdempotency.findMany()
-     *
+     * 
      * // Get first 10 PaymentIdempotencies
      * const paymentIdempotencies = await prisma.paymentIdempotency.findMany({ take: 10 })
-     *
+     * 
      * // Only select the `id`
      * const paymentIdempotencyWithIdOnly = await prisma.paymentIdempotency.findMany({ select: { id: true } })
-     *
+     * 
      */
     findMany<T extends PaymentIdempotencyFindManyArgs>(args?: SelectSubset<T, PaymentIdempotencyFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
@@ -2468,7 +2507,7 @@ export namespace Prisma {
      *     // ... data to create a PaymentIdempotency
      *   }
      * })
-     *
+     * 
      */
     create<T extends PaymentIdempotencyCreateArgs>(args: SelectSubset<T, PaymentIdempotencyCreateArgs<ExtArgs>>): Prisma__PaymentIdempotencyClient<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2482,7 +2521,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     *     
      */
     createMany<T extends PaymentIdempotencyCreateManyArgs>(args?: SelectSubset<T, PaymentIdempotencyCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2496,7 +2535,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     * 
      * // Create many PaymentIdempotencies and only return the `id`
      * const paymentIdempotencyWithIdOnly = await prisma.paymentIdempotency.createManyAndReturn({
      *   select: { id: true },
@@ -2506,7 +2545,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     *
+     * 
      */
     createManyAndReturn<T extends PaymentIdempotencyCreateManyAndReturnArgs>(args?: SelectSubset<T, PaymentIdempotencyCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
@@ -2520,7 +2559,7 @@ export namespace Prisma {
      *     // ... filter to delete one PaymentIdempotency
      *   }
      * })
-     *
+     * 
      */
     delete<T extends PaymentIdempotencyDeleteArgs>(args: SelectSubset<T, PaymentIdempotencyDeleteArgs<ExtArgs>>): Prisma__PaymentIdempotencyClient<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2537,7 +2576,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     *
+     * 
      */
     update<T extends PaymentIdempotencyUpdateArgs>(args: SelectSubset<T, PaymentIdempotencyUpdateArgs<ExtArgs>>): Prisma__PaymentIdempotencyClient<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2551,7 +2590,7 @@ export namespace Prisma {
      *     // ... provide filter here
      *   }
      * })
-     *
+     * 
      */
     deleteMany<T extends PaymentIdempotencyDeleteManyArgs>(args?: SelectSubset<T, PaymentIdempotencyDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2570,7 +2609,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     *
+     * 
      */
     updateMany<T extends PaymentIdempotencyUpdateManyArgs>(args: SelectSubset<T, PaymentIdempotencyUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2587,7 +2626,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *
+     * 
      * // Update zero or more PaymentIdempotencies and only return the `id`
      * const paymentIdempotencyWithIdOnly = await prisma.paymentIdempotency.updateManyAndReturn({
      *   select: { id: true },
@@ -2600,7 +2639,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     *
+     * 
      */
     updateManyAndReturn<T extends PaymentIdempotencyUpdateManyAndReturnArgs>(args: SelectSubset<T, PaymentIdempotencyUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentIdempotencyPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
@@ -2689,7 +2728,7 @@ export namespace Prisma {
      *     _all: true
      *   },
      * })
-     *
+     * 
     **/
     groupBy<
       T extends PaymentIdempotencyGroupByArgs,
@@ -2804,7 +2843,7 @@ export namespace Prisma {
     readonly createdAt: FieldRef<"PaymentIdempotency", 'DateTime'>
     readonly updatedAt: FieldRef<"PaymentIdempotency", 'DateTime'>
   }
-
+    
 
   // Custom InputTypes
   /**
@@ -2861,31 +2900,31 @@ export namespace Prisma {
     where?: PaymentIdempotencyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of PaymentIdempotencies to fetch.
      */
     orderBy?: PaymentIdempotencyOrderByWithRelationInput | PaymentIdempotencyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for searching for PaymentIdempotencies.
      */
     cursor?: PaymentIdempotencyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` PaymentIdempotencies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` PaymentIdempotencies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of PaymentIdempotencies.
      */
     distinct?: PaymentIdempotencyScalarFieldEnum | PaymentIdempotencyScalarFieldEnum[]
@@ -2909,31 +2948,31 @@ export namespace Prisma {
     where?: PaymentIdempotencyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of PaymentIdempotencies to fetch.
      */
     orderBy?: PaymentIdempotencyOrderByWithRelationInput | PaymentIdempotencyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for searching for PaymentIdempotencies.
      */
     cursor?: PaymentIdempotencyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` PaymentIdempotencies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` PaymentIdempotencies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of PaymentIdempotencies.
      */
     distinct?: PaymentIdempotencyScalarFieldEnum | PaymentIdempotencyScalarFieldEnum[]
@@ -2957,31 +2996,31 @@ export namespace Prisma {
     where?: PaymentIdempotencyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     *
+     * 
      * Determine the order of PaymentIdempotencies to fetch.
      */
     orderBy?: PaymentIdempotencyOrderByWithRelationInput | PaymentIdempotencyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     *
+     * 
      * Sets the position for listing PaymentIdempotencies.
      */
     cursor?: PaymentIdempotencyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Take `±n` PaymentIdempotencies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     *
+     * 
      * Skip the first `n` PaymentIdempotencies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     *
+     * 
      * Filter by unique combinations of PaymentIdempotencies.
      */
     distinct?: PaymentIdempotencyScalarFieldEnum | PaymentIdempotencyScalarFieldEnum[]
@@ -3198,6 +3237,9 @@ export namespace Prisma {
     provider: 'provider',
     providerPaymentId: 'providerPaymentId',
     progressState: 'progressState',
+    pendingOperation: 'pendingOperation',
+    failureCode: 'failureCode',
+    orderConfirmedAt: 'orderConfirmedAt',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -3272,98 +3314,98 @@ export namespace Prisma {
    * Reference to a field of type 'String'
    */
   export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String'>
-
+    
 
 
   /**
    * Reference to a field of type 'String[]'
    */
   export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String[]'>
-
+    
 
 
   /**
    * Reference to a field of type 'Decimal'
    */
   export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
-
+    
 
 
   /**
    * Reference to a field of type 'Decimal[]'
    */
   export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
-
+    
 
 
   /**
    * Reference to a field of type 'PaymentStatus'
    */
   export type EnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus'>
-
+    
 
 
   /**
    * Reference to a field of type 'PaymentStatus[]'
    */
   export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentStatus[]'>
-
+    
 
 
   /**
    * Reference to a field of type 'PaymentProvider'
    */
   export type EnumPaymentProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentProvider'>
-
+    
 
 
   /**
    * Reference to a field of type 'PaymentProvider[]'
    */
   export type ListEnumPaymentProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PaymentProvider[]'>
-
+    
 
 
   /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
-
+    
 
 
   /**
    * Reference to a field of type 'DateTime[]'
    */
   export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-
+    
 
 
   /**
    * Reference to a field of type 'Json'
    */
   export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-
+    
 
 
   /**
    * Reference to a field of type 'QueryMode'
    */
   export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-
+    
 
 
   /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-
+    
 
 
   /**
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
-
+    
   /**
    * Deep Input Types
    */
@@ -3382,6 +3424,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderFilter<"Payment"> | $Enums.PaymentProvider
     providerPaymentId?: StringNullableFilter<"Payment"> | string | null
     progressState?: StringFilter<"Payment"> | string
+    pendingOperation?: StringNullableFilter<"Payment"> | string | null
+    failureCode?: StringNullableFilter<"Payment"> | string | null
+    orderConfirmedAt?: DateTimeNullableFilter<"Payment"> | Date | string | null
     createdAt?: DateTimeFilter<"Payment"> | Date | string
     updatedAt?: DateTimeFilter<"Payment"> | Date | string
   }
@@ -3396,6 +3441,9 @@ export namespace Prisma {
     provider?: SortOrder
     providerPaymentId?: SortOrderInput | SortOrder
     progressState?: SortOrder
+    pendingOperation?: SortOrderInput | SortOrder
+    failureCode?: SortOrderInput | SortOrder
+    orderConfirmedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3413,6 +3461,9 @@ export namespace Prisma {
     status?: EnumPaymentStatusFilter<"Payment"> | $Enums.PaymentStatus
     provider?: EnumPaymentProviderFilter<"Payment"> | $Enums.PaymentProvider
     progressState?: StringFilter<"Payment"> | string
+    pendingOperation?: StringNullableFilter<"Payment"> | string | null
+    failureCode?: StringNullableFilter<"Payment"> | string | null
+    orderConfirmedAt?: DateTimeNullableFilter<"Payment"> | Date | string | null
     createdAt?: DateTimeFilter<"Payment"> | Date | string
     updatedAt?: DateTimeFilter<"Payment"> | Date | string
   }, "id" | "orderId" | "providerPaymentId">
@@ -3427,6 +3478,9 @@ export namespace Prisma {
     provider?: SortOrder
     providerPaymentId?: SortOrderInput | SortOrder
     progressState?: SortOrder
+    pendingOperation?: SortOrderInput | SortOrder
+    failureCode?: SortOrderInput | SortOrder
+    orderConfirmedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: PaymentCountOrderByAggregateInput
@@ -3449,6 +3503,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderWithAggregatesFilter<"Payment"> | $Enums.PaymentProvider
     providerPaymentId?: StringNullableWithAggregatesFilter<"Payment"> | string | null
     progressState?: StringWithAggregatesFilter<"Payment"> | string
+    pendingOperation?: StringNullableWithAggregatesFilter<"Payment"> | string | null
+    failureCode?: StringNullableWithAggregatesFilter<"Payment"> | string | null
+    orderConfirmedAt?: DateTimeNullableWithAggregatesFilter<"Payment"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Payment"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Payment"> | Date | string
   }
@@ -3546,6 +3603,9 @@ export namespace Prisma {
     provider?: $Enums.PaymentProvider
     providerPaymentId?: string | null
     progressState?: string
+    pendingOperation?: string | null
+    failureCode?: string | null
+    orderConfirmedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3560,6 +3620,9 @@ export namespace Prisma {
     provider?: $Enums.PaymentProvider
     providerPaymentId?: string | null
     progressState?: string
+    pendingOperation?: string | null
+    failureCode?: string | null
+    orderConfirmedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3574,6 +3637,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderFieldUpdateOperationsInput | $Enums.PaymentProvider
     providerPaymentId?: NullableStringFieldUpdateOperationsInput | string | null
     progressState?: StringFieldUpdateOperationsInput | string
+    pendingOperation?: NullableStringFieldUpdateOperationsInput | string | null
+    failureCode?: NullableStringFieldUpdateOperationsInput | string | null
+    orderConfirmedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3588,6 +3654,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderFieldUpdateOperationsInput | $Enums.PaymentProvider
     providerPaymentId?: NullableStringFieldUpdateOperationsInput | string | null
     progressState?: StringFieldUpdateOperationsInput | string
+    pendingOperation?: NullableStringFieldUpdateOperationsInput | string | null
+    failureCode?: NullableStringFieldUpdateOperationsInput | string | null
+    orderConfirmedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3602,6 +3671,9 @@ export namespace Prisma {
     provider?: $Enums.PaymentProvider
     providerPaymentId?: string | null
     progressState?: string
+    pendingOperation?: string | null
+    failureCode?: string | null
+    orderConfirmedAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3616,6 +3688,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderFieldUpdateOperationsInput | $Enums.PaymentProvider
     providerPaymentId?: NullableStringFieldUpdateOperationsInput | string | null
     progressState?: StringFieldUpdateOperationsInput | string
+    pendingOperation?: NullableStringFieldUpdateOperationsInput | string | null
+    failureCode?: NullableStringFieldUpdateOperationsInput | string | null
+    orderConfirmedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3630,6 +3705,9 @@ export namespace Prisma {
     provider?: EnumPaymentProviderFieldUpdateOperationsInput | $Enums.PaymentProvider
     providerPaymentId?: NullableStringFieldUpdateOperationsInput | string | null
     progressState?: StringFieldUpdateOperationsInput | string
+    pendingOperation?: NullableStringFieldUpdateOperationsInput | string | null
+    failureCode?: NullableStringFieldUpdateOperationsInput | string | null
+    orderConfirmedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3787,6 +3865,17 @@ export namespace Prisma {
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -3813,6 +3902,9 @@ export namespace Prisma {
     provider?: SortOrder
     providerPaymentId?: SortOrder
     progressState?: SortOrder
+    pendingOperation?: SortOrder
+    failureCode?: SortOrder
+    orderConfirmedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3831,6 +3923,9 @@ export namespace Prisma {
     provider?: SortOrder
     providerPaymentId?: SortOrder
     progressState?: SortOrder
+    pendingOperation?: SortOrder
+    failureCode?: SortOrder
+    orderConfirmedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3845,6 +3940,9 @@ export namespace Prisma {
     provider?: SortOrder
     providerPaymentId?: SortOrder
     progressState?: SortOrder
+    pendingOperation?: SortOrder
+    failureCode?: SortOrder
+    orderConfirmedAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -3923,6 +4021,20 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -4058,6 +4170,10 @@ export namespace Prisma {
     set?: string | null
   }
 
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -4113,6 +4229,17 @@ export namespace Prisma {
     startsWith?: string | StringFieldRefInput<$PrismaModel>
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
   export type NestedDateTimeFilter<$PrismaModel = never> = {
@@ -4216,6 +4343,20 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {

@@ -11,6 +11,7 @@ import {
   getMyOrdersService,
   getOrderByIdService,
   getOrderShippingSnapshotService,
+  getOrderPaymentSnapshotService,
 } from "../services/order.service.js";
 import type { CheckoutInput, CreateOrderInput, OrderParamsInput } from "../validations/order.schema.js";
 
@@ -83,4 +84,8 @@ export const confirmInternalOrder = async (req: Request<OrderParamsInput>, res: 
 export const getInternalOrderShippingSnapshot = async (req: Request<OrderParamsInput>, res: Response) => {
   const order = await getOrderShippingSnapshotService(getParam(req, "id"));
   res.status(StatusCodes.OK).json(order);
+};
+
+export const getInternalOrderPaymentSnapshot = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await getOrderPaymentSnapshotService(getParam(req, "id")));
 };

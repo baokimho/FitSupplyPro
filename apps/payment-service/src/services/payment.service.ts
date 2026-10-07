@@ -10,12 +10,15 @@ import { Prisma } from "../generated/prisma/index.js";
 import type { PaymentStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import type { CreatePaymentInput } from "../validations/payment.schema.js";
+import { assertPaymentTransition } from "../domain/payment-lifecycle.js";
 
 type OrderResponse = {
   id: string;
   userId: string;
   status: "PENDING" | "CONFIRMED" | "CANCELLED";
   totalAmount: number | string;
+  currency?: string;
+  pendingStatus?: string | null;
 };
 
 type PaymentWithScalars = Prisma.PaymentGetPayload<Record<string, never>>;
@@ -138,7 +141,7 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
 
 const getOrder = async (orderId: string, userId: string) => {
   try {
-    return await fetchJson<OrderResponse>(`${orderServiceUrl}/orders/${orderId}`, {
+    return await fetchJson<OrderResponse>(`${orderServiceUrl}/internal/orders/${orderId}/payment-snapshot`, {
       headers: {
         ...jsonHeaders,
         "x-user-id": userId,
@@ -333,7 +336,7 @@ export const createPaymentService = async (
       throw new ForbiddenError("Forbidden");
     }
 
-    if (order.status !== "PENDING") {
+    if (order.status !== "PENDING" || order.pendingStatus) {
       throw new BadRequestError("Order is not payable", { orderId: order.id, status: order.status });
     }
 
@@ -350,7 +353,7 @@ export const createPaymentService = async (
           userId,
           orderId: order.id,
           amount,
-          currency: paymentCurrency,
+          currency: order.currency ?? paymentCurrency,
           progressState: "CREATED",
         },
       });
@@ -397,8 +400,13 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
   ensureTransitionAllowed(payment, userId, role);
   const ownerId = payment.userId;
 
-  if (status === "PAID") {
-    if (payment.status === "PAID") {
+  const from = payment.status === "CANCELLED" ? "FAILED" : payment.status;
+  const to = status === "CANCELLED" ? "FAILED" : status;
+  assertPaymentTransition(from, to);
+  if (payment.status === status) return toPaymentResponse(payment);
+
+  if (status === "SUCCEEDED") {
+    if (payment.status === "SUCCEEDED") {
       return toPaymentResponse(payment);
     }
 
@@ -413,7 +421,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
     await confirmOrder(payment.orderId, ownerId);
   }
 
-  if (status === "REFUNDED" && payment.status !== "PAID") {
+  if (status === "REFUNDED" && payment.status !== "SUCCEEDED") {
     throw new BadRequestError("Only paid payment can be refunded");
   }
 
@@ -430,7 +438,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
   }
   const updated = await prisma.payment.update({ where: { id }, data: { status } });
 
-  if (status === "PAID") {
+  if (status === "SUCCEEDED") {
     await createNotification(ownerId, {
       type: "PAYMENT_PAID",
       title: "Payment confirmed",
@@ -450,7 +458,7 @@ const updatePaymentStatus = async (id: string, userId: string, status: PaymentSt
 };
 
 export const confirmPaymentService = async (id: string, userId: string, role?: string) =>
-  updatePaymentStatus(id, userId, "PAID", role);
+  updatePaymentStatus(id, userId, "SUCCEEDED", role);
 
 export const failPaymentService = async (id: string, userId: string, role?: string) =>
   updatePaymentStatus(id, userId, "FAILED", role);

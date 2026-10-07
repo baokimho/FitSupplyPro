@@ -950,6 +950,14 @@ const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: stri
   return toOrderResponseWithDelivery(await getOrderByIdOrThrow(id));
 };
 
+export const getOrderPaymentSnapshotService = async (id: string) => {
+  const order = await getOrderByIdOrThrow(id);
+  return {
+    id: order.id, userId: order.userId, status: order.status,
+    pendingStatus: order.pendingStatus, totalAmount: order.totalAmount.toFixed(2), currency: "USD",
+  };
+};
+
 export const cancelOrderService = async (id: string, userId: string) =>
   updateOrderStatus(id, "CANCELLED", userId);
 

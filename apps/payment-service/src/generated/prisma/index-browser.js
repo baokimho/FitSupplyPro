@@ -130,6 +130,9 @@ exports.Prisma.PaymentScalarFieldEnum = {
   provider: 'provider',
   providerPaymentId: 'providerPaymentId',
   progressState: 'progressState',
+  pendingOperation: 'pendingOperation',
+  failureCode: 'failureCode',
+  orderConfirmedAt: 'orderConfirmedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -175,7 +178,7 @@ exports.Prisma.JsonNullValueFilter = {
 };
 exports.PaymentStatus = exports.$Enums.PaymentStatus = {
   PENDING: 'PENDING',
-  PAID: 'PAID',
+  SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
   CANCELLED: 'CANCELLED',
   REFUNDED: 'REFUNDED'

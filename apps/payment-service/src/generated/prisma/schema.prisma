@@ -18,6 +18,9 @@ model Payment {
   provider          PaymentProvider @default(MOCK)
   providerPaymentId String?
   progressState     String          @default("CREATED")
+  pendingOperation  String?
+  failureCode       String?
+  orderConfirmedAt  DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -45,7 +48,7 @@ model PaymentIdempotency {
 
 enum PaymentStatus {
   PENDING
-  PAID
+  SUCCEEDED
   FAILED
   CANCELLED
   REFUNDED
