@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const gatewayUrl = process.env.API_GATEWAY_URL ?? "http://localhost:3500";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin.e2e@fitsupply.test";
@@ -153,6 +153,54 @@ async function checkout(customerToken: string, productId: string, suffix: string
 }
 
 describe("cross-service purchase lifecycle through api-gateway", () => {
+  let adminSession: AuthSession;
+  let customerSession: AuthSession;
+  let otherSession: AuthSession;
+
+  beforeAll(async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    adminSession = await login(adminEmail, adminPassword);
+    customerSession = await registerCustomer(`customer-${suffix}@example.test`);
+    otherSession = await registerCustomer(`other-${suffix}@example.test`);
+  });
+
+  it("enforces Order lifecycle and ownership independently of Payment", async () => {
+    const suffix = `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const admin = adminSession;
+    const customer = customerSession;
+    const other = otherSession;
+    const productId = await createCatalog(admin.accessToken, suffix);
+    const delivery = { recipientName: "Order Domain", contactPhone: "+358 40 1234567", addressLine1: "Street 1", city: "Helsinki", postalCode: "00100", countryCode: "FI" };
+    const create = () => requestJson<{ id: string; status: string; userId: string; totalAmount: number; items: Array<{ quantity: number }> }>("POST", "/order/orders", {
+      token: customer.accessToken,
+      body: { userId: other.user.id, totalAmount: 0, status: "DELIVERED", delivery,
+        items: [{ productId, quantity: 1, unitPrice: 0 }, { productId, quantity: 2 }] },
+    });
+    const order = await create();
+    expect(order).toMatchObject({ status: "PENDING", userId: customer.user.id, totalAmount: 37.5 });
+    expect(order.items).toHaveLength(1);
+    expect(order.items[0].quantity).toBe(3);
+    await expectStatus("GET", `/order/orders/${order.id}`, 403, other.accessToken);
+    await expectStatus("PATCH", `/order/orders/${order.id}/cancel`, 403, other.accessToken);
+    for (const command of ["confirm", "process", "ship", "deliver"]) {
+      await expectStatus("PATCH", `/order/orders/${order.id}/${command}`, 403, customer.accessToken, undefined, { "x-user-role": "ADMIN" });
+    }
+    await expectStatus("PATCH", `/order/internal/orders/${order.id}/confirm`, 403, admin.accessToken);
+    await expectStatus("PATCH", `/order/orders/${order.id}/deliver`, 409, admin.accessToken);
+    for (const [command, status] of [["confirm", "CONFIRMED"], ["process", "PROCESSING"], ["ship", "SHIPPED"], ["deliver", "DELIVERED"]]) {
+      const response = await requestJson<{ status: string }>("PATCH", `/order/orders/${order.id}/${command}`, { token: admin.accessToken });
+      expect(response.status).toBe(status);
+      if (status === "PROCESSING") await expectStatus("PATCH", `/order/orders/${order.id}/cancel`, 409, customer.accessToken);
+    }
+    await expectStatus("PATCH", `/order/orders/${order.id}/ship`, 409, admin.accessToken);
+    const cancellable = await create();
+    await requestJson("PATCH", `/order/orders/${cancellable.id}/confirm`, { token: admin.accessToken });
+    await requestJson("PATCH", `/order/orders/${cancellable.id}/cancel`, { token: customer.accessToken });
+    await expectStatus("PATCH", `/order/orders/${cancellable.id}/cancel`, 409, customer.accessToken);
+    await expectStatus("PATCH", `/order/orders/${cancellable.id}/confirm`, 409, admin.accessToken);
+    const inventory = await requestJson<{ stock: number; reservedStock: number }>("GET", `/inventory/products/${productId}`, { token: admin.accessToken });
+    expect(inventory).toMatchObject({ stock: 7, reservedStock: 0 });
+  });
   it("reports safe process health and local gateway readiness with correlation", async () => {
     expect(await requestJson("GET", "/health")).toEqual({ status: "ok", service: "api-gateway" });
     expect(await requestJson("GET", "/ready")).toEqual({ status: "ready", service: "api-gateway" });
@@ -160,8 +208,8 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
 
   it("runs happy path from auth to delivered shipment with notifications", async () => {
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const admin = await login(adminEmail, adminPassword);
-    const customer = await registerCustomer(`customer-${suffix}@example.test`);
+    const admin = adminSession;
+    const customer = customerSession;
     const productId = await createCatalog(admin.accessToken, suffix);
     const delivery = {
       recipientName: "Kim",
@@ -285,8 +333,8 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
 
   it("cancels order and releases reservation after payment failure", async () => {
     const suffix = `fail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const admin = await login(adminEmail, adminPassword);
-    const customer = await registerCustomer(`customer-${suffix}@example.test`);
+    const admin = adminSession;
+    const customer = customerSession;
     const productId = await createCatalog(admin.accessToken, suffix);
     const order = await checkout(customer.accessToken, productId, suffix, {
       recipientName: "Failure Case",
@@ -325,8 +373,7 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
   });
 
   it("preserves gateway security boundaries in the running stack", async () => {
-    const suffix = `security-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const customer = await registerCustomer(`customer-${suffix}@example.test`);
+    const customer = customerSession;
     const spoofHeaders = {
       "x-user-id": "another-user",
       "x-user-role": "ADMIN",

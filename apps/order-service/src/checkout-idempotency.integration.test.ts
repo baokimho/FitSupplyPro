@@ -213,7 +213,7 @@ beforeAll(async () => {
   app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.orderUser = { id: "user-1", role: "CUSTOMER" };
+    req.orderUser = { id: req.get("x-test-user-id") ?? "user-1", role: req.get("x-test-user-role") ?? "CUSTOMER" };
     next();
   });
   app.use(routes);
@@ -576,6 +576,185 @@ describe("checkout idempotency", () => {
     expect(cancelled.status).toBe("CANCELLED");
     expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
     expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+  });
+
+  it("runs entire lifecycle and rejects skipped, backward and terminal transitions", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    for (const command of ["ship", "deliver", "process"]) {
+      const response = await request(app).patch(`/orders/${order.id}/${command}`).set("x-test-user-role", "ADMIN").expect(409);
+      expect(response.body.error.code).toBe("INVALID_ORDER_TRANSITION");
+    }
+    for (const [command, status] of [["confirm", "CONFIRMED"], ["process", "PROCESSING"], ["ship", "SHIPPED"], ["deliver", "DELIVERED"]]) {
+      const response = await request(app).patch(`/orders/${order.id}/${command}`).set("x-test-user-id", "admin-1").set("x-test-user-role", "ADMIN").expect(200);
+      expect(response.body.status).toBe(status);
+      expect(response.body).not.toHaveProperty("pendingStatus");
+      expect(response.body).not.toHaveProperty("reservationConsumed");
+      if (status === "PROCESSING") await request(app).patch(`/orders/${order.id}/cancel`).expect(409);
+    }
+    await request(app).patch(`/orders/${order.id}/process`).set("x-test-user-role", "ADMIN").expect(409);
+    await request(app).patch(`/orders/${order.id}/cancel`).expect(409);
+    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(releaseCalls).toEqual([]);
+  });
+
+  it("cancels confirmed order and rejects terminal confirmation/repeated cancellation", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    await confirmOrderService(order.id, "admin-1", "ADMIN");
+    expect((await cancelOrderService(order.id, "user-1")).status).toBe("CANCELLED");
+    await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409 });
+    await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    expect(releaseCalls).toHaveLength(1);
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
+  });
+
+  it("isolates customer reads/cancellation and rejects customer fulfilment commands", async () => {
+    const order = await createOrderService("user-2", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const list = await request(app).get("/orders/me").expect(200);
+    expect(list.body.items).toEqual([]);
+    await request(app).get(`/orders/${order.id}`).expect(403);
+    await request(app).patch(`/orders/${order.id}/cancel`).expect(403);
+    await expect(cancelOrderService(order.id, "")).rejects.toMatchObject({ status: 403 });
+    for (const command of ["confirm", "process", "ship", "deliver"]) {
+      await request(app).patch(`/orders/${order.id}/${command}`).set("x-test-user-id", "user-2").expect(403);
+    }
+    await request(app).get("/orders/missing").expect(404);
+    expect(releaseCalls).toEqual([]);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe("PENDING");
+  });
+
+  it("serializes concurrent cancellations with at most one inventory release", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const results = await Promise.allSettled([cancelOrderService(order.id, "user-1"), cancelOrderService(order.id, "user-1")]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(releaseCalls).toHaveLength(1);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe("CANCELLED");
+  });
+
+  it("racing process/cancel cannot both mutate inventory", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    await confirmOrderService(order.id, "admin-1", "ADMIN");
+    const results = await Promise.allSettled([advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING"), cancelOrderService(order.id, "user-1")]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const stored = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(["PROCESSING", "CANCELLED"]).toContain(stored.status);
+    expect(releaseCalls.length + consumeCalls.length).toBe(1);
+    expect(inventory.get("product-1")?.reservedStock).toBe(0);
+  });
+
+  it("retains cancellation intent on partial release failure and safely retries", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }, { productId: "product-2", quantity: 1 }], delivery: defaultDelivery() });
+    failReleaseProducts.add("product-2");
+    await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 503 });
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ status: "PENDING", pendingStatus: "CANCELLED" });
+    await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    failReleaseProducts.clear();
+    await cancelOrderService(order.id, "user-1");
+    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }, { productId: "product-2", quantity: 1 }]);
+    expect(inventory.get("product-1")?.reservedStock).toBe(0);
+    expect(inventory.get("product-2")?.reservedStock).toBe(0);
+  });
+
+  it("retries lost Inventory release acknowledgement without double mutation", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const fetchImpl = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const response = await fetchImpl(input, init);
+      if (String(input).endsWith("/release")) throw new Error("Acknowledgement lost after release");
+      return response;
+    }));
+    await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 503 });
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ status: "PENDING", pendingStatus: "CANCELLED" });
+    installFetchDouble();
+    expect((await cancelOrderService(order.id, "user-1")).status).toBe("CANCELLED");
+    expect(releaseCalls).toHaveLength(1);
+  });
+
+  it("keeps durable cancellation intent when final Order DB update fails after release", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION phase3_fail_status() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'private status failure'; END $$`);
+    try {
+      await prisma.$executeRawUnsafe(`CREATE TRIGGER phase3_fail_status BEFORE UPDATE OF "status" ON "Order" FOR EACH ROW EXECUTE FUNCTION phase3_fail_status()`);
+      await expect(cancelOrderService(order.id, "user-1")).rejects.toThrow();
+      expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ status: "PENDING", pendingStatus: "CANCELLED" });
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS phase3_fail_status ON "Order"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION phase3_fail_status()');
+    }
+    await cancelOrderService(order.id, "user-1");
+    expect(releaseCalls).toHaveLength(1);
+    expect(inventory.get("product-1")?.reservedStock).toBe(0);
+  });
+
+  it("preserves historical snapshots and computes decimal totals from Catalog", async () => {
+    setProduct({ id: "product-1", name: "Original", slug: "original", price: "0.10", isPublished: true });
+    setProduct({ id: "product-2", name: "Second", slug: "second", price: "0.20", isPublished: true });
+    const response = await request(app).post("/orders").send({ userId: "spoof", status: "DELIVERED", totalAmount: 1,
+      items: [{ productId: "product-1", quantity: 3, unitPrice: 100, productName: "spoof" }, { productId: "product-2", quantity: 2 }], delivery: defaultDelivery() }).expect(201);
+    expect(response.body).toMatchObject({ userId: "user-1", status: "PENDING", totalAmount: 0.7 });
+    setProduct({ id: "product-1", name: "Changed", slug: "changed", price: "99.00", isPublished: true });
+    const read = await request(app).get(`/orders/${response.body.id}`).expect(200);
+    expect(read.body.items).toContainEqual(expect.objectContaining({ productName: "Original", productSlug: "original", unitPrice: 0.1, subtotal: 0.3 }));
+  });
+
+  it.each([[], [{ productId: "product-1", quantity: -1 }], [{ productId: "product-1", quantity: 1.5 }], [{ productId: " ", quantity: 1 }]].map((items) => ({ items })))("rejects malformed contents $items", async ({ items }) => {
+    const response = await request(app).post("/orders").send({ items, delivery: defaultDelivery() }).expect(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    expect(await countOrders()).toBe(0);
+    expect(reserveCalls).toEqual([]);
+  });
+
+  it("rejects nonexistent/unpublished products and insufficient aggregated stock", async () => {
+    await request(app).post("/orders").send({ items: [{ productId: "missing", quantity: 1 }], delivery: defaultDelivery() }).expect(404);
+    setProduct({ id: "product-2", name: "Second", slug: "second", price: "1.00", isPublished: false });
+    await request(app).post("/orders").send({ items: [{ productId: "product-2", quantity: 1 }], delivery: defaultDelivery() }).expect(400);
+    await request(app).post("/orders").send({ items: [{ productId: "product-1", quantity: 6 }, { productId: "product-1", quantity: 5 }], delivery: defaultDelivery() }).expect(400);
+    expect(await countOrders()).toBe(0);
+    expect(reserveCalls).toEqual([]);
+  });
+
+  it("rolls back real local Order/OrderItems transaction and compensates reserve on DB failure", async () => {
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION phase3_fail_delivery() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'private DB failure'; END $$`);
+    try {
+      await prisma.$executeRawUnsafe(`CREATE TRIGGER phase3_fail_delivery BEFORE UPDATE OF "recipientName" ON "Order" FOR EACH ROW EXECUTE FUNCTION phase3_fail_delivery()`);
+      const response = await request(app).post("/orders").send({ items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() }).expect(500);
+      expect(response.body).toEqual({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
+      expect(await countOrders()).toBe(0);
+      expect(await prisma.orderItem.count()).toBe(0);
+      expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+      expect(inventory.get("product-1")?.reservedStock).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS phase3_fail_delivery ON "Order"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION phase3_fail_delivery()');
+    }
+  });
+
+  it("never releases legacy confirmed stock already consumed before migration", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED", reservationConsumed: true } });
+    await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409, code: "ORDER_INVENTORY_CONSUMED" });
+    expect(releaseCalls).toEqual([]);
+    await advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING");
+    expect(consumeCalls).toEqual([]);
+  });
+
+  it("protects internal confirmation with shared secret and public confirmation with role", async () => {
+    const { createGatewaySecretMiddleware } = await import("@shared/utils");
+    const { attachOrderUser } = await import("./middleware/user-context.middleware.js");
+    const routes = (await import("./routes/order.route.js")).default;
+    const protectedApp = express();
+    protectedApp.use(createGatewaySecretMiddleware("fitsupply_test_internal_secret"));
+    protectedApp.use(attachOrderUser);
+    protectedApp.use(routes);
+    protectedApp.use(errorHandler);
+    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    await request(protectedApp).patch(`/internal/orders/${order.id}/confirm`).expect(403);
+    await request(protectedApp).patch(`/internal/orders/${order.id}/confirm`).set("x-internal-secret", "wrong").expect(403);
+    await request(protectedApp).patch(`/orders/${order.id}/confirm`).set("x-internal-secret", "fitsupply_test_internal_secret").set("x-user-id", "user-1").set("x-user-role", "CUSTOMER").expect(403);
+    for (let retry = 0; retry < 2; retry++) {
+      const response = await request(protectedApp).patch(`/internal/orders/${order.id}/confirm`).set("x-internal-secret", "fitsupply_test_internal_secret").expect(200);
+      expect(response.body.status).toBe("CONFIRMED");
+    }
+    expect(consumeCalls).toEqual([]);
   });
   it("rejects direct database writes that violate order constraints", async () => {
     await expect(

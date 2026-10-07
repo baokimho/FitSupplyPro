@@ -897,7 +897,7 @@ export const getOrderByIdService = async (id: string, userId: string) => {
 
 const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: string) => {
   const order = await getOrderByIdOrThrow(id);
-  if (ownerId) ensureOwnership(order, ownerId);
+  if (ownerId !== undefined) ensureOwnership(order, ownerId);
   assertOrderTransition(order.status, status);
   const context = { orderId: id, userId: order.userId, fromStatus: order.status, toStatus: status, operation: "transition-order" };
 
