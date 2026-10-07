@@ -21,6 +21,7 @@ const toPaymentResponse = (payment: Payment) => ({
   amount: payment.amount.toFixed(2), currency: payment.currency, status: payment.status,
   provider: payment.provider, providerPaymentId: payment.providerPaymentId,
   progressState: payment.progressState, failureCode: payment.failureCode,
+  pendingOperation: payment.pendingOperation,
   orderConfirmedAt: payment.orderConfirmedAt, createdAt: payment.createdAt, updatedAt: payment.updatedAt,
 });
 type PaymentResponse = ReturnType<typeof toPaymentResponse>;

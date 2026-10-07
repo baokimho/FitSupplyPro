@@ -2,10 +2,13 @@ import express from "express";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import request from "supertest";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import { PrismaClient } from "./generated/prisma/index.js";
 import type { confirmPaymentService as confirmPaymentServiceType, createPaymentService as createPaymentServiceType, failPaymentService as failPaymentServiceType, refundPaymentService as refundPaymentServiceType } from "./services/payment.service.js";
+import type { buildPaymentService as buildPaymentServiceType } from "./services/payment.service.js";
+import type { PaymentProvider } from "./providers/payment-provider.js";
+import { FakePaymentProvider } from "./providers/fake-payment-provider.js";
 
 let prisma: PrismaClient;
 let refundPaymentService: typeof refundPaymentServiceType;
@@ -13,6 +16,8 @@ let confirmPaymentService: typeof confirmPaymentServiceType;
 let createPaymentService: typeof createPaymentServiceType;
 let failPaymentService: typeof failPaymentServiceType;
 let app: express.Express;
+let buildPaymentService: typeof buildPaymentServiceType;
+let paymentProvider: PaymentProvider;
 
 const databaseUrl = requireTestDatabaseUrl("payment_test_db");
 const originalFetch = globalThis.fetch;
@@ -95,6 +100,8 @@ beforeAll(async () => {
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
   ({ refundPaymentService, confirmPaymentService, createPaymentService, failPaymentService } = await import("./services/payment.service.js"));
+  ({ buildPaymentService } = await import("./services/payment.service.js"));
+  ({ paymentProvider } = await import("./providers/index.js"));
 
   const routes = (await import("./routes/payment.route.js")).default;
   app = express();
@@ -119,6 +126,37 @@ beforeEach(async () => {
   secondOrderOwner = "user-1";
   installFetchDouble();
 });
+afterEach(() => vi.restoreAllMocks());
+
+async function withOtherInstance(action: (service: ReturnType<typeof buildPaymentServiceType>) => Promise<void>) {
+  const otherPool = new pg.Pool({ connectionString: databaseUrl });
+  const otherDatabase = new PrismaClient({ adapter: new PrismaPg(otherPool) });
+  try {
+    await action(buildPaymentService(otherDatabase, new FakePaymentProvider(otherDatabase)));
+  } finally {
+    await otherDatabase.$disconnect();
+    await otherPool.end();
+  }
+}
+
+// Inject an actual PostgreSQL persistence failure, scoped to this test's payment.
+async function withRejectedStatus(id: string, status: "SUCCEEDED" | "REFUNDED", action: () => Promise<void>) {
+  await prisma.$executeRawUnsafe(`CREATE FUNCTION payment_test_reject_status() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW."id" = TG_ARGV[0] AND NEW."status"::text = TG_ARGV[1] THEN
+        RAISE EXCEPTION 'injected payment persistence failure';
+      END IF;
+      RETURN NEW;
+    END; $$`);
+  await prisma.$executeRawUnsafe(`CREATE TRIGGER payment_test_reject_status BEFORE UPDATE ON "Payment"
+    FOR EACH ROW EXECUTE FUNCTION payment_test_reject_status('${id.replaceAll("'", "''")}', '${status}')`);
+  try {
+    await action();
+  } finally {
+    await prisma.$executeRawUnsafe('DROP TRIGGER payment_test_reject_status ON "Payment"');
+    await prisma.$executeRawUnsafe('DROP FUNCTION payment_test_reject_status()');
+  }
+}
 
 describe("payment idempotency", () => {
   it("rejects missing Orders and another customer's Order", async () => {
@@ -341,6 +379,7 @@ describe("payment idempotency", () => {
   });
 
   it("acknowledges payment success and confirms Order once across repeated commands", async () => {
+    const settle = vi.spyOn(paymentProvider, "settle");
     const payment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
@@ -352,6 +391,7 @@ describe("payment idempotency", () => {
     expect(paid.providerPaymentId).toBe(`fake_payment_${payment.id}`);
     await confirmPaymentService(payment.id, "user-1", "ADMIN");
     expect(orderConfirmCalls).toBe(1);
+    expect(settle).toHaveBeenCalledTimes(1);
   });
 
   it("failed provider result leaves Order pending and never confirms or cancels it", async () => {
@@ -396,6 +436,7 @@ describe("payment idempotency", () => {
   });
 
   it("only acknowledged success can be refunded, and repeated refund does not duplicate effects", async () => {
+    const refund = vi.spyOn(paymentProvider, "refund");
     const payment = await createPaymentService("user-1", { orderId }, "refund-test");
     await expect(refundPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
     await confirmPaymentService(payment.id, "user-1", "ADMIN");
@@ -404,6 +445,7 @@ describe("payment idempotency", () => {
     expect(await refundPaymentService(payment.id, "user-1", "ADMIN")).toMatchObject({ status: "REFUNDED" });
     expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
     expect(orderConfirmCalls).toBe(1);
+    expect(refund).toHaveBeenCalledTimes(1);
     await expect(confirmPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
   });
 
@@ -474,6 +516,200 @@ describe("payment idempotency", () => {
   });
 });
 
-afterAll(() => {
+describe("payment races and recovery", () => {
+  it("Payment and idempotency creation roll back together; same key remains safely retryable", async () => {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "PaymentIdempotency" ADD CONSTRAINT payment_test_create_failure
+      CHECK ("idempotencyKey" <> 'atomic-create-failure')`);
+    try {
+      await expect(createPaymentService("user-1", { orderId }, "atomic-create-failure")).rejects.toThrow();
+      expect(await countPayments()).toBe(0);
+      expect(await prisma.paymentIdempotency.count()).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe('ALTER TABLE "PaymentIdempotency" DROP CONSTRAINT payment_test_create_failure');
+    }
+    expect(await createPaymentService("user-1", { orderId }, "atomic-create-failure")).toMatchObject({ status: "PENDING" });
+    expect(await countPayments()).toBe(1);
+  });
+
+  it("same key preserves failed attempt while a fresh key creates the successful retry", async () => {
+    const first = await createPaymentService("user-1", { orderId }, "failed-attempt-key");
+    await failPaymentService(first.id, "admin", "ADMIN");
+    expect((await createPaymentService("user-1", { orderId }, "failed-attempt-key")).id).toBe(first.id);
+    expect(await countPayments()).toBe(1);
+    const retry = await createPaymentService("user-1", { orderId }, "fresh-attempt-key");
+    expect(retry.id).not.toBe(first.id);
+    expect(await confirmPaymentService(retry.id, "admin", "ADMIN")).toMatchObject({ status: "SUCCEEDED" });
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: first.id } })).resolves.toMatchObject({ status: "FAILED" });
+    expect(await countPayments()).toBe(2);
+  });
+
+  it("different create keys across instances converge on one active attempt", async () => {
+    await withOtherInstance(async (other) => {
+      const results = await Promise.all([
+        createPaymentService("user-1", { orderId }, "create-instance-a"),
+        other.create("user-1", { orderId }, "create-instance-b"),
+      ]);
+      expect(results[0].id).toBe(results[1].id);
+      expect(await countPayments()).toBe(1);
+      expect(await prisma.paymentIdempotency.count()).toBe(2);
+    });
+  });
+
+  it("same create key across instances replays without a second Order lookup", async () => {
+    orderDelayMs = 50;
+    await withOtherInstance(async (other) => {
+      const results = await Promise.all([
+        createPaymentService("user-1", { orderId }, "create-instance-same"),
+        other.create("user-1", { orderId }, "create-instance-same"),
+      ]);
+      expect(results[0].id).toBe(results[1].id);
+      expect(orderFetchCount).toBe(1);
+      expect(await countPayments()).toBe(1);
+    });
+  });
+
+  it("confirm vs confirm across instances charges and synchronizes once", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "confirm-race");
+    await withOtherInstance(async (other) => {
+      const results = await Promise.all([
+        confirmPaymentService(payment.id, "admin", "ADMIN"), other.confirm(payment.id, "admin", "ADMIN"),
+      ]);
+      expect(results.map((result) => result.status)).toEqual(["SUCCEEDED", "SUCCEEDED"]);
+      expect(orderConfirmCalls).toBe(1);
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+    });
+  });
+
+  it("confirm vs fail across instances produces one terminal outcome", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "opposite-race");
+    await withOtherInstance(async (other) => {
+      const results = await Promise.allSettled([
+        confirmPaymentService(payment.id, "admin", "ADMIN"), other.fail(payment.id, "admin", "ADMIN"),
+      ]);
+      expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+      const rejected = results.find((result) => result.status === "rejected");
+      expect(rejected?.status === "rejected" && rejected.reason).toMatchObject({ status: 409 });
+      const current = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(["SUCCEEDED", "FAILED"]).toContain(current.status);
+      expect(orderConfirmCalls).toBe(current.status === "SUCCEEDED" ? 1 : 0);
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+    });
+  });
+
+  it("refund vs refund across instances creates one refund receipt", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "refund-race");
+    await confirmPaymentService(payment.id, "admin", "ADMIN");
+    await withOtherInstance(async (other) => {
+      const results = await Promise.all([
+        refundPaymentService(payment.id, "admin", "ADMIN"), other.refund(payment.id, "admin", "ADMIN"),
+      ]);
+      expect(results.map((result) => result.status)).toEqual(["REFUNDED", "REFUNDED"]);
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+      expect(orderConfirmCalls).toBe(1);
+    });
+  });
+
+  it("provider error preserves pending state and committed intent; opposite command cannot supersede it", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "provider-error");
+    vi.spyOn(paymentProvider, "settle").mockRejectedValueOnce(new Error("provider offline"));
+    await expect(confirmPaymentService(payment.id, "admin", "ADMIN")).rejects.toThrow("provider offline");
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "PENDING", pendingOperation: "SUCCEEDED", providerPaymentId: null });
+    await expect(failPaymentService(payment.id, "admin", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    expect(orderConfirmCalls).toBe(0);
+    expect(await confirmPaymentService(payment.id, "admin", "ADMIN")).toMatchObject({ status: "SUCCEEDED" });
+  });
+
+  it("provider decline during confirmation persists FAILED and never confirms Order", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "provider-decline");
+    const settle = paymentProvider.settle.bind(paymentProvider);
+    vi.spyOn(paymentProvider, "settle").mockImplementationOnce((input) => settle(input, "FAILED"));
+    expect(await confirmPaymentService(payment.id, "admin", "ADMIN")).toMatchObject({ status: "FAILED", failureCode: "FAKE_DECLINED" });
+    expect(orderConfirmCalls).toBe(0);
+    await expect(confirmPaymentService(payment.id, "admin", "ADMIN")).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("acknowledged charge survives PostgreSQL failure and recovers across instances", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "provider-db-window");
+    await withRejectedStatus(payment.id, "SUCCEEDED", async () => {
+      await expect(confirmPaymentService(payment.id, "admin", "ADMIN")).rejects.toThrow("injected payment persistence failure");
+      await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "PENDING", pendingOperation: "SUCCEEDED", providerPaymentId: null });
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+      expect(orderConfirmCalls).toBe(0);
+    });
+    await withOtherInstance(async (other) => {
+      expect(await other.confirm(payment.id, "admin", "ADMIN")).toMatchObject({ status: "SUCCEEDED" });
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+    });
+  });
+
+  it("lost provider acknowledgement replays one charge and retains original error", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "provider-lost-response");
+    const settle = paymentProvider.settle.bind(paymentProvider);
+    vi.spyOn(paymentProvider, "settle").mockImplementationOnce(async (...args) => {
+      await settle(...args);
+      throw new Error("provider acknowledgement lost");
+    });
+    await expect(confirmPaymentService(payment.id, "admin", "ADMIN")).rejects.toThrow("provider acknowledgement lost");
+    expect(await confirmPaymentService(payment.id, "admin", "ADMIN")).toMatchObject({ status: "SUCCEEDED" });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+  });
+
+  it("lost Order response converges when Order already confirmed or advanced", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "order-lost-response");
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+      if (String(input).endsWith("/confirm")) {
+        orderConfirmCalls += 1;
+        throw new Error("Order response lost");
+      }
+      return jsonResponse({ id: orderId, userId: "user-1", status: orderConfirmCalls ? "PROCESSING" : "PENDING", totalAmount: "19.99", currency: "USD" });
+    }));
+    expect(await confirmPaymentService(payment.id, "admin", "ADMIN")).toMatchObject({ status: "SUCCEEDED", progressState: "ORDER_CONFIRMED" });
+    await confirmPaymentService(payment.id, "admin", "ADMIN");
+    expect(orderConfirmCalls).toBe(1);
+  });
+
+  it("recovery failure preserves original Order error", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "secondary-error");
+    let snapshots = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+      if (String(input).endsWith("/confirm")) return jsonResponse({ error: { code: "ORDER_CONFLICT", message: "Order was cancelled" } }, 409);
+      if (snapshots++ === 0) return jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", totalAmount: "19.99", currency: "USD" });
+      throw new Error("secondary network failure");
+    }));
+    await expect(confirmPaymentService(payment.id, "admin", "ADMIN")).rejects.toMatchObject({ status: 409, code: "ORDER_CONFLICT", message: "Order was cancelled" });
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "SUCCEEDED", orderConfirmedAt: null });
+  });
+
+  it("refund provider failure preserves success and retry completes without duplicate refund", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "refund-provider-error");
+    await confirmPaymentService(payment.id, "admin", "ADMIN");
+    const refund = vi.spyOn(paymentProvider, "refund").mockRejectedValueOnce(new Error("refund provider offline"));
+    await expect(refundPaymentService(payment.id, "admin", "ADMIN")).rejects.toThrow("refund provider offline");
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "SUCCEEDED", pendingOperation: "REFUNDED" });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(0);
+    await refundPaymentService(payment.id, "admin", "ADMIN");
+    await refundPaymentService(payment.id, "admin", "ADMIN");
+    expect(refund).toHaveBeenCalledTimes(2);
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+  });
+
+  it("acknowledged refund survives PostgreSQL failure and retry does not refund twice", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "refund-db-window");
+    await confirmPaymentService(payment.id, "admin", "ADMIN");
+    await withRejectedStatus(payment.id, "REFUNDED", async () => {
+      await expect(refundPaymentService(payment.id, "admin", "ADMIN")).rejects.toThrow("injected payment persistence failure");
+      await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "SUCCEEDED", pendingOperation: "REFUNDED" });
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+    });
+    await withOtherInstance(async (other) => {
+      expect(await other.refund(payment.id, "admin", "ADMIN")).toMatchObject({ status: "REFUNDED" });
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+    });
+  });
+});
+
+afterAll(async () => {
   vi.stubGlobal("fetch", originalFetch);
+  const { closeDb } = await import("./config/db.js");
+  await closeDb();
 });
