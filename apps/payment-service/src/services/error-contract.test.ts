@@ -17,6 +17,14 @@ vi.mock("../config/db.js", () => {
 describe("payment downstream error contract", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("retains network cause without exposing diagnostics in public details", async () => {
+    const cause = new Error("private upstream diagnostics");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw cause; }));
+    await expect(createPaymentService("user-1", { orderId: "order-1" }, "network-error")).rejects.toMatchObject({
+      status: 503, message: "Order service unavailable", cause, details: undefined,
+    });
+  });
+
   it("reads order nested message, code and details", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: "ORDER_MISSING", message: "Order absent", details: { orderId: "order-1" } } }), { status: 404 })));
     await expect(createPaymentService("user-1", { orderId: "order-1" }, "key-1")).rejects.toMatchObject({ status: 404, code: "ORDER_MISSING", message: "Order absent", details: { orderId: "order-1" } });

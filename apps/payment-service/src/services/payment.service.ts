@@ -39,7 +39,7 @@ const fetchOrderJson = async (path: string, method = "GET"): Promise<unknown> =>
     try { data = text ? JSON.parse(text) : {}; }
     catch { data = {}; }
   } catch (error) {
-    throw new ServiceUnavailableError("Order service unavailable", { cause: error instanceof Error ? error.message : "Unknown error" });
+    throw new ServiceUnavailableError("Order service unavailable", undefined, undefined, error);
   }
   if (!response.ok) {
     const envelope = z.object({ error: z.object({ message: z.string().optional(), code: z.string().optional(), details: z.unknown().optional() }) }).safeParse(data);

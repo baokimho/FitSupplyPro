@@ -17,9 +17,14 @@ COPY packages/shared/package.json ./packages/shared/package.json
 
 RUN npm install
 
-COPY apps/payment-service ./apps/payment-service
+COPY apps/payment-service/tsconfig.json ./apps/payment-service/tsconfig.json
+COPY apps/payment-service/prisma.config.ts ./apps/payment-service/prisma.config.ts
+COPY apps/payment-service/prisma ./apps/payment-service/prisma
+COPY apps/payment-service/src ./apps/payment-service/src
 COPY packages/shared ./packages/shared
 
-WORKDIR /app
+RUN npm run build --workspace @shared/utils && npm run build --workspace payment-service
 
-CMD ["npm", "--prefix", "apps/payment-service", "run", "dev"]
+EXPOSE 3006
+
+CMD ["node", "apps/payment-service/dist/index.js"]

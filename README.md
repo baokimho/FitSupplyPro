@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 3 Order domain hardening implemented. Payment lifecycle hardening belongs to Phase 4 and has not started. Frontend and fitness/nutrition product areas are not implemented in this repository yet. See [Order domain and lifecycle](docs/phase3-order-domain.md) for commands, migration guidance, concurrency, and compensation limits.
+Status: Phase 4 Payment domain complete. Phase 5 not started. Frontend and fitness/nutrition product areas are not implemented yet. See [Payment domain](docs/phase4-payment-domain.md) for provider, lifecycle, idempotency and recovery contracts, and [Order domain](docs/phase3-order-domain.md) for Order ownership and inventory policy.
 
 ## Services
 
@@ -14,7 +14,7 @@ Status: Phase 3 Order domain hardening implemented. Payment lifecycle hardening 
 | `apps/inventory-service` | Inventory records, stock adjustments, reservation, release, consume, inventory operation idempotency |
 | `apps/cart-service` | Customer carts, item snapshots, cart versioning, internal cart access for checkout |
 | `apps/order-service` | Checkout, order lifecycle, delivery snapshot, inventory orchestration, cancellation/confirmation |
-| `apps/payment-service` | Mock payment records, one payment per order, payment idempotency, authoritative state transitions |
+| `apps/payment-service` | Payment attempts/lifecycle, provider abstraction, deterministic fake provider, durable idempotency, refunds and retriable Order confirmation |
 | `apps/shipping-service` | Shipment records, one shipment per order, shipment snapshot from confirmed order, fulfillment status transitions |
 | `apps/notification-service` | Notification persistence and customer read-state |
 | `packages/shared` | Shared errors, middleware, config validation, structured logging, JWT/user header helpers, internal secret middleware |
@@ -68,7 +68,8 @@ Failure path:
 Checkout
 -> Inventory reservation
 -> Order PENDING
--> Payment FAILED or CANCELLED
+-> Payment FAILED (Order remains PENDING; fresh-key payment retry allowed)
+-> Explicit customer Order cancellation if needed
 -> Order CANCELLED
 -> Inventory reservation release
 ```
@@ -79,7 +80,7 @@ Important invariants:
 - New `CONFIRMED` orders retain reservations and remain cancellable. Legacy confirmed orders already consumed stock; migration preserves that fact and prohibits their cancellation.
 - `PROCESSING` consumes reservations and decreases stock. Cancellation is no longer allowed.
 - `CANCELLED` order means reservation was released and stock was not consumed.
-- Existing Payment confirmation still calls Order confirmation through a protected internal route. It does not consume Inventory; Order processing owns that operation.
+- Acknowledged Payment success persists before retriable protected Order confirmation. Payment failure and refund do not mutate Order lifecycle. Order processing owns Inventory consumption.
 - Shipment creation requires a confirmed order and copies immutable delivery/contact snapshot data from order-service.
 
 ## Idempotency, Concurrency, Compensation
@@ -88,7 +89,7 @@ Important invariants:
 - Payment creation uses PostgreSQL-backed idempotency scoped to authenticated user and payment creation action.
 - Request fingerprints are canonicalized so key reuse with different input returns conflict.
 - Inventory reserve/release/consume can use deterministic `operationId` values and the `InventoryOperation` table to avoid double mutation on retries.
-- Payment uniqueness is enforced by the database: one logical payment per order.
+- Payment uniqueness is enforced by PostgreSQL: one nonfailed attempt per Order. Failed attempts stay terminal; fresh-key retries create new attempts. Provider operation receipts deduplicate charges/refunds. See [Payment guarantees and limits](docs/phase4-payment-domain.md).
 - Shipment uniqueness is enforced by the database: one shipment per order.
 - Failed Order creation compensates acknowledged reservations synchronously. Cancellation/processing persist command intent before Inventory calls; partial failures require retrying the same command with the same Inventory operation IDs. This is not a distributed transaction; unresolved failures require operational reconciliation. See [limits and recovery](docs/phase3-order-domain.md#failure-and-recovery).
 
@@ -107,7 +108,7 @@ Admin users can:
 - Mutate catalog categories, brands, products, and publish state.
 - Create/update/adjust inventory.
 - Confirm, process, ship, and deliver orders through validated lifecycle commands.
-- Execute mock payment authoritative transitions.
+- Simulate provider success/failure and issue full refunds through ADMIN-only Payment commands.
 - Create shipments and update fulfillment status/tracking.
 
 Internal-only routes require `GATEWAY_SECRET` and are not publicly proxyable through the gateway. Ownership checks remain separate from RBAC: customer reads still require the resource to belong to the authenticated user.
@@ -119,7 +120,7 @@ Current schemas and migrations enforce key backend invariants:
 - Inventory stock and reserved stock are nonnegative, with atomic reserve/release/consume updates.
 - Checkout stores durable idempotency progress and delivery snapshot data.
 - Orders validate positive item quantity and nonnegative monetary totals.
-- Payments require nonblank identifiers/currency, nonnegative money, one payment per order, provider payment id uniqueness where applicable, and durable idempotency state.
+- Payments require nonblank identifiers/currency, decimal money, one nonfailed attempt per Order, provider reference uniqueness and durable idempotency/command intent.
 - Shipments require one row per order and copy delivery snapshot fields from confirmed orders.
 
 Migrations are real Prisma migrations under each service's `prisma/migrations` directory. Do not edit old migrations; add new migrations for schema changes.
@@ -616,9 +617,9 @@ Current meaningful coverage:
 - Inventory integration tests for reserve/release/consume idempotency and stock constraints.
 - Cart integration tests for version behavior.
 - Order integration tests for checkout idempotency, inventory reservation, and compensation behavior.
-- Payment integration tests for uniqueness, idempotency, constraints, and lifecycle error mapping.
+- Payment tests cover lifecycle, provider receipts, authoritative amounts, idempotent commands, multi-instance races, migration upgrades and provider/DB/Order recovery.
 - Shipping integration tests for one shipment per order, snapshot copying, status transitions, and notifications.
-- Root E2E test for complete happy path, payment failure rollback, idempotency, and focused security negatives through the API Gateway.
+- Root E2E covers purchase lifecycle, payment failure with explicit Order cancellation, fresh-attempt retry, duplicate success/refund and gateway security boundaries.
 
 Known non-blocking gaps:
 

@@ -106,6 +106,14 @@ describe("api-gateway security boundaries", () => {
 
     await request(app).post("/notification/internal/notifications").expect(403);
     await request(app).patch("/order/internal/orders/order-1/confirm").expect(403);
+    await request(app).get("/order/internal/orders/order-1/payment-snapshot").expect(403);
+  });
+
+  it.each(["confirm", "fail", "refund"])("payment %s requires authenticated admin", async (command) => {
+    const app = createGatewayApp();
+    await request(app).patch(`/payment/payments/payment-1/${command}`).set("x-user-role", "ADMIN").expect(403);
+    const response = await request(app).patch(`/payment/payments/payment-1/${command}`).set("x-test-user-role", "ADMIN").expect(200);
+    expect(response.body).toMatchObject({ service: "payment", userId: "customer-1", userRole: "ADMIN" });
   });
 
   it.each(["confirm", "process", "ship", "deliver"])("restricts order %s command to admin", async (command) => {

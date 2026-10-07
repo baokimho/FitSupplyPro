@@ -376,6 +376,37 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     await expectStatus("POST", "/shipping/shipments", 400, admin.accessToken, { orderId: order.id });
   });
 
+  it("retries failed payment attempt, confirms once, and refunds without changing Order", async () => {
+    const suffix = `payment-recovery-${Date.now()}`;
+    const productId = await createCatalog(adminSession.accessToken, suffix);
+    const order = await checkout(customerSession.accessToken, productId, suffix, {
+      recipientName: "Payment Recovery", contactPhone: "+358401234567", addressLine1: "Street 1",
+      city: "Helsinki", postalCode: "00100", countryCode: "FI",
+    });
+    type PaymentResult = { id: string; amount: string; status: string; providerPaymentId: string | null };
+    const create = (key: string) => requestJson<PaymentResult>("POST", "/payment/payments", {
+      token: customerSession.accessToken, headers: { "Idempotency-Key": key }, body: { orderId: order.id },
+    });
+    const command = (id: string, name: string) => requestJson<PaymentResult>("PATCH", `/payment/payments/${id}/${name}`, { token: adminSession.accessToken });
+    const first = await create(`${suffix}-first`);
+    expect(first.amount).toBe("37.50");
+    expect((await command(first.id, "fail")).status).toBe("FAILED");
+    expect((await command(first.id, "fail")).status).toBe("FAILED");
+    expect((await create(`${suffix}-first`)).id).toBe(first.id);
+    const retry = await create(`${suffix}-retry`);
+    expect(retry.id).not.toBe(first.id);
+    const succeeded = await command(retry.id, "confirm");
+    expect(succeeded.status).toBe("SUCCEEDED");
+    expect((await command(retry.id, "confirm")).providerPaymentId).toBe(succeeded.providerPaymentId);
+    expect((await command(retry.id, "refund")).status).toBe("REFUNDED");
+    expect((await command(retry.id, "refund")).status).toBe("REFUNDED");
+    await expectStatus("PATCH", `/payment/payments/${retry.id}/confirm`, 409, adminSession.accessToken);
+    const finalOrder = await requestJson<{ status: string }>("GET", `/order/orders/${order.id}`, { token: customerSession.accessToken });
+    expect(finalOrder.status).toBe("CONFIRMED");
+    const failedAttempt = await requestJson<PaymentResult>("GET", `/payment/payments/${first.id}`, { token: customerSession.accessToken });
+    expect(failedAttempt.status).toBe("FAILED");
+  });
+
   it("preserves gateway security boundaries in the running stack", async () => {
     const customer = customerSession;
     const spoofHeaders = {

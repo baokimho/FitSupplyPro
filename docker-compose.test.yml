@@ -198,7 +198,7 @@ services:
       GATEWAY_SECRET: fitsupply_test_internal_secret
       ORDER_SERVICE_URL: http://order-service:3003
       NOTIFICATION_SERVICE_URL: http://notification-service:3008
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && exec node --import tsx apps/payment-service/src/index.ts"
+    command: sh -c "npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && exec node apps/payment-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3006/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s

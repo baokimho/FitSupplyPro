@@ -64,9 +64,9 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 | `auth-service` | 7 files: config, logger, keys, auth errors, cleanup, probes, DB cleanup | gap: no integration tests | available |
 | `catalog-service` | 4 files: config, logger, probes, DB cleanup | gap: no integration tests | available |
 | `inventory-service` | 4 files: config, logger, probes, DB cleanup | 1 file: inventory reservations | available |
-| `order-service` | 5 files: config, logger, downstream errors, probes, DB cleanup | 1 file: checkout idempotency/lifecycle | available |
+| `order-service` | 9 files: config, logger, downstream errors, probes, DB cleanup, lifecycle, creation, payment snapshot | 1 file: checkout idempotency/lifecycle | available |
 | `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
-| `payment-service` | 1 file: error contract | 1 file: payment idempotency/lifecycle | available |
+| `payment-service` | 4 files: config, lifecycle matrix, probes, downstream errors | 3 files: commands/recovery/races, fake provider, legacy migrations | available |
 | `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
 | `notification-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
 | `@shared/utils` | 9 files: JWT, config, logging, middleware/errors, correlation, probes, shutdown | 2 files: test infrastructure/factories | available |
@@ -82,3 +82,33 @@ propagation, public request ID/CORS exposure, liveness/readiness and probe deadl
 drain rejection, real HTTP draining, duplicate signals, shutdown deadlines, and owned
 Prisma/pool cleanup. Disposable Docker checks verified all five services ready and
 clean signal exits. Unscoped service integration gaps above remain explicit.
+
+## Phase 4 closeout
+
+Payment lifecycle/provider/commands and recovery are complete; Phase 5 not started.
+See [Payment domain](docs/phase4-payment-domain.md) for guarantees, routes, retry
+contract and limitations. All following commands completed successfully:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`: **405 passed** across workspaces; Payment **23 passed**.
+- `npm run test:integration`: **151 passed**, using disposable Docker PostgreSQL;
+  Payment **51 passed** across commands/races/recovery, provider and migration tests.
+- `npm run build`: compiled Payment includes generated Prisma runtime in `dist`.
+- `npm run test:e2e`: **6 passed** against rebuilt Docker stack through Gateway.
+- `docker compose config --quiet`
+- `docker compose -p fitsupply-test -f docker-compose.test.yml config --quiet`
+
+Targeted Payment unit/integration runs also passed at every subphase. Failure-window
+tests inject real PostgreSQL write errors after provider acknowledgement and retry
+through separate Prisma connections. Tests verify duplicate success/failure/refund,
+provider decline/errors, lost responses, immutable failed attempts, atomic create,
+authoritative amount/ownership, Order convergence and preserved causal errors.
+Migration test upgrades legacy PAID/CANCELLED records and durable replay bodies.
+E2E includes fresh attempt after failure and duplicate success/refund with unchanged
+Order lifecycle after refund. Payment readiness, config, shared secret/correlation
+and Gateway role/internal-route boundaries are covered.
+
+Existing gaps: Notification unit tests; Auth/Catalog/Notification integration tests.
+The matrix reports these as gaps, not passing suites. Coverage reports were not
+generated during Phase 4. No environment-only verification failures remain.

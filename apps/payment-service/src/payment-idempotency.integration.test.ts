@@ -3,7 +3,7 @@ import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
+import { correlationMiddleware, createErrorHandler, requireTestDatabaseUrl, validCorrelationId } from "@shared/utils";
 import { PrismaClient } from "./generated/prisma/index.js";
 import type { confirmPaymentService as confirmPaymentServiceType, createPaymentService as createPaymentServiceType, failPaymentService as failPaymentServiceType, refundPaymentService as refundPaymentServiceType } from "./services/payment.service.js";
 import type { buildPaymentService as buildPaymentServiceType } from "./services/payment.service.js";
@@ -104,14 +104,16 @@ beforeAll(async () => {
   ({ paymentProvider } = await import("./providers/index.js"));
 
   const routes = (await import("./routes/payment.route.js")).default;
+  const { logger } = await import("./logger.js");
   app = express();
+  app.use(correlationMiddleware("service"));
   app.use(express.json());
   app.use((req, _res, next) => {
     req.paymentUser = { id: "user-1", role: "CUSTOMER" };
     next();
   });
   app.use(routes);
-  app.use(errorHandler);
+  app.use(createErrorHandler(logger));
 });
 
 beforeEach(async () => {
@@ -159,6 +161,20 @@ async function withRejectedStatus(id: string, status: "SUCCEEDED" | "REFUNDED", 
 }
 
 describe("payment idempotency", () => {
+  it("propagates trusted secret and correlation into authoritative Order lookup", async () => {
+    const traceId = "6a8eca39-843d-4864-bbba-bcdd32ac311d";
+    const response = await request(app).post("/payments").set("x-trace-id", traceId)
+      .set("Idempotency-Key", "correlation-create").send({ orderId }).expect(201);
+    const call = vi.mocked(globalThis.fetch).mock.calls[0];
+    const headers = new Headers(call?.[1]?.headers);
+    expect(String(call?.[0])).toContain(`/internal/orders/${orderId}/payment-snapshot`);
+    expect(headers.get("x-internal-secret")).toBe("fitsupply_test_internal_secret");
+    expect(headers.get("x-trace-id")).toBe(traceId);
+    expect(validCorrelationId(headers.get("x-request-id"))).toBe(true);
+    expect(headers.get("x-request-id")).not.toBe(response.headers["x-request-id"]);
+    expect(response.body).toMatchObject({ amount: "19.99", status: "PENDING" });
+  });
+
   it("rejects missing Orders and another customer's Order", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "NOT_FOUND", message: "Order not found" } }, 404)));
     await expect(createPaymentService("user-1", { orderId }, "missing")).rejects.toMatchObject({ status: 404 });
