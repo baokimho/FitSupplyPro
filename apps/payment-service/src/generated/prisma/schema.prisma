@@ -46,6 +46,15 @@ model PaymentIdempotency {
   @@index([paymentId])
 }
 
+// Independent fake provider receipts survive a failed Payment transaction.
+model FakeProviderOperation {
+  idempotencyKey     String   @id
+  requestFingerprint String
+  result             String
+  reference          String   @unique
+  createdAt          DateTime @default(now())
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED

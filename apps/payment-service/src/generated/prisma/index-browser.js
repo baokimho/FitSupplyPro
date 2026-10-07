@@ -151,6 +151,14 @@ exports.Prisma.PaymentIdempotencyScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.FakeProviderOperationScalarFieldEnum = {
+  idempotencyKey: 'idempotencyKey',
+  requestFingerprint: 'requestFingerprint',
+  result: 'result',
+  reference: 'reference',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -190,7 +198,8 @@ exports.PaymentProvider = exports.$Enums.PaymentProvider = {
 
 exports.Prisma.ModelName = {
   Payment: 'Payment',
-  PaymentIdempotency: 'PaymentIdempotency'
+  PaymentIdempotency: 'PaymentIdempotency',
+  FakeProviderOperation: 'FakeProviderOperation'
 };
 
 /**

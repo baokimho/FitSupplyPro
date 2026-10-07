@@ -23,6 +23,11 @@ export type Payment = $Result.DefaultSelection<Prisma.$PaymentPayload>
  * 
  */
 export type PaymentIdempotency = $Result.DefaultSelection<Prisma.$PaymentIdempotencyPayload>
+/**
+ * Model FakeProviderOperation
+ * 
+ */
+export type FakeProviderOperation = $Result.DefaultSelection<Prisma.$FakeProviderOperationPayload>
 
 /**
  * Enums
@@ -195,6 +200,16 @@ export class PrismaClient<
     * ```
     */
   get paymentIdempotency(): Prisma.PaymentIdempotencyDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.fakeProviderOperation`: Exposes CRUD operations for the **FakeProviderOperation** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more FakeProviderOperations
+    * const fakeProviderOperations = await prisma.fakeProviderOperation.findMany()
+    * ```
+    */
+  get fakeProviderOperation(): Prisma.FakeProviderOperationDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -630,7 +645,8 @@ export namespace Prisma {
 
   export const ModelName: {
     Payment: 'Payment',
-    PaymentIdempotency: 'PaymentIdempotency'
+    PaymentIdempotency: 'PaymentIdempotency',
+    FakeProviderOperation: 'FakeProviderOperation'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -646,7 +662,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "payment" | "paymentIdempotency"
+      modelProps: "payment" | "paymentIdempotency" | "fakeProviderOperation"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -798,6 +814,80 @@ export namespace Prisma {
           }
         }
       }
+      FakeProviderOperation: {
+        payload: Prisma.$FakeProviderOperationPayload<ExtArgs>
+        fields: Prisma.FakeProviderOperationFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.FakeProviderOperationFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.FakeProviderOperationFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          findFirst: {
+            args: Prisma.FakeProviderOperationFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.FakeProviderOperationFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          findMany: {
+            args: Prisma.FakeProviderOperationFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>[]
+          }
+          create: {
+            args: Prisma.FakeProviderOperationCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          createMany: {
+            args: Prisma.FakeProviderOperationCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.FakeProviderOperationCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>[]
+          }
+          delete: {
+            args: Prisma.FakeProviderOperationDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          update: {
+            args: Prisma.FakeProviderOperationUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          deleteMany: {
+            args: Prisma.FakeProviderOperationDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.FakeProviderOperationUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.FakeProviderOperationUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>[]
+          }
+          upsert: {
+            args: Prisma.FakeProviderOperationUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FakeProviderOperationPayload>
+          }
+          aggregate: {
+            args: Prisma.FakeProviderOperationAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateFakeProviderOperation>
+          }
+          groupBy: {
+            args: Prisma.FakeProviderOperationGroupByArgs<ExtArgs>
+            result: $Utils.Optional<FakeProviderOperationGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.FakeProviderOperationCountArgs<ExtArgs>
+            result: $Utils.Optional<FakeProviderOperationCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -908,6 +998,7 @@ export namespace Prisma {
   export type GlobalOmitConfig = {
     payment?: PaymentOmit
     paymentIdempotency?: PaymentIdempotencyOmit
+    fakeProviderOperation?: FakeProviderOperationOmit
   }
 
   /* Types for Logging */
@@ -3214,6 +3305,1006 @@ export namespace Prisma {
 
 
   /**
+   * Model FakeProviderOperation
+   */
+
+  export type AggregateFakeProviderOperation = {
+    _count: FakeProviderOperationCountAggregateOutputType | null
+    _min: FakeProviderOperationMinAggregateOutputType | null
+    _max: FakeProviderOperationMaxAggregateOutputType | null
+  }
+
+  export type FakeProviderOperationMinAggregateOutputType = {
+    idempotencyKey: string | null
+    requestFingerprint: string | null
+    result: string | null
+    reference: string | null
+    createdAt: Date | null
+  }
+
+  export type FakeProviderOperationMaxAggregateOutputType = {
+    idempotencyKey: string | null
+    requestFingerprint: string | null
+    result: string | null
+    reference: string | null
+    createdAt: Date | null
+  }
+
+  export type FakeProviderOperationCountAggregateOutputType = {
+    idempotencyKey: number
+    requestFingerprint: number
+    result: number
+    reference: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type FakeProviderOperationMinAggregateInputType = {
+    idempotencyKey?: true
+    requestFingerprint?: true
+    result?: true
+    reference?: true
+    createdAt?: true
+  }
+
+  export type FakeProviderOperationMaxAggregateInputType = {
+    idempotencyKey?: true
+    requestFingerprint?: true
+    result?: true
+    reference?: true
+    createdAt?: true
+  }
+
+  export type FakeProviderOperationCountAggregateInputType = {
+    idempotencyKey?: true
+    requestFingerprint?: true
+    result?: true
+    reference?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type FakeProviderOperationAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FakeProviderOperation to aggregate.
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FakeProviderOperations to fetch.
+     */
+    orderBy?: FakeProviderOperationOrderByWithRelationInput | FakeProviderOperationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: FakeProviderOperationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FakeProviderOperations from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FakeProviderOperations.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned FakeProviderOperations
+    **/
+    _count?: true | FakeProviderOperationCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: FakeProviderOperationMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: FakeProviderOperationMaxAggregateInputType
+  }
+
+  export type GetFakeProviderOperationAggregateType<T extends FakeProviderOperationAggregateArgs> = {
+        [P in keyof T & keyof AggregateFakeProviderOperation]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateFakeProviderOperation[P]>
+      : GetScalarType<T[P], AggregateFakeProviderOperation[P]>
+  }
+
+
+
+
+  export type FakeProviderOperationGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FakeProviderOperationWhereInput
+    orderBy?: FakeProviderOperationOrderByWithAggregationInput | FakeProviderOperationOrderByWithAggregationInput[]
+    by: FakeProviderOperationScalarFieldEnum[] | FakeProviderOperationScalarFieldEnum
+    having?: FakeProviderOperationScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: FakeProviderOperationCountAggregateInputType | true
+    _min?: FakeProviderOperationMinAggregateInputType
+    _max?: FakeProviderOperationMaxAggregateInputType
+  }
+
+  export type FakeProviderOperationGroupByOutputType = {
+    idempotencyKey: string
+    requestFingerprint: string
+    result: string
+    reference: string
+    createdAt: Date
+    _count: FakeProviderOperationCountAggregateOutputType | null
+    _min: FakeProviderOperationMinAggregateOutputType | null
+    _max: FakeProviderOperationMaxAggregateOutputType | null
+  }
+
+  type GetFakeProviderOperationGroupByPayload<T extends FakeProviderOperationGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<FakeProviderOperationGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof FakeProviderOperationGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], FakeProviderOperationGroupByOutputType[P]>
+            : GetScalarType<T[P], FakeProviderOperationGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type FakeProviderOperationSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    result?: boolean
+    reference?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fakeProviderOperation"]>
+
+  export type FakeProviderOperationSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    result?: boolean
+    reference?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fakeProviderOperation"]>
+
+  export type FakeProviderOperationSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    result?: boolean
+    reference?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fakeProviderOperation"]>
+
+  export type FakeProviderOperationSelectScalar = {
+    idempotencyKey?: boolean
+    requestFingerprint?: boolean
+    result?: boolean
+    reference?: boolean
+    createdAt?: boolean
+  }
+
+  export type FakeProviderOperationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"idempotencyKey" | "requestFingerprint" | "result" | "reference" | "createdAt", ExtArgs["result"]["fakeProviderOperation"]>
+
+  export type $FakeProviderOperationPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "FakeProviderOperation"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      idempotencyKey: string
+      requestFingerprint: string
+      result: string
+      reference: string
+      createdAt: Date
+    }, ExtArgs["result"]["fakeProviderOperation"]>
+    composites: {}
+  }
+
+  type FakeProviderOperationGetPayload<S extends boolean | null | undefined | FakeProviderOperationDefaultArgs> = $Result.GetResult<Prisma.$FakeProviderOperationPayload, S>
+
+  type FakeProviderOperationCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<FakeProviderOperationFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: FakeProviderOperationCountAggregateInputType | true
+    }
+
+  export interface FakeProviderOperationDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['FakeProviderOperation'], meta: { name: 'FakeProviderOperation' } }
+    /**
+     * Find zero or one FakeProviderOperation that matches the filter.
+     * @param {FakeProviderOperationFindUniqueArgs} args - Arguments to find a FakeProviderOperation
+     * @example
+     * // Get one FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends FakeProviderOperationFindUniqueArgs>(args: SelectSubset<T, FakeProviderOperationFindUniqueArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one FakeProviderOperation that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {FakeProviderOperationFindUniqueOrThrowArgs} args - Arguments to find a FakeProviderOperation
+     * @example
+     * // Get one FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends FakeProviderOperationFindUniqueOrThrowArgs>(args: SelectSubset<T, FakeProviderOperationFindUniqueOrThrowArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FakeProviderOperation that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationFindFirstArgs} args - Arguments to find a FakeProviderOperation
+     * @example
+     * // Get one FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends FakeProviderOperationFindFirstArgs>(args?: SelectSubset<T, FakeProviderOperationFindFirstArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FakeProviderOperation that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationFindFirstOrThrowArgs} args - Arguments to find a FakeProviderOperation
+     * @example
+     * // Get one FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends FakeProviderOperationFindFirstOrThrowArgs>(args?: SelectSubset<T, FakeProviderOperationFindFirstOrThrowArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more FakeProviderOperations that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all FakeProviderOperations
+     * const fakeProviderOperations = await prisma.fakeProviderOperation.findMany()
+     * 
+     * // Get first 10 FakeProviderOperations
+     * const fakeProviderOperations = await prisma.fakeProviderOperation.findMany({ take: 10 })
+     * 
+     * // Only select the `idempotencyKey`
+     * const fakeProviderOperationWithIdempotencyKeyOnly = await prisma.fakeProviderOperation.findMany({ select: { idempotencyKey: true } })
+     * 
+     */
+    findMany<T extends FakeProviderOperationFindManyArgs>(args?: SelectSubset<T, FakeProviderOperationFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a FakeProviderOperation.
+     * @param {FakeProviderOperationCreateArgs} args - Arguments to create a FakeProviderOperation.
+     * @example
+     * // Create one FakeProviderOperation
+     * const FakeProviderOperation = await prisma.fakeProviderOperation.create({
+     *   data: {
+     *     // ... data to create a FakeProviderOperation
+     *   }
+     * })
+     * 
+     */
+    create<T extends FakeProviderOperationCreateArgs>(args: SelectSubset<T, FakeProviderOperationCreateArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many FakeProviderOperations.
+     * @param {FakeProviderOperationCreateManyArgs} args - Arguments to create many FakeProviderOperations.
+     * @example
+     * // Create many FakeProviderOperations
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends FakeProviderOperationCreateManyArgs>(args?: SelectSubset<T, FakeProviderOperationCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many FakeProviderOperations and returns the data saved in the database.
+     * @param {FakeProviderOperationCreateManyAndReturnArgs} args - Arguments to create many FakeProviderOperations.
+     * @example
+     * // Create many FakeProviderOperations
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many FakeProviderOperations and only return the `idempotencyKey`
+     * const fakeProviderOperationWithIdempotencyKeyOnly = await prisma.fakeProviderOperation.createManyAndReturn({
+     *   select: { idempotencyKey: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends FakeProviderOperationCreateManyAndReturnArgs>(args?: SelectSubset<T, FakeProviderOperationCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a FakeProviderOperation.
+     * @param {FakeProviderOperationDeleteArgs} args - Arguments to delete one FakeProviderOperation.
+     * @example
+     * // Delete one FakeProviderOperation
+     * const FakeProviderOperation = await prisma.fakeProviderOperation.delete({
+     *   where: {
+     *     // ... filter to delete one FakeProviderOperation
+     *   }
+     * })
+     * 
+     */
+    delete<T extends FakeProviderOperationDeleteArgs>(args: SelectSubset<T, FakeProviderOperationDeleteArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one FakeProviderOperation.
+     * @param {FakeProviderOperationUpdateArgs} args - Arguments to update one FakeProviderOperation.
+     * @example
+     * // Update one FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends FakeProviderOperationUpdateArgs>(args: SelectSubset<T, FakeProviderOperationUpdateArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more FakeProviderOperations.
+     * @param {FakeProviderOperationDeleteManyArgs} args - Arguments to filter FakeProviderOperations to delete.
+     * @example
+     * // Delete a few FakeProviderOperations
+     * const { count } = await prisma.fakeProviderOperation.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends FakeProviderOperationDeleteManyArgs>(args?: SelectSubset<T, FakeProviderOperationDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FakeProviderOperations.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many FakeProviderOperations
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends FakeProviderOperationUpdateManyArgs>(args: SelectSubset<T, FakeProviderOperationUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FakeProviderOperations and returns the data updated in the database.
+     * @param {FakeProviderOperationUpdateManyAndReturnArgs} args - Arguments to update many FakeProviderOperations.
+     * @example
+     * // Update many FakeProviderOperations
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more FakeProviderOperations and only return the `idempotencyKey`
+     * const fakeProviderOperationWithIdempotencyKeyOnly = await prisma.fakeProviderOperation.updateManyAndReturn({
+     *   select: { idempotencyKey: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends FakeProviderOperationUpdateManyAndReturnArgs>(args: SelectSubset<T, FakeProviderOperationUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one FakeProviderOperation.
+     * @param {FakeProviderOperationUpsertArgs} args - Arguments to update or create a FakeProviderOperation.
+     * @example
+     * // Update or create a FakeProviderOperation
+     * const fakeProviderOperation = await prisma.fakeProviderOperation.upsert({
+     *   create: {
+     *     // ... data to create a FakeProviderOperation
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the FakeProviderOperation we want to update
+     *   }
+     * })
+     */
+    upsert<T extends FakeProviderOperationUpsertArgs>(args: SelectSubset<T, FakeProviderOperationUpsertArgs<ExtArgs>>): Prisma__FakeProviderOperationClient<$Result.GetResult<Prisma.$FakeProviderOperationPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of FakeProviderOperations.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationCountArgs} args - Arguments to filter FakeProviderOperations to count.
+     * @example
+     * // Count the number of FakeProviderOperations
+     * const count = await prisma.fakeProviderOperation.count({
+     *   where: {
+     *     // ... the filter for the FakeProviderOperations we want to count
+     *   }
+     * })
+    **/
+    count<T extends FakeProviderOperationCountArgs>(
+      args?: Subset<T, FakeProviderOperationCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], FakeProviderOperationCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a FakeProviderOperation.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends FakeProviderOperationAggregateArgs>(args: Subset<T, FakeProviderOperationAggregateArgs>): Prisma.PrismaPromise<GetFakeProviderOperationAggregateType<T>>
+
+    /**
+     * Group by FakeProviderOperation.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FakeProviderOperationGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends FakeProviderOperationGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: FakeProviderOperationGroupByArgs['orderBy'] }
+        : { orderBy?: FakeProviderOperationGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, FakeProviderOperationGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetFakeProviderOperationGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the FakeProviderOperation model
+   */
+  readonly fields: FakeProviderOperationFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for FakeProviderOperation.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__FakeProviderOperationClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the FakeProviderOperation model
+   */
+  interface FakeProviderOperationFieldRefs {
+    readonly idempotencyKey: FieldRef<"FakeProviderOperation", 'String'>
+    readonly requestFingerprint: FieldRef<"FakeProviderOperation", 'String'>
+    readonly result: FieldRef<"FakeProviderOperation", 'String'>
+    readonly reference: FieldRef<"FakeProviderOperation", 'String'>
+    readonly createdAt: FieldRef<"FakeProviderOperation", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * FakeProviderOperation findUnique
+   */
+  export type FakeProviderOperationFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter, which FakeProviderOperation to fetch.
+     */
+    where: FakeProviderOperationWhereUniqueInput
+  }
+
+  /**
+   * FakeProviderOperation findUniqueOrThrow
+   */
+  export type FakeProviderOperationFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter, which FakeProviderOperation to fetch.
+     */
+    where: FakeProviderOperationWhereUniqueInput
+  }
+
+  /**
+   * FakeProviderOperation findFirst
+   */
+  export type FakeProviderOperationFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter, which FakeProviderOperation to fetch.
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FakeProviderOperations to fetch.
+     */
+    orderBy?: FakeProviderOperationOrderByWithRelationInput | FakeProviderOperationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FakeProviderOperations.
+     */
+    cursor?: FakeProviderOperationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FakeProviderOperations from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FakeProviderOperations.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FakeProviderOperations.
+     */
+    distinct?: FakeProviderOperationScalarFieldEnum | FakeProviderOperationScalarFieldEnum[]
+  }
+
+  /**
+   * FakeProviderOperation findFirstOrThrow
+   */
+  export type FakeProviderOperationFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter, which FakeProviderOperation to fetch.
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FakeProviderOperations to fetch.
+     */
+    orderBy?: FakeProviderOperationOrderByWithRelationInput | FakeProviderOperationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FakeProviderOperations.
+     */
+    cursor?: FakeProviderOperationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FakeProviderOperations from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FakeProviderOperations.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FakeProviderOperations.
+     */
+    distinct?: FakeProviderOperationScalarFieldEnum | FakeProviderOperationScalarFieldEnum[]
+  }
+
+  /**
+   * FakeProviderOperation findMany
+   */
+  export type FakeProviderOperationFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter, which FakeProviderOperations to fetch.
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FakeProviderOperations to fetch.
+     */
+    orderBy?: FakeProviderOperationOrderByWithRelationInput | FakeProviderOperationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing FakeProviderOperations.
+     */
+    cursor?: FakeProviderOperationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FakeProviderOperations from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FakeProviderOperations.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FakeProviderOperations.
+     */
+    distinct?: FakeProviderOperationScalarFieldEnum | FakeProviderOperationScalarFieldEnum[]
+  }
+
+  /**
+   * FakeProviderOperation create
+   */
+  export type FakeProviderOperationCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * The data needed to create a FakeProviderOperation.
+     */
+    data: XOR<FakeProviderOperationCreateInput, FakeProviderOperationUncheckedCreateInput>
+  }
+
+  /**
+   * FakeProviderOperation createMany
+   */
+  export type FakeProviderOperationCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many FakeProviderOperations.
+     */
+    data: FakeProviderOperationCreateManyInput | FakeProviderOperationCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * FakeProviderOperation createManyAndReturn
+   */
+  export type FakeProviderOperationCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * The data used to create many FakeProviderOperations.
+     */
+    data: FakeProviderOperationCreateManyInput | FakeProviderOperationCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * FakeProviderOperation update
+   */
+  export type FakeProviderOperationUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * The data needed to update a FakeProviderOperation.
+     */
+    data: XOR<FakeProviderOperationUpdateInput, FakeProviderOperationUncheckedUpdateInput>
+    /**
+     * Choose, which FakeProviderOperation to update.
+     */
+    where: FakeProviderOperationWhereUniqueInput
+  }
+
+  /**
+   * FakeProviderOperation updateMany
+   */
+  export type FakeProviderOperationUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update FakeProviderOperations.
+     */
+    data: XOR<FakeProviderOperationUpdateManyMutationInput, FakeProviderOperationUncheckedUpdateManyInput>
+    /**
+     * Filter which FakeProviderOperations to update
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * Limit how many FakeProviderOperations to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * FakeProviderOperation updateManyAndReturn
+   */
+  export type FakeProviderOperationUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * The data used to update FakeProviderOperations.
+     */
+    data: XOR<FakeProviderOperationUpdateManyMutationInput, FakeProviderOperationUncheckedUpdateManyInput>
+    /**
+     * Filter which FakeProviderOperations to update
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * Limit how many FakeProviderOperations to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * FakeProviderOperation upsert
+   */
+  export type FakeProviderOperationUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * The filter to search for the FakeProviderOperation to update in case it exists.
+     */
+    where: FakeProviderOperationWhereUniqueInput
+    /**
+     * In case the FakeProviderOperation found by the `where` argument doesn't exist, create a new FakeProviderOperation with this data.
+     */
+    create: XOR<FakeProviderOperationCreateInput, FakeProviderOperationUncheckedCreateInput>
+    /**
+     * In case the FakeProviderOperation was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<FakeProviderOperationUpdateInput, FakeProviderOperationUncheckedUpdateInput>
+  }
+
+  /**
+   * FakeProviderOperation delete
+   */
+  export type FakeProviderOperationDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+    /**
+     * Filter which FakeProviderOperation to delete.
+     */
+    where: FakeProviderOperationWhereUniqueInput
+  }
+
+  /**
+   * FakeProviderOperation deleteMany
+   */
+  export type FakeProviderOperationDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FakeProviderOperations to delete
+     */
+    where?: FakeProviderOperationWhereInput
+    /**
+     * Limit how many FakeProviderOperations to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * FakeProviderOperation without action
+   */
+  export type FakeProviderOperationDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FakeProviderOperation
+     */
+    select?: FakeProviderOperationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FakeProviderOperation
+     */
+    omit?: FakeProviderOperationOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -3262,6 +4353,17 @@ export namespace Prisma {
   };
 
   export type PaymentIdempotencyScalarFieldEnum = (typeof PaymentIdempotencyScalarFieldEnum)[keyof typeof PaymentIdempotencyScalarFieldEnum]
+
+
+  export const FakeProviderOperationScalarFieldEnum: {
+    idempotencyKey: 'idempotencyKey',
+    requestFingerprint: 'requestFingerprint',
+    result: 'result',
+    reference: 'reference',
+    createdAt: 'createdAt'
+  };
+
+  export type FakeProviderOperationScalarFieldEnum = (typeof FakeProviderOperationScalarFieldEnum)[keyof typeof FakeProviderOperationScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -3593,6 +4695,58 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"PaymentIdempotency"> | Date | string
   }
 
+  export type FakeProviderOperationWhereInput = {
+    AND?: FakeProviderOperationWhereInput | FakeProviderOperationWhereInput[]
+    OR?: FakeProviderOperationWhereInput[]
+    NOT?: FakeProviderOperationWhereInput | FakeProviderOperationWhereInput[]
+    idempotencyKey?: StringFilter<"FakeProviderOperation"> | string
+    requestFingerprint?: StringFilter<"FakeProviderOperation"> | string
+    result?: StringFilter<"FakeProviderOperation"> | string
+    reference?: StringFilter<"FakeProviderOperation"> | string
+    createdAt?: DateTimeFilter<"FakeProviderOperation"> | Date | string
+  }
+
+  export type FakeProviderOperationOrderByWithRelationInput = {
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    result?: SortOrder
+    reference?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FakeProviderOperationWhereUniqueInput = Prisma.AtLeast<{
+    idempotencyKey?: string
+    reference?: string
+    AND?: FakeProviderOperationWhereInput | FakeProviderOperationWhereInput[]
+    OR?: FakeProviderOperationWhereInput[]
+    NOT?: FakeProviderOperationWhereInput | FakeProviderOperationWhereInput[]
+    requestFingerprint?: StringFilter<"FakeProviderOperation"> | string
+    result?: StringFilter<"FakeProviderOperation"> | string
+    createdAt?: DateTimeFilter<"FakeProviderOperation"> | Date | string
+  }, "idempotencyKey" | "reference">
+
+  export type FakeProviderOperationOrderByWithAggregationInput = {
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    result?: SortOrder
+    reference?: SortOrder
+    createdAt?: SortOrder
+    _count?: FakeProviderOperationCountOrderByAggregateInput
+    _max?: FakeProviderOperationMaxOrderByAggregateInput
+    _min?: FakeProviderOperationMinOrderByAggregateInput
+  }
+
+  export type FakeProviderOperationScalarWhereWithAggregatesInput = {
+    AND?: FakeProviderOperationScalarWhereWithAggregatesInput | FakeProviderOperationScalarWhereWithAggregatesInput[]
+    OR?: FakeProviderOperationScalarWhereWithAggregatesInput[]
+    NOT?: FakeProviderOperationScalarWhereWithAggregatesInput | FakeProviderOperationScalarWhereWithAggregatesInput[]
+    idempotencyKey?: StringWithAggregatesFilter<"FakeProviderOperation"> | string
+    requestFingerprint?: StringWithAggregatesFilter<"FakeProviderOperation"> | string
+    result?: StringWithAggregatesFilter<"FakeProviderOperation"> | string
+    reference?: StringWithAggregatesFilter<"FakeProviderOperation"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"FakeProviderOperation"> | Date | string
+  }
+
   export type PaymentCreateInput = {
     id?: string
     userId: string
@@ -3808,6 +4962,62 @@ export namespace Prisma {
     errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FakeProviderOperationCreateInput = {
+    idempotencyKey: string
+    requestFingerprint: string
+    result: string
+    reference: string
+    createdAt?: Date | string
+  }
+
+  export type FakeProviderOperationUncheckedCreateInput = {
+    idempotencyKey: string
+    requestFingerprint: string
+    result: string
+    reference: string
+    createdAt?: Date | string
+  }
+
+  export type FakeProviderOperationUpdateInput = {
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    result?: StringFieldUpdateOperationsInput | string
+    reference?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FakeProviderOperationUncheckedUpdateInput = {
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    result?: StringFieldUpdateOperationsInput | string
+    reference?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FakeProviderOperationCreateManyInput = {
+    idempotencyKey: string
+    requestFingerprint: string
+    result: string
+    reference: string
+    createdAt?: Date | string
+  }
+
+  export type FakeProviderOperationUpdateManyMutationInput = {
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    result?: StringFieldUpdateOperationsInput | string
+    reference?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FakeProviderOperationUncheckedUpdateManyInput = {
+    idempotencyKey?: StringFieldUpdateOperationsInput | string
+    requestFingerprint?: StringFieldUpdateOperationsInput | string
+    result?: StringFieldUpdateOperationsInput | string
+    reference?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -4144,6 +5354,30 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedJsonNullableFilter<$PrismaModel>
     _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
+
+  export type FakeProviderOperationCountOrderByAggregateInput = {
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    result?: SortOrder
+    reference?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FakeProviderOperationMaxOrderByAggregateInput = {
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    result?: SortOrder
+    reference?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FakeProviderOperationMinOrderByAggregateInput = {
+    idempotencyKey?: SortOrder
+    requestFingerprint?: SortOrder
+    result?: SortOrder
+    reference?: SortOrder
+    createdAt?: SortOrder
   }
 
   export type StringFieldUpdateOperationsInput = {
