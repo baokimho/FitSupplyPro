@@ -124,6 +124,8 @@ exports.Prisma.OrderScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   status: 'status',
+  pendingStatus: 'pendingStatus',
+  reservationConsumed: 'reservationConsumed',
   totalAmount: 'totalAmount',
   recipientName: 'recipientName',
   contactPhone: 'contactPhone',
@@ -194,6 +196,9 @@ exports.Prisma.JsonNullValueFilter = {
 exports.OrderStatus = exports.$Enums.OrderStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
+  PROCESSING: 'PROCESSING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
   CANCELLED: 'CANCELLED'
 };
 

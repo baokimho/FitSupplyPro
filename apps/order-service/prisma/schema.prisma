@@ -12,6 +12,8 @@ model Order {
   id          String      @id @default(uuid())
   userId      String
   status      OrderStatus @default(PENDING)
+  pendingStatus OrderStatus?
+  reservationConsumed Boolean @default(false)
   totalAmount Decimal     @db.Decimal(10, 2)
   recipientName String?
   contactPhone String?
@@ -54,6 +56,9 @@ model OrderItem {
 enum OrderStatus {
   PENDING
   CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
   CANCELLED
 }
 

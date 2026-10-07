@@ -36,6 +36,9 @@ export namespace $Enums {
   export const OrderStatus: {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
+  PROCESSING: 'PROCESSING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
   CANCELLED: 'CANCELLED'
 };
 
@@ -1129,6 +1132,8 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     status: $Enums.OrderStatus | null
+    pendingStatus: $Enums.OrderStatus | null
+    reservationConsumed: boolean | null
     totalAmount: Decimal | null
     recipientName: string | null
     contactPhone: string | null
@@ -1146,6 +1151,8 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     status: $Enums.OrderStatus | null
+    pendingStatus: $Enums.OrderStatus | null
+    reservationConsumed: boolean | null
     totalAmount: Decimal | null
     recipientName: string | null
     contactPhone: string | null
@@ -1163,6 +1170,8 @@ export namespace Prisma {
     id: number
     userId: number
     status: number
+    pendingStatus: number
+    reservationConsumed: number
     totalAmount: number
     recipientName: number
     contactPhone: number
@@ -1190,6 +1199,8 @@ export namespace Prisma {
     id?: true
     userId?: true
     status?: true
+    pendingStatus?: true
+    reservationConsumed?: true
     totalAmount?: true
     recipientName?: true
     contactPhone?: true
@@ -1207,6 +1218,8 @@ export namespace Prisma {
     id?: true
     userId?: true
     status?: true
+    pendingStatus?: true
+    reservationConsumed?: true
     totalAmount?: true
     recipientName?: true
     contactPhone?: true
@@ -1224,6 +1237,8 @@ export namespace Prisma {
     id?: true
     userId?: true
     status?: true
+    pendingStatus?: true
+    reservationConsumed?: true
     totalAmount?: true
     recipientName?: true
     contactPhone?: true
@@ -1328,6 +1343,8 @@ export namespace Prisma {
     id: string
     userId: string
     status: $Enums.OrderStatus
+    pendingStatus: $Enums.OrderStatus | null
+    reservationConsumed: boolean
     totalAmount: Decimal
     recipientName: string | null
     contactPhone: string | null
@@ -1364,6 +1381,8 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     status?: boolean
+    pendingStatus?: boolean
+    reservationConsumed?: boolean
     totalAmount?: boolean
     recipientName?: boolean
     contactPhone?: boolean
@@ -1384,6 +1403,8 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     status?: boolean
+    pendingStatus?: boolean
+    reservationConsumed?: boolean
     totalAmount?: boolean
     recipientName?: boolean
     contactPhone?: boolean
@@ -1401,6 +1422,8 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     status?: boolean
+    pendingStatus?: boolean
+    reservationConsumed?: boolean
     totalAmount?: boolean
     recipientName?: boolean
     contactPhone?: boolean
@@ -1418,6 +1441,8 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     status?: boolean
+    pendingStatus?: boolean
+    reservationConsumed?: boolean
     totalAmount?: boolean
     recipientName?: boolean
     contactPhone?: boolean
@@ -1431,7 +1456,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "status" | "totalAmount" | "recipientName" | "contactPhone" | "deliveryAddressLine1" | "deliveryAddressLine2" | "deliveryCity" | "deliveryRegion" | "deliveryPostalCode" | "deliveryCountryCode" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "status" | "pendingStatus" | "reservationConsumed" | "totalAmount" | "recipientName" | "contactPhone" | "deliveryAddressLine1" | "deliveryAddressLine2" | "deliveryCity" | "deliveryRegion" | "deliveryPostalCode" | "deliveryCountryCode" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
   export type OrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Order$itemsArgs<ExtArgs>
     idempotencyAttempts?: boolean | Order$idempotencyAttemptsArgs<ExtArgs>
@@ -1450,6 +1475,8 @@ export namespace Prisma {
       id: string
       userId: string
       status: $Enums.OrderStatus
+      pendingStatus: $Enums.OrderStatus | null
+      reservationConsumed: boolean
       totalAmount: Prisma.Decimal
       recipientName: string | null
       contactPhone: string | null
@@ -1889,6 +1916,8 @@ export namespace Prisma {
     readonly id: FieldRef<"Order", 'String'>
     readonly userId: FieldRef<"Order", 'String'>
     readonly status: FieldRef<"Order", 'OrderStatus'>
+    readonly pendingStatus: FieldRef<"Order", 'OrderStatus'>
+    readonly reservationConsumed: FieldRef<"Order", 'Boolean'>
     readonly totalAmount: FieldRef<"Order", 'Decimal'>
     readonly recipientName: FieldRef<"Order", 'String'>
     readonly contactPhone: FieldRef<"Order", 'String'>
@@ -4721,6 +4750,8 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     status: 'status',
+    pendingStatus: 'pendingStatus',
+    reservationConsumed: 'reservationConsumed',
     totalAmount: 'totalAmount',
     recipientName: 'recipientName',
     contactPhone: 'contactPhone',
@@ -4847,6 +4878,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'Decimal'
    */
   export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
@@ -4926,6 +4964,8 @@ export namespace Prisma {
     id?: StringFilter<"Order"> | string
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
+    pendingStatus?: EnumOrderStatusNullableFilter<"Order"> | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFilter<"Order"> | boolean
     totalAmount?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     recipientName?: StringNullableFilter<"Order"> | string | null
     contactPhone?: StringNullableFilter<"Order"> | string | null
@@ -4945,6 +4985,8 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
+    pendingStatus?: SortOrderInput | SortOrder
+    reservationConsumed?: SortOrder
     totalAmount?: SortOrder
     recipientName?: SortOrderInput | SortOrder
     contactPhone?: SortOrderInput | SortOrder
@@ -4967,6 +5009,8 @@ export namespace Prisma {
     NOT?: OrderWhereInput | OrderWhereInput[]
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
+    pendingStatus?: EnumOrderStatusNullableFilter<"Order"> | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFilter<"Order"> | boolean
     totalAmount?: DecimalFilter<"Order"> | Decimal | DecimalJsLike | number | string
     recipientName?: StringNullableFilter<"Order"> | string | null
     contactPhone?: StringNullableFilter<"Order"> | string | null
@@ -4986,6 +5030,8 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
+    pendingStatus?: SortOrderInput | SortOrder
+    reservationConsumed?: SortOrder
     totalAmount?: SortOrder
     recipientName?: SortOrderInput | SortOrder
     contactPhone?: SortOrderInput | SortOrder
@@ -5011,6 +5057,8 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"Order"> | string
     userId?: StringWithAggregatesFilter<"Order"> | string
     status?: EnumOrderStatusWithAggregatesFilter<"Order"> | $Enums.OrderStatus
+    pendingStatus?: EnumOrderStatusNullableWithAggregatesFilter<"Order"> | $Enums.OrderStatus | null
+    reservationConsumed?: BoolWithAggregatesFilter<"Order"> | boolean
     totalAmount?: DecimalWithAggregatesFilter<"Order"> | Decimal | DecimalJsLike | number | string
     recipientName?: StringNullableWithAggregatesFilter<"Order"> | string | null
     contactPhone?: StringNullableWithAggregatesFilter<"Order"> | string | null
@@ -5207,6 +5255,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -5226,6 +5276,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -5245,6 +5297,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -5264,6 +5318,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -5283,6 +5339,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -5300,6 +5358,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -5317,6 +5377,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -5553,6 +5615,18 @@ export namespace Prisma {
     not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
   }
 
+  export type EnumOrderStatusNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumOrderStatusNullableFilter<$PrismaModel> | $Enums.OrderStatus | null
+  }
+
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type DecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -5619,6 +5693,8 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
+    pendingStatus?: SortOrder
+    reservationConsumed?: SortOrder
     totalAmount?: SortOrder
     recipientName?: SortOrder
     contactPhone?: SortOrder
@@ -5640,6 +5716,8 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
+    pendingStatus?: SortOrder
+    reservationConsumed?: SortOrder
     totalAmount?: SortOrder
     recipientName?: SortOrder
     contactPhone?: SortOrder
@@ -5657,6 +5735,8 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
+    pendingStatus?: SortOrder
+    reservationConsumed?: SortOrder
     totalAmount?: SortOrder
     recipientName?: SortOrder
     contactPhone?: SortOrder
@@ -5700,6 +5780,24 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumOrderStatusFilter<$PrismaModel>
     _max?: NestedEnumOrderStatusFilter<$PrismaModel>
+  }
+
+  export type EnumOrderStatusNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumOrderStatusNullableWithAggregatesFilter<$PrismaModel> | $Enums.OrderStatus | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
+    _max?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type DecimalWithAggregatesFilter<$PrismaModel = never> = {
@@ -5975,6 +6073,14 @@ export namespace Prisma {
     set?: $Enums.OrderStatus
   }
 
+  export type NullableEnumOrderStatusFieldUpdateOperationsInput = {
+    set?: $Enums.OrderStatus | null
+  }
+
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type DecimalFieldUpdateOperationsInput = {
     set?: Decimal | DecimalJsLike | number | string
     increment?: Decimal | DecimalJsLike | number | string
@@ -6106,6 +6212,18 @@ export namespace Prisma {
     not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
   }
 
+  export type NestedEnumOrderStatusNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumOrderStatusNullableFilter<$PrismaModel> | $Enums.OrderStatus | null
+  }
+
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedDecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -6180,6 +6298,35 @@ export namespace Prisma {
     _max?: NestedEnumOrderStatusFilter<$PrismaModel>
   }
 
+  export type NestedEnumOrderStatusNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumOrderStatusNullableWithAggregatesFilter<$PrismaModel> | $Enums.OrderStatus | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
+    _max?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
   export type NestedDecimalWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -6211,17 +6358,6 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -6433,6 +6569,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -6451,6 +6589,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -6485,6 +6625,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -6503,6 +6645,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -6521,6 +6665,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -6539,6 +6685,8 @@ export namespace Prisma {
     id?: string
     userId: string
     status?: $Enums.OrderStatus
+    pendingStatus?: $Enums.OrderStatus | null
+    reservationConsumed?: boolean
     totalAmount: Decimal | DecimalJsLike | number | string
     recipientName?: string | null
     contactPhone?: string | null
@@ -6573,6 +6721,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -6591,6 +6741,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    pendingStatus?: NullableEnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus | null
+    reservationConsumed?: BoolFieldUpdateOperationsInput | boolean
     totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     recipientName?: NullableStringFieldUpdateOperationsInput | string | null
     contactPhone?: NullableStringFieldUpdateOperationsInput | string | null
