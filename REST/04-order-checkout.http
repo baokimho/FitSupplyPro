@@ -4,6 +4,7 @@
 @password = Password123!
 @productId = catalog-product-id
 @cartItemId = cart-item-id
+@adminAccessToken = replace-with-admin-access-token
 
 ### Login
 # @name loginUser
@@ -31,7 +32,15 @@ Authorization: Bearer {{accessToken}}
       "productId": "{{productId}}",
       "quantity": 1
     }
-  ]
+  ],
+  "delivery": {
+    "recipientName": "Test Customer",
+    "contactPhone": "+358 40 1234567",
+    "addressLine1": "Testikatu 1",
+    "city": "Helsinki",
+    "postalCode": "00100",
+    "countryCode": "FI"
+  }
 }
 
 ###
@@ -46,11 +55,23 @@ Authorization: Bearer {{accessToken}}
 GET {{gatewayBaseUrl}}/order/orders/{{orderId}}
 Authorization: Bearer {{accessToken}}
 
-### Confirm order
+### Confirm order (ADMIN; reservation retained)
 PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/confirm
-Authorization: Bearer {{accessToken}}
+Authorization: Bearer {{adminAccessToken}}
 
-### Cancel order
+### Process order (ADMIN; consumes reservation)
+PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/process
+Authorization: Bearer {{adminAccessToken}}
+
+### Ship order (ADMIN; requires PROCESSING)
+PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/ship
+Authorization: Bearer {{adminAccessToken}}
+
+### Deliver order (ADMIN; requires SHIPPED)
+PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/deliver
+Authorization: Bearer {{adminAccessToken}}
+
+### Cancel own order (PENDING/CONFIRMED only; after processing returns 409)
 PATCH {{gatewayBaseUrl}}/order/orders/{{orderId}}/cancel
 Authorization: Bearer {{accessToken}}
 
@@ -58,7 +79,16 @@ Authorization: Bearer {{accessToken}}
 POST {{gatewayBaseUrl}}/order/orders/checkout
 Content-Type: {{contentType}}
 Authorization: Bearer {{accessToken}}
+Idempotency-Key: rest-checkout-1
 
 {
-  "cartItemIds": ["{{cartItemId}}"]
+  "cartItemIds": ["{{cartItemId}}"],
+  "delivery": {
+    "recipientName": "Test Customer",
+    "contactPhone": "+358 40 1234567",
+    "addressLine1": "Testikatu 1",
+    "city": "Helsinki",
+    "postalCode": "00100",
+    "countryCode": "FI"
+  }
 }

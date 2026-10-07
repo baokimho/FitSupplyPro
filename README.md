@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: backend functional closure complete. Feature work is frozen after final verification; next phase is DevOps, deployment, observability, and documentation hardening. Frontend and fitness/nutrition product areas are not implemented in this repository yet.
+Status: Phase 3 Order domain hardening implemented. Payment lifecycle hardening belongs to Phase 4 and has not started. Frontend and fitness/nutrition product areas are not implemented in this repository yet. See [Order domain and lifecycle](docs/phase3-order-domain.md) for commands, migration guidance, concurrency, and compensation limits.
 
 ## Services
 
@@ -54,11 +54,11 @@ Auth
 -> Order PENDING
 -> Payment creation
 -> Payment confirmation
--> Inventory reservation consume
 -> Order CONFIRMED
 -> Shipment creation from order delivery snapshot
--> SHIPPED
--> DELIVERED
+-> Order PROCESSING (Inventory reservation consume)
+-> Order SHIPPED / Shipment SHIPPED
+-> Order DELIVERED / Shipment DELIVERED
 -> Customer notifications
 ```
 
@@ -76,9 +76,10 @@ Checkout
 Important invariants:
 
 - `PENDING` order means inventory is reserved but stock is not consumed.
-- `CONFIRMED` order means reservation was consumed and stock decreased.
+- New `CONFIRMED` orders retain reservations and remain cancellable. Legacy confirmed orders already consumed stock; migration preserves that fact and prohibits their cancellation.
+- `PROCESSING` consumes reservations and decreases stock. Cancellation is no longer allowed.
 - `CANCELLED` order means reservation was released and stock was not consumed.
-- Payment is not marked `PAID` unless downstream order confirmation and inventory consumption succeed.
+- Existing Payment confirmation still calls Order confirmation through a protected internal route. It does not consume Inventory; Order processing owns that operation.
 - Shipment creation requires a confirmed order and copies immutable delivery/contact snapshot data from order-service.
 
 ## Idempotency, Concurrency, Compensation
@@ -89,7 +90,7 @@ Important invariants:
 - Inventory reserve/release/consume can use deterministic `operationId` values and the `InventoryOperation` table to avoid double mutation on retries.
 - Payment uniqueness is enforced by the database: one logical payment per order.
 - Shipment uniqueness is enforced by the database: one shipment per order.
-- Checkout and order lifecycle use retry-safe compensation instead of distributed transactions. If a multi-step downstream operation fails, completed inventory mutations are released or compensated through idempotent operations where the domain allows it.
+- Failed Order creation compensates acknowledged reservations synchronously. Cancellation/processing persist command intent before Inventory calls; partial failures require retrying the same command with the same Inventory operation IDs. This is not a distributed transaction; unresolved failures require operational reconciliation. See [limits and recovery](docs/phase3-order-domain.md#failure-and-recovery).
 
 ## Security Boundary
 
@@ -99,12 +100,13 @@ Customer users can:
 - Manage their own cart.
 - Checkout.
 - View their own orders, payments, shipments, and notifications.
-- Cancel their own pending order where the domain permits cancellation.
+- Cancel their own pending or confirmed order before processing starts, provided Inventory has not already been consumed.
 
 Admin users can:
 
 - Mutate catalog categories, brands, products, and publish state.
 - Create/update/adjust inventory.
+- Confirm, process, ship, and deliver orders through validated lifecycle commands.
 - Execute mock payment authoritative transitions.
 - Create shipments and update fulfillment status/tracking.
 
