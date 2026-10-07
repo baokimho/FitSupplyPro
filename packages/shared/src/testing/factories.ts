@@ -229,7 +229,7 @@ export interface PaymentFactoryInput {
   userId?: string;
   orderId?: string;
   amount?: string;
-  status?: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED";
+  status?: "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
   provider?: "MOCK";
 }
 

@@ -10,9 +10,10 @@ const pool = new pg.Pool({ connectionString: databaseUrl });
 const database = new PrismaClient({ adapter: new PrismaPg(pool) });
 const provider = new FakePaymentProvider(database);
 const input = { paymentId: "payment-1", idempotencyKey: "payment-1:settle", amount: "19.99", currency: "USD" };
+const receiptScope = { idempotencyKey: { in: ["payment-1:settle", "payment-1:refund", "refund"] } };
 
 beforeAll(() => database.$connect());
-beforeEach(() => database.fakeProviderOperation.deleteMany());
+beforeEach(() => database.fakeProviderOperation.deleteMany({ where: receiptScope }));
 afterEach(() => vi.restoreAllMocks());
 afterAll(async () => { await database.$disconnect(); await pool.end(); });
 
@@ -20,7 +21,7 @@ describe("durable fake payment provider", () => {
   it("provider error before acknowledgement moves no money", async () => {
     vi.spyOn(database, "$executeRaw").mockRejectedValueOnce(new Error("provider offline"));
     await expect(provider.settle(input, "SUCCEEDED")).rejects.toThrow("provider offline");
-    expect(await database.fakeProviderOperation.count()).toBe(0);
+    expect(await database.fakeProviderOperation.count({ where: receiptScope })).toBe(0);
   });
 
   it("lost provider response recovers durable receipt through another connection", async () => {
@@ -30,7 +31,7 @@ describe("durable fake payment provider", () => {
     const otherDatabase = new PrismaClient({ adapter: new PrismaPg(otherPool) });
     try {
       expect(await new FakePaymentProvider(otherDatabase).settle(input, "SUCCEEDED")).toMatchObject({ status: "SUCCEEDED" });
-      expect(await otherDatabase.fakeProviderOperation.count()).toBe(1);
+      expect(await otherDatabase.fakeProviderOperation.count({ where: receiptScope })).toBe(1);
     } finally {
       await otherDatabase.$disconnect();
       await otherPool.end();
@@ -41,14 +42,14 @@ describe("durable fake payment provider", () => {
     const first = await provider.settle(input, "SUCCEEDED");
     expect(first).toEqual({ status: "SUCCEEDED", reference: "fake_payment_payment-1" });
     expect(await new FakePaymentProvider(database).settle(input, "SUCCEEDED")).toEqual(first);
-    expect(await database.fakeProviderOperation.count()).toBe(1);
+    expect(await database.fakeProviderOperation.count({ where: receiptScope })).toBe(1);
   });
 
   it("declines deterministically and rejects opposite outcome or changed amount", async () => {
     expect(await provider.settle(input, "FAILED")).toMatchObject({ status: "FAILED", failureCode: "FAKE_DECLINED" });
     await expect(provider.settle(input, "SUCCEEDED")).rejects.toMatchObject({ status: 409 });
     await expect(provider.settle({ ...input, amount: "0.01" }, "FAILED")).rejects.toMatchObject({ status: 409 });
-    expect(await database.fakeProviderOperation.count()).toBe(1);
+    expect(await database.fakeProviderOperation.count({ where: receiptScope })).toBe(1);
   });
 
   it("full refund replays concurrently with one durable refund receipt", async () => {
@@ -56,7 +57,7 @@ describe("durable fake payment provider", () => {
     const refund = { ...input, idempotencyKey: "payment-1:refund", providerPaymentId: payment.reference };
     const results = await Promise.all([provider.refund(refund), new FakePaymentProvider(database).refund(refund)]);
     expect(results).toEqual([{ reference: "fake_refund_payment-1" }, { reference: "fake_refund_payment-1" }]);
-    expect(await database.fakeProviderOperation.count()).toBe(2);
+    expect(await database.fakeProviderOperation.count({ where: receiptScope })).toBe(2);
   });
 
   it("rejects refund of missing or failed payment", async () => {
@@ -68,6 +69,6 @@ describe("durable fake payment provider", () => {
   it("concurrent settlement persists one provider receipt", async () => {
     const results = await Promise.all([provider.settle(input, "SUCCEEDED"), provider.settle(input, "SUCCEEDED")]);
     expect(results[0]).toEqual(results[1]);
-    expect(await database.fakeProviderOperation.count()).toBe(1);
+    expect(await database.fakeProviderOperation.count({ where: receiptScope })).toBe(1);
   });
 });

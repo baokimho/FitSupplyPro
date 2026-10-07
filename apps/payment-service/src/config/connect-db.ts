@@ -1,6 +1,7 @@
 import prisma from "./db.js";
+import { logger } from "../logger.js";
 
 export async function connectDb() {
   await prisma.$connect();
-  console.log("Payment database connected");
+  logger.info({ operation: "database-connect" }, "database connected");
 }

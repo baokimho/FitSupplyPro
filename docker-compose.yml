@@ -180,7 +180,7 @@ services:
       - ./apps/payment-service/src:/app/apps/payment-service/src
       - ./apps/payment-service/prisma:/app/apps/payment-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && npm --prefix apps/payment-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/payment-service/prisma.config.ts --schema apps/payment-service/prisma/schema.prisma && exec node --import tsx apps/payment-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:

@@ -331,7 +331,7 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     expect(types).toContain("ORDER_DELIVERED");
   });
 
-  it("cancels order and releases reservation after payment failure", async () => {
+  it("payment failure preserves pending Order until explicit customer cancellation", async () => {
     const suffix = `fail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const admin = adminSession;
     const customer = customerSession;
@@ -356,10 +356,14 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     });
     expect(failed.status).toBe("FAILED");
 
-    const cancelledOrder = await requestJson<{ status: string }>("GET", `/order/orders/${order.id}`, {
+    const pendingOrder = await requestJson<{ status: string }>("GET", `/order/orders/${order.id}`, {
       token: customer.accessToken,
       expected: 200,
     });
+    expect(pendingOrder.status).toBe("PENDING");
+    const reserved = await requestJson<{ reservedStock: number }>("GET", `/inventory/products/${productId}`, { token: admin.accessToken });
+    expect(reserved.reservedStock).toBe(3);
+    const cancelledOrder = await requestJson<{ status: string }>("PATCH", `/order/orders/${order.id}/cancel`, { token: customer.accessToken });
     expect(cancelledOrder.status).toBe("CANCELLED");
 
     const inventory = await requestJson<{ stock: number; reservedStock: number; availableStock: number }>(

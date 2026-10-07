@@ -24,9 +24,9 @@ model Payment {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  @@unique([orderId])
   @@unique([providerPaymentId])
   @@index([userId])
+  @@index([orderId])
 }
 
 model PaymentIdempotency {
@@ -59,7 +59,6 @@ enum PaymentStatus {
   PENDING
   SUCCEEDED
   FAILED
-  CANCELLED
   REFUNDED
 }
 

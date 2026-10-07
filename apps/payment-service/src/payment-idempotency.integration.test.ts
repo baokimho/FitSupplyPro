@@ -5,10 +5,10 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import { PrismaClient } from "./generated/prisma/index.js";
-import type { cancelPaymentService as cancelPaymentServiceType, confirmPaymentService as confirmPaymentServiceType, createPaymentService as createPaymentServiceType, failPaymentService as failPaymentServiceType } from "./services/payment.service.js";
+import type { confirmPaymentService as confirmPaymentServiceType, createPaymentService as createPaymentServiceType, failPaymentService as failPaymentServiceType, refundPaymentService as refundPaymentServiceType } from "./services/payment.service.js";
 
 let prisma: PrismaClient;
-let cancelPaymentService: typeof cancelPaymentServiceType;
+let refundPaymentService: typeof refundPaymentServiceType;
 let confirmPaymentService: typeof confirmPaymentServiceType;
 let createPaymentService: typeof createPaymentServiceType;
 let failPaymentService: typeof failPaymentServiceType;
@@ -19,6 +19,7 @@ const originalFetch = globalThis.fetch;
 
 const orderId = "11111111-1111-4111-8111-111111111111";
 const secondOrderId = "22222222-2222-4222-8222-222222222222";
+let secondOrderOwner = "user-1";
 let orderDelayMs = 0;
 let orderFetchCount = 0;
 let orderCancelCalls = 0;
@@ -42,7 +43,7 @@ async function countPayments() {
 }
 
 function installFetchDouble() {
-  vi.stubGlobal("fetch", vi.fn(async (input: string | URL, init?: RequestInit) => {
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
     const url = String(input);
 
     if (url.includes("/orders/") && !url.includes("/confirm") && !url.includes("/cancel")) {
@@ -52,12 +53,12 @@ function installFetchDouble() {
       }
 
       const id = url.includes(secondOrderId) ? secondOrderId : orderId;
-      const headers = new Headers(init?.headers);
       return jsonResponse({
         id,
-        userId: headers.get("x-user-id") ?? "user-1",
+        userId: id === secondOrderId ? secondOrderOwner : "user-1",
         status: orderStatus,
         totalAmount: id === secondOrderId ? "25.50" : "19.99",
+        currency: "USD",
       });
     }
 
@@ -93,7 +94,7 @@ beforeAll(async () => {
   installFetchDouble();
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
-  ({ cancelPaymentService, confirmPaymentService, createPaymentService, failPaymentService } = await import("./services/payment.service.js"));
+  ({ refundPaymentService, confirmPaymentService, createPaymentService, failPaymentService } = await import("./services/payment.service.js"));
 
   const routes = (await import("./routes/payment.route.js")).default;
   app = express();
@@ -115,6 +116,7 @@ beforeEach(async () => {
   failOrderCancel = false;
   failOrderConfirm = false;
   orderStatus = "PENDING";
+  secondOrderOwner = "user-1";
   installFetchDouble();
 });
 
@@ -122,19 +124,19 @@ describe("payment idempotency", () => {
   it("rejects missing Orders and another customer's Order", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { code: "NOT_FOUND", message: "Order not found" } }, 404)));
     await expect(createPaymentService("user-1", { orderId }, "missing")).rejects.toMatchObject({ status: 404 });
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-2", status: "PENDING", totalAmount: "19.99" })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-2", status: "PENDING", totalAmount: "19.99", currency: "USD" })));
     await expect(createPaymentService("user-1", { orderId }, "wrong-owner")).rejects.toMatchObject({ status: 403 });
     expect(await countPayments()).toBe(0);
   });
 
   it("rejects Orders with an unfinished cancellation command", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", pendingStatus: "CANCELLED", totalAmount: "19.99" })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", pendingStatus: "CANCELLED", totalAmount: "19.99", currency: "USD" })));
     await expect(createPaymentService("user-1", { orderId }, "pending-cancel")).rejects.toMatchObject({ status: 400 });
     expect(await countPayments()).toBe(0);
   });
 
   it.each(["-0.01", "0.001", "100000000.00", "NaN"])("rejects invalid authoritative money %s", async (totalAmount) => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", totalAmount })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ id: orderId, userId: "user-1", status: "PENDING", totalAmount, currency: "USD" })));
     await expect(createPaymentService("user-1", { orderId }, "bad-money")).rejects.toMatchObject({ status: 400 });
     expect(await countPayments()).toBe(0);
   });
@@ -145,7 +147,7 @@ describe("payment idempotency", () => {
     expect(payment).toMatchObject({
       userId: "user-1",
       orderId,
-      amount: 19.99,
+      amount: "19.99",
       currency: "USD",
       status: "PENDING",
       progressState: "CREATED",
@@ -230,6 +232,7 @@ describe("payment idempotency", () => {
   });
 
   it("scopes the same idempotency key independently per user", async () => {
+    secondOrderOwner = "user-2";
     await createPaymentService("user-1", { orderId }, "shared-payment-key");
     await createPaymentService("user-2", { orderId: secondOrderId }, "shared-payment-key");
 
@@ -253,8 +256,8 @@ describe("payment idempotency", () => {
     ]);
 
     expect(await countPayments()).toBe(1);
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(2);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(0);
     expect(orderFetchCount).toBe(1);
   });
 
@@ -320,74 +323,116 @@ describe("payment idempotency", () => {
     expect(await countPayments()).toBe(0);
   });
 
-  it("does not mark payment paid when order confirmation fails", async () => {
+  it("retains successful payment when Order confirmation fails, then retries without charging", async () => {
     const payment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
     failOrderConfirm = true;
 
-    await expect(confirmPaymentService(payment.id, "user-1"))
+    await expect(confirmPaymentService(payment.id, "user-1", "ADMIN"))
       .rejects.toMatchObject({ status: 503, message: "Order service unavailable" });
 
     await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }))
-      .resolves.toMatchObject({ status: "PENDING" });
+      .resolves.toMatchObject({ status: "SUCCEEDED", progressState: "ORDER_CONFIRMATION_PENDING", orderConfirmedAt: null });
     expect(orderConfirmCalls).toBe(1);
+    failOrderConfirm = false;
+    expect(await confirmPaymentService(payment.id, "user-1", "ADMIN")).toMatchObject({ status: "SUCCEEDED", progressState: "ORDER_CONFIRMED" });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
   });
 
-  it("marks payment paid only after order confirmation succeeds", async () => {
+  it("acknowledges payment success and confirms Order once across repeated commands", async () => {
     const payment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
 
-    const paid = await confirmPaymentService(payment.id, "user-1");
+    const paid = await confirmPaymentService(payment.id, "user-1", "ADMIN");
 
     expect(paid.status).toBe("SUCCEEDED");
     expect(orderConfirmCalls).toBe(1);
+    expect(paid.providerPaymentId).toBe(`fake_payment_${payment.id}`);
+    await confirmPaymentService(payment.id, "user-1", "ADMIN");
+    expect(orderConfirmCalls).toBe(1);
   });
 
-  it("cancels the order before marking payment failed", async () => {
+  it("failed provider result leaves Order pending and never confirms or cancels it", async () => {
     const payment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
 
-    const failed = await failPaymentService(payment.id, "user-1");
+    const failed = await failPaymentService(payment.id, "user-1", "ADMIN");
 
     expect(failed.status).toBe("FAILED");
-    expect(orderCancelCalls).toBe(1);
+    expect(failed.failureCode).toBe("FAKE_DECLINED");
+    expect(orderCancelCalls).toBe(0);
+    expect(orderConfirmCalls).toBe(0);
   });
 
-  it("does not mark payment failed when order cancellation fails", async () => {
+  it("failure is independent of Order availability and duplicate failure is harmless", async () => {
     const payment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
     failOrderCancel = true;
 
-    await expect(failPaymentService(payment.id, "user-1"))
-      .rejects.toMatchObject({ status: 503, message: "Order service unavailable" });
+    await failPaymentService(payment.id, "user-1", "ADMIN");
+    await failPaymentService(payment.id, "user-1", "ADMIN");
 
     await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } }))
-      .resolves.toMatchObject({ status: "PENDING" });
-    expect(orderCancelCalls).toBe(1);
+      .resolves.toMatchObject({ status: "FAILED" });
+    expect(orderCancelCalls).toBe(0);
+    expect(orderConfirmCalls).toBe(0);
   });
 
-  it("repeated payment failure and cancellation do not cancel the order twice", async () => {
+  it("failed attempt stays terminal; fresh key creates new attempt", async () => {
     const failedPayment = await prisma.payment.create({
       data: { userId: "user-1", orderId, amount: "19.99" },
     });
-    await failPaymentService(failedPayment.id, "user-1");
-    await failPaymentService(failedPayment.id, "user-1");
+    await failPaymentService(failedPayment.id, "user-1", "ADMIN");
+    await expect(confirmPaymentService(failedPayment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    const retry = await createPaymentService("user-1", { orderId }, "new-attempt");
+    expect(retry.id).not.toBe(failedPayment.id);
+    expect(retry.status).toBe("PENDING");
+    expect(await countPayments()).toBe(2);
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: failedPayment.id } })).resolves.toMatchObject({ status: "FAILED" });
+  });
 
-    expect(orderCancelCalls).toBe(1);
+  it("only acknowledged success can be refunded, and repeated refund does not duplicate effects", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "refund-test");
+    await expect(refundPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    await confirmPaymentService(payment.id, "user-1", "ADMIN");
+    await expect(failPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    expect(await refundPaymentService(payment.id, "user-1", "ADMIN")).toMatchObject({ status: "REFUNDED" });
+    expect(await refundPaymentService(payment.id, "user-1", "ADMIN")).toMatchObject({ status: "REFUNDED" });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+    expect(orderConfirmCalls).toBe(1);
+    await expect(confirmPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+  });
 
-    await truncatePaymentDb();
-    orderCancelCalls = 0;
-    const cancelledPayment = await prisma.payment.create({
-      data: { userId: "user-1", orderId: secondOrderId, amount: "25.50" },
-    });
-    await cancelPaymentService(cancelledPayment.id, "user-1");
-    await cancelPaymentService(cancelledPayment.id, "user-1");
+  it("rejects first confirmation after Order cancellation without creating provider effect", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "cancel-before-confirm");
+    orderStatus = "CANCELLED";
+    await expect(confirmPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(0);
+    await expect(prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).resolves.toMatchObject({ status: "PENDING", pendingOperation: null });
+  });
 
-    expect(orderCancelCalls).toBe(1);
+  it("allows refund recovery after successful payment with unresolved Order confirmation", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "unresolved-order-refund");
+    failOrderConfirm = true;
+    await expect(confirmPaymentService(payment.id, "user-1", "ADMIN")).rejects.toMatchObject({ status: 503 });
+    expect(await refundPaymentService(payment.id, "user-1", "ADMIN")).toMatchObject({ status: "REFUNDED", orderConfirmedAt: null });
+    expect(orderConfirmCalls).toBe(1);
+    expect(orderCancelCalls).toBe(0);
+  });
+
+  it("service rejects customer simulation and refund commands before side effects", async () => {
+    const payment = await createPaymentService("user-1", { orderId }, "customer-command");
+    for (const command of [confirmPaymentService, failPaymentService, refundPaymentService]) {
+      await expect(command(payment.id, "user-1", "CUSTOMER")).rejects.toMatchObject({ status: 403 });
+    }
+    await request(app).patch(`/payments/${payment.id}/confirm`).expect(403);
+    await request(app).patch(`/payments/${payment.id}/fail`).expect(403);
+    await request(app).patch(`/payments/${payment.id}/refund`).expect(403);
+    expect(orderConfirmCalls).toBe(0);
   });
   it("rejects direct database writes that violate uniqueness and monetary constraints", async () => {
     await expect(

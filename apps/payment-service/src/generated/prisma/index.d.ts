@@ -37,7 +37,6 @@ export namespace $Enums {
   PENDING: 'PENDING',
   SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
-  CANCELLED: 'CANCELLED',
   REFUNDED: 'REFUNDED'
 };
 
@@ -4552,12 +4551,12 @@ export namespace Prisma {
 
   export type PaymentWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    orderId?: string
     providerPaymentId?: string
     AND?: PaymentWhereInput | PaymentWhereInput[]
     OR?: PaymentWhereInput[]
     NOT?: PaymentWhereInput | PaymentWhereInput[]
     userId?: StringFilter<"Payment"> | string
+    orderId?: StringFilter<"Payment"> | string
     amount?: DecimalFilter<"Payment"> | Decimal | DecimalJsLike | number | string
     currency?: StringFilter<"Payment"> | string
     status?: EnumPaymentStatusFilter<"Payment"> | $Enums.PaymentStatus
@@ -4568,7 +4567,7 @@ export namespace Prisma {
     orderConfirmedAt?: DateTimeNullableFilter<"Payment"> | Date | string | null
     createdAt?: DateTimeFilter<"Payment"> | Date | string
     updatedAt?: DateTimeFilter<"Payment"> | Date | string
-  }, "id" | "orderId" | "providerPaymentId">
+  }, "id" | "providerPaymentId">
 
   export type PaymentOrderByWithAggregationInput = {
     id?: SortOrder
