@@ -4,12 +4,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
 import type { cancelOrderService as cancelOrderServiceType, checkoutOrderService as checkoutOrderServiceType, confirmOrderService as confirmOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
+import type { advanceOrderService as advanceOrderServiceType } from "./services/order.service.js";
 
 let prisma: PrismaClient;
 let cancelOrderService: typeof cancelOrderServiceType;
 let checkoutOrderService: typeof checkoutOrderServiceType;
 let confirmOrderService: typeof confirmOrderServiceType;
 let createOrderService: typeof createOrderServiceType;
+let advanceOrderService: typeof advanceOrderServiceType;
 let app: express.Express;
 
 const databaseUrl = requireTestDatabaseUrl("order_test_db");
@@ -124,7 +126,7 @@ function installFetchDouble() {
     if (url.includes("/reserve") && method === "POST") {
       const match = url.match(/\/products\/([^/]+)\/reserve/);
       const productId = match?.[1] ?? "";
-      const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number };
+      const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number; operationId?: string };
       if (reserveDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, reserveDelayMs));
       }
@@ -140,12 +142,15 @@ function installFetchDouble() {
     if (url.includes("/release") && method === "POST") {
       const match = url.match(/\/products\/([^/]+)\/release/);
       const productId = match?.[1] ?? "";
-      const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number };
+      const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number; operationId?: string };
+      if (body.operationId && inventoryOperations.has(body.operationId)) return jsonResponse({});
       if (failReleaseProducts.has(productId)) {
         return jsonResponse({ error: { code: "INTERNAL_ERROR", message: "release failed" } }, 500);
       }
       const current = inventory.get(productId);
-      if (current) current.reservedStock = Math.max(0, current.reservedStock - body.quantity);
+      if (!current || current.reservedStock < body.quantity) return jsonResponse({ error: { code: "BAD_REQUEST", message: "Reserved stock is insufficient" } }, 400);
+      current.reservedStock -= body.quantity;
+      if (body.operationId) inventoryOperations.set(body.operationId, { productId, action: "RELEASE", quantity: body.quantity });
       releaseCalls.push({ productId, quantity: body.quantity });
       return jsonResponse({});
     }
@@ -202,7 +207,7 @@ beforeAll(async () => {
   installFetchDouble();
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
-  ({ cancelOrderService, checkoutOrderService, confirmOrderService, createOrderService } = await import("./services/order.service.js"));
+  ({ cancelOrderService, checkoutOrderService, confirmOrderService, createOrderService, advanceOrderService } = await import("./services/order.service.js"));
 
   const routes = (await import("./routes/order.route.js")).default;
   app = express();
@@ -497,34 +502,34 @@ describe("checkout idempotency", () => {
     expect(reserveCalls).toHaveLength(0);
   });
 
-  it("consumes reserved inventory before confirming an order", async () => {
+  it("keeps confirmation reserved and consumes inventory when processing starts", async () => {
     const order = await createOrderService("user-1", {
       items: [{ productId: "product-1", quantity: 3 }],
       delivery: defaultDelivery(),
     });
 
-    const confirmed = await confirmOrderService(order.id, "user-1");
+    const confirmed = await confirmOrderService(order.id, "admin-1", "ADMIN");
 
     expect(confirmed.status).toBe("CONFIRMED");
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 3 });
+    const processed = await advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING");
+    expect(processed.status).toBe("PROCESSING");
     expect(inventory.get("product-1")).toMatchObject({ stock: 7, reservedStock: 0 });
     expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
   });
 
-  it("does not consume again when confirming an already confirmed order", async () => {
+  it("rejects repeat public confirmation without inventory effects", async () => {
     const order = await createOrderService("user-1", {
       items: [{ productId: "product-1", quantity: 2 }],
       delivery: defaultDelivery(),
     });
-    await confirmOrderService(order.id, "user-1");
-
-    const confirmedAgain = await confirmOrderService(order.id, "user-1");
-
-    expect(confirmedAgain.status).toBe("CONFIRMED");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
-    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    await confirmOrderService(order.id, "admin-1", "ADMIN");
+    await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409, code: "INVALID_ORDER_TRANSITION" });
+    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 2 });
+    expect(consumeCalls).toEqual([]);
   });
 
-  it("leaves order pending for retry if multi-item consume fails midway", async () => {
+  it("pins processing intent for retry if multi-item consume fails midway", async () => {
     setCart([
       { id: "cart-item-1", productId: "product-1", quantity: 2 },
       { id: "cart-item-2", productId: "product-2", quantity: 1 },
@@ -537,19 +542,21 @@ describe("checkout idempotency", () => {
       delivery: defaultDelivery(),
     });
     failConsumeProducts.add("product-2");
-
-    await expect(confirmOrderService(order.id, "user-1"))
+    await confirmOrderService(order.id, "admin-1", "ADMIN");
+    await expect(advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING"))
       .rejects.toMatchObject({ status: 503, message: "Inventory service unavailable" });
 
     const stored = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
-    expect(stored.status).toBe("PENDING");
+    expect(stored.status).toBe("CONFIRMED");
+    expect(stored.pendingStatus).toBe("PROCESSING");
+    await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409, code: "ORDER_COMMAND_IN_PROGRESS" });
     expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
     expect(inventory.get("product-2")).toMatchObject({ stock: 10, reservedStock: 1 });
 
     failConsumeProducts.clear();
-    const retried = await confirmOrderService(order.id, "user-1");
+    const retried = await advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING");
 
-    expect(retried.status).toBe("CONFIRMED");
+    expect(retried.status).toBe("PROCESSING");
     expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
     expect(inventory.get("product-2")).toMatchObject({ stock: 9, reservedStock: 0 });
     expect(consumeCalls).toEqual([

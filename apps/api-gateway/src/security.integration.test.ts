@@ -105,6 +105,13 @@ describe("api-gateway security boundaries", () => {
     const app = createGatewayApp();
 
     await request(app).post("/notification/internal/notifications").expect(403);
+    await request(app).patch("/order/internal/orders/order-1/confirm").expect(403);
+  });
+
+  it.each(["confirm", "process", "ship", "deliver"])("restricts order %s command to admin", async (command) => {
+    const app = createGatewayApp();
+    await request(app).patch(`/order/orders/order-1/${command}`).set("x-user-role", "ADMIN").expect(403);
+    await request(app).patch(`/order/orders/order-1/${command}`).set("x-test-user-role", "ADMIN").expect(200);
   });
 
   it("overwrites spoofable identity and internal headers before proxying", () => {

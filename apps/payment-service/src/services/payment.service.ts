@@ -155,7 +155,7 @@ const getOrder = async (orderId: string, userId: string) => {
 
 const confirmOrder = async (orderId: string, userId: string) => {
   try {
-    await fetchJson(`${orderServiceUrl}/orders/${orderId}/confirm`, {
+    await fetchJson(`${orderServiceUrl}/internal/orders/${orderId}/confirm`, {
       method: "PATCH",
       headers: {
         ...jsonHeaders,

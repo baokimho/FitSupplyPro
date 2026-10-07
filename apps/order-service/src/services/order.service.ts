@@ -14,6 +14,7 @@ import type { OrderStatus } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import { createOrderSchema } from "../validations/order.schema.js";
 import { aggregateOrderItems } from "../domain/order-items.js";
+import { assertOrderTransition } from "../domain/order-lifecycle.js";
 import type { CheckoutInput, CreateOrderInput, DeliveryDetailsInput } from "../validations/order.schema.js";
 
 type CatalogProduct = {
@@ -894,75 +895,83 @@ export const getOrderByIdService = async (id: string, userId: string) => {
   return toOrderResponseWithDelivery(order);
 };
 
-const updateOrderStatus = async (id: string, userId: string, status: OrderStatus) => {
+const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: string) => {
   const order = await getOrderByIdOrThrow(id);
-  ensureOwnership(order, userId);
+  if (ownerId) ensureOwnership(order, ownerId);
+  assertOrderTransition(order.status, status);
+  const context = { orderId: id, userId: order.userId, fromStatus: order.status, toStatus: status, operation: "transition-order" };
 
-  if (status === "CANCELLED") {
-    if (order.status === "CANCELLED") {
-      throw new BadRequestError("Order is already cancelled");
-    }
-
-    if (order.status === "CONFIRMED") {
-      throw new BadRequestError("Confirmed order cannot be cancelled");
-    }
-
-    for (const item of order.items) {
-      await releaseStock(item.productId, item.quantity, "Order cancelled", `${id}:release:${item.productId}`);
-    }
-
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: {
-        items: true,
-      },
-    });
-
-    await createNotification(userId, {
-      type: "ORDER_CANCELLED",
-      title: "Order cancelled",
-      message: `Order ${id} has been cancelled.`,
-    });
-
-    return toOrderResponseWithDelivery(updated);
+  if (order.pendingStatus && order.pendingStatus !== status) {
+    throw new ConflictError("Another order command requires completion", { orderId: id }, "ORDER_COMMAND_IN_PROGRESS");
+  }
+  if (status === "CANCELLED" && order.reservationConsumed) {
+    throw new ConflictError("Order inventory was already consumed", { orderId: id }, "ORDER_INVENTORY_CONSUMED");
   }
 
-  if (status === "CONFIRMED") {
-    if (order.status === "CONFIRMED") {
-      return toOrderResponseWithDelivery(order);
+  const inventoryCommand = status === "CANCELLED" || status === "PROCESSING";
+  if (inventoryCommand) {
+    if (!order.pendingStatus) {
+      const claim = await prisma.order.updateMany({
+        where: { id, status: order.status, pendingStatus: null },
+        data: { pendingStatus: status },
+      });
+      if (claim.count !== 1) {
+        throw new ConflictError("Order changed during command", { orderId: id }, "ORDER_COMMAND_IN_PROGRESS");
+      }
     }
-
-    if (order.status === "CANCELLED") {
-      throw new BadRequestError("Cancelled order cannot be confirmed");
-    }
-
-    for (const item of order.items) {
-      await consumeStock(
-        item.productId,
-        item.quantity,
-        "Order confirmed",
-        `${id}:consume:${item.productId}`,
-      );
+    // Durable intent prevents opposite commands after partial/ambiguous Inventory success.
+    try {
+      for (const item of order.items) {
+        if (status === "CANCELLED") {
+          await releaseStock(item.productId, item.quantity, "Order cancelled", `${id}:release:${item.productId}`);
+        } else if (!order.reservationConsumed) {
+          await consumeStock(item.productId, item.quantity, "Order processing", `${id}:consume:${item.productId}`);
+        }
+      }
+    } catch (error) {
+      logger.error({ ...context, err: error }, "order inventory command incomplete; retry same command");
+      throw error;
     }
   }
 
-  const updated = await prisma.order.update({
-    where: { id },
-    data: { status },
-    include: {
-      items: true,
-    },
+  const result = await prisma.order.updateMany({
+    where: { id, status: order.status, pendingStatus: inventoryCommand ? status : null },
+    data: { status, pendingStatus: null, ...(status === "PROCESSING" ? { reservationConsumed: true } : {}) },
   });
-
-  return toOrderResponseWithDelivery(updated);
+  if (result.count !== 1) {
+    throw new ConflictError("Order changed during command", { orderId: id }, "INVALID_ORDER_TRANSITION");
+  }
+  logger.info(context, "order transitioned");
+  if (status === "CANCELLED") {
+    await createNotification(order.userId, {
+      type: "ORDER_CANCELLED", title: "Order cancelled", message: `Order ${id} has been cancelled.`,
+    });
+  }
+  return toOrderResponseWithDelivery(await getOrderByIdOrThrow(id));
 };
 
 export const cancelOrderService = async (id: string, userId: string) =>
-  updateOrderStatus(id, userId, "CANCELLED");
+  updateOrderStatus(id, "CANCELLED", userId);
 
-export const confirmOrderService = async (id: string, userId: string) =>
-  updateOrderStatus(id, userId, "CONFIRMED");
+export const advanceOrderService = async (
+  id: string, userId: string, role: string | undefined,
+  status: "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED",
+) => {
+  if (role !== "ADMIN") throw new ForbiddenError("Forbidden");
+  logger.debug({ orderId: id, actorId: userId, toStatus: status, operation: "admin-order-command" }, "order command authorized");
+  return updateOrderStatus(id, status);
+};
+
+export const confirmOrderService = async (id: string, userId: string, role?: string) =>
+  advanceOrderService(id, userId, role, "CONFIRMED");
+
+// Internal route is protected by existing shared gateway secret; never gateway-accessible.
+export const confirmInternalOrderService = async (id: string) => {
+  const order = await getOrderByIdOrThrow(id);
+  // Preserve existing internal confirmation retry contract without a self-transition.
+  if (order.status === "CONFIRMED" && !order.pendingStatus) return toOrderResponseWithDelivery(order);
+  return updateOrderStatus(id, "CONFIRMED");
+};
 
 
 

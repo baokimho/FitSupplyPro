@@ -210,12 +210,12 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     });
     expect(confirmedOrder.status).toBe("CONFIRMED");
 
-    const consumed = await requestJson<{ stock: number; reservedStock: number; availableStock: number }>(
+    const confirmedInventory = await requestJson<{ stock: number; reservedStock: number }>(
       "GET",
       `/inventory/products/${productId}`,
       { token: admin.accessToken, expected: 200 },
     );
-    expect(consumed).toMatchObject({ stock: 7, reservedStock: 0, availableStock: 7 });
+    expect(confirmedInventory).toMatchObject({ stock: 10, reservedStock: 3 });
 
     const shipment = await requestJson<{
       id: string;
@@ -250,6 +250,10 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     });
     expect(shipmentRetry.id).toBe(shipment.id);
 
+    await requestJson("PATCH", `/order/orders/${order.id}/process`, { token: admin.accessToken });
+    const consumed = await requestJson<{ stock: number; reservedStock: number }>("GET", `/inventory/products/${productId}`, { token: admin.accessToken });
+    expect(consumed).toMatchObject({ stock: 7, reservedStock: 0 });
+
     const myShipments = await requestJson<{ items: Array<{ id: string; orderId: string }> }>("GET", "/shipping/shipments/me", {
       token: customer.accessToken,
       expected: 200,
@@ -261,11 +265,14 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
       expected: 200,
       body: { status: "SHIPPED", trackingNumber: "TRACK-E2E-1" },
     });
+    await requestJson("PATCH", `/order/orders/${order.id}/ship`, { token: admin.accessToken });
     await requestJson("PATCH", `/shipping/shipments/${shipment.id}/status`, {
       token: admin.accessToken,
       expected: 200,
       body: { status: "DELIVERED" },
     });
+    const delivered = await requestJson<{ status: string }>("PATCH", `/order/orders/${order.id}/deliver`, { token: admin.accessToken });
+    expect(delivered.status).toBe("DELIVERED");
 
     const notifications = await requestJson<{ items: Array<{ type: string }> }>("GET", "/notification/notifications/me", {
       token: customer.accessToken,

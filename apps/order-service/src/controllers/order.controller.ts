@@ -4,6 +4,8 @@ import { BadRequestError, getParam } from "@shared/utils";
 import {
   cancelOrderService,
   confirmOrderService,
+  confirmInternalOrderService,
+  advanceOrderService,
   checkoutOrderService,
   createOrderService,
   getMyOrdersService,
@@ -63,8 +65,20 @@ export const cancelOrder = async (req: Request<OrderParamsInput>, res: Response)
 };
 
 export const confirmOrder = async (req: Request<OrderParamsInput>, res: Response) => {
-  const order = await confirmOrderService(getParam(req, "id"), getUserId(req));
+  const order = await confirmOrderService(getParam(req, "id"), getUserId(req), req.orderUser?.role);
   res.status(StatusCodes.OK).json(order);
+};
+export const processOrder = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await advanceOrderService(getParam(req, "id"), getUserId(req), req.orderUser?.role, "PROCESSING"));
+};
+export const shipOrder = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await advanceOrderService(getParam(req, "id"), getUserId(req), req.orderUser?.role, "SHIPPED"));
+};
+export const deliverOrder = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await advanceOrderService(getParam(req, "id"), getUserId(req), req.orderUser?.role, "DELIVERED"));
+};
+export const confirmInternalOrder = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await confirmInternalOrderService(getParam(req, "id")));
 };
 export const getInternalOrderShippingSnapshot = async (req: Request<OrderParamsInput>, res: Response) => {
   const order = await getOrderShippingSnapshotService(getParam(req, "id"));

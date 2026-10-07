@@ -52,6 +52,10 @@ router.post("/inventory/products/:productId/reserve", authMiddleware, requireAdm
 router.post("/inventory/products/:productId/consume", authMiddleware, requireAdmin);
 router.post("/inventory/products/:productId/release", authMiddleware, requireAdmin);
 router.patch("/payment/payments/:id/confirm", authMiddleware, requireAdmin);
+router.patch("/order/orders/:id/confirm", authMiddleware, requireAdmin);
+router.patch("/order/orders/:id/process", authMiddleware, requireAdmin);
+router.patch("/order/orders/:id/ship", authMiddleware, requireAdmin);
+router.patch("/order/orders/:id/deliver", authMiddleware, requireAdmin);
 router.patch("/payment/payments/:id/fail", authMiddleware, requireAdmin);
 router.patch("/payment/payments/:id/refund", authMiddleware, requireAdmin);
 router.post("/shipping/shipments", authMiddleware, requireAdmin);
