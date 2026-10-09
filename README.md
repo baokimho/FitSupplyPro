@@ -639,4 +639,15 @@ Backend feature work should pause after freeze. Next work should focus on DevOps
 - Observability, logging, health checks, and runbooks.
 - Deployment documentation.
 
-Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, Stripe, or message queues are implemented until they exist in the repository.
+Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, or Stripe are implemented until they exist in the repository.
+
+## RabbitMQ foundation (Phase 5)
+
+RabbitMQ infrastructure and delivery primitives are available; existing checkout,
+inventory, payment and notification paths remain synchronous HTTP. No business
+consumer or canonical event envelope exists yet. See
+[RabbitMQ fundamentals](docs/phase5-rabbitmq-fundamentals.md) for setup, exact
+topology, confirms, ACK/NACK, prefetch, DLQs, lifecycle and deferred guarantees.
+Copy `docker/rabbitmq/.env.example` to `docker/rabbitmq/.env`, then run
+`docker compose up -d --wait rabbitmq`. Root `.env.example` documents opt-in client
+settings. Integration tests own a separate disposable broker on port 5673.
