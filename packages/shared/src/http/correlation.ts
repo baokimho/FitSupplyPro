@@ -23,6 +23,11 @@ export function getCorrelation(): CorrelationContext | undefined {
   return context.getStore();
 }
 
+/** Broker deliveries establish independent context without an HTTP request. */
+export function runWithCorrelation<T>(correlation: CorrelationContext, work: () => T): T {
+  return context.run(Object.freeze({ ...correlation }), work);
+}
+
 /** Gateway owns trace identity; internal hops preserve valid propagated context. */
 export function correlationMiddleware(boundary: "gateway" | "service"): RequestHandler {
   return (req, res, next) => {
