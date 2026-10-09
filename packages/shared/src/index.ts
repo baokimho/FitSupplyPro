@@ -16,3 +16,5 @@ export * from "./logging/http.js";
 export * from "./testing/integration.js";
 export * from "./testing/factories.js";
 export * from "./testing/cleanup.js";
+export * from "./messaging/config.js";
+export * from "./messaging/topology.js";
