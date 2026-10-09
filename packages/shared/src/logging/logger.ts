@@ -17,7 +17,7 @@ export function parseLogLevel(name: string, value: string | undefined): LogLevel
 const sensitiveFields = [
   "authorization", "Authorization", "cookie", "Cookie", "set-cookie", "Set-Cookie",
   "password", "passwordHash", "token", "accessToken", "refreshToken", "tokenHash",
-  "DATABASE_URL", "databaseUrl", "GATEWAY_SECRET", "gatewaySecret",
+  "DATABASE_URL", "databaseUrl", "RABBITMQ_URL", "rabbitMqUrl", "GATEWAY_SECRET", "gatewaySecret",
   "JWT_PRIVATE_KEY_BASE64", "JWT_PUBLIC_KEY_BASE64", "jwtPrivateKeyBase64", "jwtPublicKeyBase64",
   "privateKey", "publicKey", "x-gateway-secret", "x-internal-secret",
 ];
@@ -32,7 +32,7 @@ function serializeError(error: unknown) {
   const serialized = pino.stdSerializers.err(error);
   // Keep error diagnostics; omit arbitrary attached bodies/config/driver metadata.
   const clean = (text: string) => text
-    .replace(/\b(?:postgres(?:ql)?|https?):\/\/[^\s/@]+:[^\s/@]+@[^\s)]+/gi, "[Redacted URL]")
+    .replace(/\b(?:postgres(?:ql)?|https?|amqps?):\/\/[^\s/@]+:[^\s/@]+@[^\s)]+/gi, "[Redacted URL]")
     .replace(/\bBearer\s+[^\s]+/gi, "Bearer [Redacted]")
     .replace(/-----BEGIN [^-]*KEY-----[\s\S]*?-----END [^-]*KEY-----/g, "[Redacted key]");
   return { type: serialized.type, message: clean(serialized.message), stack: clean(serialized.stack ?? "") };

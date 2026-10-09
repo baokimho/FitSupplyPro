@@ -20,6 +20,7 @@ const workspaceDirs = [
 ];
 
 const testEnv = {
+  RABBITMQ_URL: "amqp://fitsupply_test:fitsupply_test@localhost:5673",
   API_GATEWAY_URL: "http://localhost:3500",
   AUTH_DATABASE_URL: "postgresql://fitsupply_test:fitsupply_test@localhost:55433/auth_test_db",
   CATALOG_DATABASE_URL: "postgresql://fitsupply_test:fitsupply_test@localhost:55433/catalog_test_db",

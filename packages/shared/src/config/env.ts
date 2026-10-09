@@ -1,6 +1,6 @@
 export type NodeEnv = "development" | "test" | "production";
 
-type ConfigurationReason = "is required" | "must not be blank" | "must be an integer port from 1 to 65535" | "must be a complete HTTP(S) URL" | "must be development, test, or production" | "must be fatal, error, warn, info, debug, trace, or silent";
+type ConfigurationReason = "is required" | "must not be blank" | "must be an integer port from 1 to 65535" | "must be a complete HTTP(S) URL" | "must be development, test, or production" | "must be fatal, error, warn, info, debug, trace, or silent" | "must be a complete AMQP(S) URL" | "must be an integer from 1 to 60000";
 
 /** Internal startup error. Reasons are fixed rules, never environment values. */
 export class ConfigurationError extends Error {
