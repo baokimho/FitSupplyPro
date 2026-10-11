@@ -1,4 +1,6 @@
 import express from "express";
+import { startCheckoutMessaging } from "@shared/utils";
+import { handlePaymentCheckout } from "./services/payment.service.js";
 import cors from "cors";
 import { installShutdown, shutdownGuard, correlationMiddleware, httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import { closeDb } from "./config/db.js";
@@ -23,11 +25,20 @@ app.use((_req, res) => res.status(404).json({ error: { code: "NOT_FOUND", messag
 app.use(createErrorHandler(logger));
 
 async function bootstrap() {
+  let messaging: Awaited<ReturnType<typeof startCheckoutMessaging>> | undefined;
   try {
     await connectDb();
+    if (config.checkout.broker) {
+      readiness.brokerReady = () => false;
+      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "payment.inventory-reserved", ["inventory.reserved"],
+        (event) => handlePaymentCheckout(event, config.checkoutPaymentOutcome));
+      readiness.brokerReady = messaging.isReady;
+    }
     const server = app.listen(config.port, () => logger.info({ port: config.port }, "service started"));
-    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
+    installShutdown({ server, logger, state: readiness, cleanup: [...(messaging ? [messaging.close] : []), closeDb] });
   } catch (err) {
+    if (messaging) await messaging.close();
+    await closeDb();
     logger.fatal({ err }, "service startup failed");
     process.exitCode = 1;
   }

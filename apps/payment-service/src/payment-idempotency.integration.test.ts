@@ -1,4 +1,6 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
+import { createIntegrationEvent } from "@shared/utils";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import request from "supertest";
@@ -159,6 +161,56 @@ async function withRejectedStatus(id: string, status: "SUCCEEDED" | "REFUNDED", 
     await prisma.$executeRawUnsafe('DROP FUNCTION payment_test_reject_status()');
   }
 }
+
+describe("async Payment checkout", () => {
+  function reservation() {
+    const order = { id: randomUUID(), userId: "user-1", status: "PENDING", pendingStatus: null,
+      totalAmount: "19.99", currency: "USD", eventDriven: true, items: [{ productId: randomUUID(), quantity: 1 }] };
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL) => {
+      if (String(input).endsWith("/confirm")) throw new Error("Async payment must not confirm over HTTP");
+      return jsonResponse(order);
+    }));
+    return createIntegrationEvent({ eventType: "inventory.reserved", correlationId: randomUUID(), causationId: randomUUID(),
+      data: { orderId: order.id, reservations: order.items } });
+  }
+  it.each(["SUCCEEDED", "FAILED"] as const)("deduplicates automatic %s attempt and provider effect with stable result", async (outcome) => {
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    const settle = vi.spyOn(paymentProvider, "settle");
+    const [first, concurrent] = await Promise.all([service.checkout(input, outcome), service.checkout(input, outcome)]);
+    expect(concurrent).toEqual(first);
+    expect(await service.checkout(input, outcome)).toEqual(first);
+    expect(settle).toHaveBeenCalledOnce();
+    expect(await prisma.payment.count()).toBe(1);
+    const payment = await prisma.payment.findFirstOrThrow({ where: { orderId: input.data.orderId } });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+    expect(first).toMatchObject({ eventType: outcome === "SUCCEEDED" ? "payment.succeeded" : "payment.failed",
+      correlationId: input.correlationId, causationId: input.eventId });
+    await expect(service.checkout({ ...input, data: { ...input.data, reservations: [] } })).rejects.toThrow();
+  });
+  it.each(["SUCCEEDED", "FAILED"] as const)("converges after provider %s commits but receipt transaction fails; no double charge", async (providerOutcome) => {
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    if (providerOutcome === "FAILED") {
+      const settle = paymentProvider.settle.bind(paymentProvider);
+      vi.spyOn(paymentProvider, "settle").mockImplementation((input) => settle(input, "FAILED"));
+    }
+    // Inject a real receipt persistence failure using a database trigger.
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION checkout_test_fail_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt write failed'; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER checkout_test_fail_receipt BEFORE INSERT ON "CheckoutEvent" FOR EACH ROW EXECUTE FUNCTION checkout_test_fail_receipt()');
+    try { await expect(service.checkout(input)).rejects.toThrow("receipt write failed"); }
+    finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER checkout_test_fail_receipt ON "CheckoutEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION checkout_test_fail_receipt()');
+    }
+    const first = await service.checkout(input);
+    expect(first?.eventType).toBe(providerOutcome === "SUCCEEDED" ? "payment.succeeded" : "payment.failed");
+    expect(await service.checkout(input)).toEqual(first);
+    expect(await prisma.payment.count()).toBe(1);
+    const payment = await prisma.payment.findFirstOrThrow();
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+  });
+});
 
 describe("payment idempotency", () => {
   it("propagates trusted secret and correlation into authoritative Order lookup", async () => {

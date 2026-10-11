@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, ServiceUnavailableError, correlationHeaders } from "@shared/utils";
+import { createIntegrationEvent, processCheckoutEvent, type KnownIntegrationEvent } from "@shared/utils";
 import { Prisma, type PrismaClient, type Payment } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import { config } from "../config/index.js";
@@ -14,6 +15,7 @@ const orderSnapshotSchema = z.object({
   id: z.string(), userId: z.string(),
   status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]),
   pendingStatus: z.string().nullable().optional(), totalAmount: z.string(), currency: z.literal("USD"),
+  eventDriven: z.boolean().optional(), items: z.array(z.object({ productId: z.string(), quantity: z.number().int().positive() })).optional(),
 });
 
 const toPaymentResponse = (payment: Payment) => ({
@@ -82,7 +84,7 @@ const ensureOwnership = (payment: Payment, userId: string) => {
 const transactionOptions = { maxWait: 5000, timeout: 15000 };
 
 export function buildPaymentService(database: PrismaClient, provider: PaymentProvider) {
-  const create = async (userId: string, body: CreatePaymentInput, idempotencyKey: string) => {
+  const create = async (userId: string, body: CreatePaymentInput, idempotencyKey: string, checkout = false) => {
     const requestFingerprint = createHash("sha256").update(JSON.stringify({ orderId: body.orderId })).digest("hex");
     return database.$transaction(async (tx) => {
       // Transaction-scoped PostgreSQL locks work across instances and release on crash.
@@ -99,6 +101,7 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
       // Recover legacy interrupted creates without asking Order again.
       if (!existing || !attempt) {
         const order = await getOrder(body.orderId);
+        if (order.eventDriven && !checkout) throw new ConflictError("Event-driven checkout payment is managed internally");
         if (order.userId !== userId) throw new ForbiddenError("Forbidden");
         if (order.status !== "PENDING" || order.pendingStatus) throw new BadRequestError("Order is not payable", { orderId: order.id, status: order.status });
         const amount = toMoney(order.totalAmount);
@@ -138,7 +141,7 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
     return tx.payment.update({ where: { id }, data: { orderConfirmedAt: new Date(), progressState: "ORDER_CONFIRMED" } });
   }, transactionOptions);
 
-  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string) => {
+  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string, synchronize = true) => {
     if (role !== "ADMIN") throw new ForbiddenError("Forbidden");
     const initial = await getPayment(database, id);
     assertPaymentTransition(initial.status, target);
@@ -181,10 +184,31 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         throw error;
       }
     }, transactionOptions);
-    return toPaymentResponse(payment.status === "SUCCEEDED" ? await synchronizeOrder(id) : payment);
+    return toPaymentResponse(payment.status === "SUCCEEDED" && synchronize ? await synchronizeOrder(id) : payment);
   };
 
   return {
+    checkout: async (event: KnownIntegrationEvent, outcome: "SUCCEEDED" | "FAILED" = "SUCCEEDED") => {
+      if (event.eventType !== "inventory.reserved") throw new ConflictError("Unexpected Payment checkout event");
+      return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
+        const order = await getOrder(event.data.orderId);
+        if (!order.eventDriven || !order.items || JSON.stringify([...order.items].sort((a, b) => a.productId.localeCompare(b.productId))) !==
+            JSON.stringify([...event.data.reservations].sort((a, b) => a.productId.localeCompare(b.productId)))) {
+          throw new ConflictError("Reservation differs from checkout Order");
+        }
+        const payment = await create(order.userId, { orderId: order.id }, `checkout:${order.id}:create`, true);
+        logger.debug({ eventId: event.eventId, orderId: order.id, paymentId: payment.id, idempotencyKey: `checkout:${order.id}:create` }, "checkout payment attempt");
+        // Create replay is an immutable response snapshot, not current lifecycle state.
+        const current = await getPayment(database, payment.id);
+        const settled = current.status === "FAILED" || current.status === "SUCCEEDED"
+          ? toPaymentResponse(current) : await command(payment.id, order.userId, outcome, "ADMIN", false);
+        const data = { orderId: order.id, paymentId: settled.id, amount: settled.amount, currency: "USD" as const };
+        const metadata = { correlationId: event.correlationId, causationId: event.eventId };
+        return settled.status === "SUCCEEDED"
+          ? createIntegrationEvent({ eventType: "payment.succeeded", ...metadata, data })
+          : createIntegrationEvent({ eventType: "payment.failed", ...metadata, data: { ...data, failureCode: settled.failureCode } });
+      }), transactionOptions);
+    },
     create,
     confirm: (id: string, userId: string, role?: string) => command(id, userId, "SUCCEEDED", role),
     fail: (id: string, userId: string, role?: string) => command(id, userId, "FAILED", role),
@@ -205,3 +229,4 @@ export const failPaymentService = service.fail;
 export const refundPaymentService = service.refund;
 export const getPaymentByIdService = service.get;
 export const getMyPaymentsService = service.list;
+export const handlePaymentCheckout = service.checkout;

@@ -4,6 +4,11 @@ import { loadConfig } from "./env.js";
 const env = { GATEWAY_SECRET: "test-secret", DATABASE_URL: "postgresql://test:test@localhost/test_db" };
 
 describe("payment configuration", () => {
+  it("allows forced checkout provider outcome only in disposable test mode", () => {
+    expect(loadConfig({ ...env, NODE_ENV: "test", TEST_CHECKOUT_PAYMENT_OUTCOME: "FAILED" }).checkoutPaymentOutcome).toBe("FAILED");
+    expect(() => loadConfig({ ...env, NODE_ENV: "production", TEST_CHECKOUT_PAYMENT_OUTCOME: "FAILED" })).toThrow();
+    expect(() => loadConfig({ ...env, NODE_ENV: "test", TEST_CHECKOUT_PAYMENT_OUTCOME: "unknown" })).toThrow();
+  });
   it("preserves shared defaults and validates required values", () => {
     expect(loadConfig(env)).toMatchObject({ port: 3006, nodeEnv: "development", logLevel: "info", orderServiceUrl: "http://order-service:3003" });
     for (const variable of ["GATEWAY_SECRET", "DATABASE_URL"]) {

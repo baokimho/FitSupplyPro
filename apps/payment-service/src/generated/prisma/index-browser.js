@@ -120,6 +120,12 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.CheckoutEventScalarFieldEnum = {
+  eventId: 'eventId',
+  fingerprint: 'fingerprint',
+  result: 'result'
+};
+
 exports.Prisma.PaymentScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -196,6 +202,7 @@ exports.PaymentProvider = exports.$Enums.PaymentProvider = {
 };
 
 exports.Prisma.ModelName = {
+  CheckoutEvent: 'CheckoutEvent',
   Payment: 'Payment',
   PaymentIdempotency: 'PaymentIdempotency',
   FakeProviderOperation: 'FakeProviderOperation'

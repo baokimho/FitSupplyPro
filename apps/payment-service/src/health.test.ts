@@ -12,6 +12,13 @@ const app = express();
 app.use(correlationMiddleware("service"), healthRouter);
 
 describe("payment probes", () => {
+  it("broker failure makes readiness unavailable; liveness remains available", async () => {
+    readiness.brokerReady = () => false;
+    try {
+      await request(app).get("/ready").expect(503);
+      await request(app).get("/health").expect(200);
+    } finally { readiness.brokerReady = () => true; }
+  });
   beforeEach(() => { readiness.stopping = false; vi.clearAllMocks(); mocks.query.mockResolvedValue([{ value: 1 }]); });
   it("health is public and dependency-free; readiness checks Payment DB only", async () => {
     await request(app).get("/health").expect(200, { status: "ok", service: "payment-service" });
