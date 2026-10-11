@@ -50,6 +50,7 @@ const claimInventoryOperation = async (
   type: InventoryMutationType,
   quantity: number,
 ) => {
+  await getInventoryWithinTransaction(tx, productId);
   const inserted = await tx.$queryRaw<InventoryOperationRow[]>`
     INSERT INTO "InventoryOperation" ("id", "operationId", "productId", "type", "quantity")
     VALUES (${randomUUID()}, ${operationId}, ${productId}, ${type}, ${quantity})
@@ -184,6 +185,7 @@ export const adjustInventoryStockService = async (
 export const reserveInventoryStockService = async (
   productId: string,
   body: ReserveInventoryInput,
+  transaction?: Prisma.TransactionClient,
 ) => {
   const runMutation = async (tx: Prisma.TransactionClient) => {
     const updatedRows = await tx.$queryRaw<InventoryRecord[]>`
@@ -210,21 +212,23 @@ export const reserveInventoryStockService = async (
   };
 
   if (!body.operationId) {
-    return toInventoryResponse(await prisma.$transaction(runMutation));
+    return toInventoryResponse(transaction ? await runMutation(transaction) : await prisma.$transaction(runMutation));
   }
 
-  return toInventoryResponse(await prisma.$transaction(async (tx) => {
+  const work = async (tx: Prisma.TransactionClient) => {
     const claim = await claimInventoryOperation(tx, productId, body.operationId ?? "", "RESERVE", body.quantity);
     if (claim.duplicate) {
       return getInventoryWithinTransaction(tx, productId);
     }
 
     return runMutation(tx);
-  }));
+  };
+  return toInventoryResponse(transaction ? await work(transaction) : await prisma.$transaction(work));
 };
 export const releaseInventoryStockService = async (
   productId: string,
   body: ReleaseInventoryInput,
+  transaction?: Prisma.TransactionClient,
 ) => {
   const runMutation = async (tx: Prisma.TransactionClient) => {
     const updatedRows = await tx.$queryRaw<InventoryRecord[]>`
@@ -250,17 +254,18 @@ export const releaseInventoryStockService = async (
   };
 
   if (!body.operationId) {
-    return toInventoryResponse(await prisma.$transaction(runMutation));
+    return toInventoryResponse(transaction ? await runMutation(transaction) : await prisma.$transaction(runMutation));
   }
 
-  return toInventoryResponse(await prisma.$transaction(async (tx) => {
+  const work = async (tx: Prisma.TransactionClient) => {
     const claim = await claimInventoryOperation(tx, productId, body.operationId ?? "", "RELEASE", body.quantity);
     if (claim.duplicate) {
       return getInventoryWithinTransaction(tx, productId);
     }
 
     return runMutation(tx);
-  }));
+  };
+  return toInventoryResponse(transaction ? await work(transaction) : await prisma.$transaction(work));
 };
 export const consumeInventoryReservationService = async (
   productId: string,

@@ -8,6 +8,12 @@ datasource db {
   provider = "postgresql"
 }
 
+model CheckoutEvent {
+  eventId     String  @id
+  fingerprint String
+  result      String?
+}
+
 model Inventory {
   id                String   @id @default(uuid())
   productId         String   @unique

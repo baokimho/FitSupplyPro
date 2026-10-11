@@ -1,4 +1,6 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
+import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger } from "@shared/utils";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -13,6 +15,7 @@ import type { reserveInventoryStockService as reserveInventoryStockServiceType }
 let prisma: PrismaClient;
 let reserveInventoryStockService: typeof reserveInventoryStockServiceType;
 let app: express.Express;
+let handleInventoryCheckout: typeof import("./services/checkout.service.js").handleInventoryCheckout;
 
 const databaseUrl = requireTestDatabaseUrl("inventory_test_db");
 
@@ -38,6 +41,7 @@ beforeAll(async () => {
   const dbModule = await import("./config/db.js");
   prisma = dbModule.default;
   ({ reserveInventoryStockService } = await import("./services/inventory.service.js"));
+  ({ handleInventoryCheckout } = await import("./services/checkout.service.js"));
 
   const routes = (await import("./routes/inventory.route.js")).default;
   app = express();
@@ -51,6 +55,59 @@ beforeEach(async () => {
     async execute(sql) {
       await prisma.$executeRawUnsafe(sql);
     },
+  });
+});
+
+describe("async Inventory checkout", () => {
+  const creation = (items: { productId: string; quantity: number }[]) => createIntegrationEvent({
+    eventType: "order.created", correlationId: randomUUID(), causationId: null,
+    data: { orderId: randomUUID(), userId: "user", items, totalAmount: "10.00", currency: "USD" },
+  });
+  it("concurrent redelivery and publish retry reserve once and replay same result", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 3 }]);
+    const results = await Promise.all([handleInventoryCheckout(input), handleInventoryCheckout(input)]);
+    expect(results[0]).toEqual(results[1]);
+    let publications = 0;
+    const publish = async () => { if (++publications === 1) throw new Error("publish unavailable after commit"); };
+    await checkoutMessageHandler(["order.created"], handleInventoryCheckout, publish,
+      createLogger({ service: "test", environment: "test", level: "silent" }))(serializeIntegrationEvent(input));
+    expect(publications).toBe(2);
+    expect(await getInventory(productId)).toMatchObject({ reservedStock: 3 });
+    expect(await prisma.inventoryOperation.count()).toBe(1);
+    const result = results[0];
+    expect(result).toMatchObject({ eventType: "inventory.reserved", correlationId: input.correlationId, causationId: input.eventId });
+    await expect(handleInventoryCheckout({ ...input, data: { ...input.data, totalAmount: "11.00" } })).rejects.toThrow("Event ID reused");
+  });
+  it("rolls back entire multi-product batch on insufficient/missing stock; duplicate failure is stable", async () => {
+    const ids = [randomUUID(), randomUUID()].sort();
+    await createInventory({ productId: ids[0], stock: 10 });
+    await createInventory({ productId: ids[1], stock: 0 });
+    const input = creation(ids.map((productId) => ({ productId, quantity: 2 })));
+    const first = await handleInventoryCheckout(input);
+    expect(first?.eventType).toBe("inventory.reservation_failed");
+    expect(await handleInventoryCheckout(input)).toEqual(first);
+    expect(await getInventory(ids[0])).toMatchObject({ reservedStock: 0 });
+    expect(await prisma.inventoryOperation.count()).toBe(0);
+    const missing = await handleInventoryCheckout(creation([{ productId: randomUUID(), quantity: 1 }]));
+    expect(missing?.data).toMatchObject({ reason: "PRODUCT_NOT_FOUND" });
+  });
+  it("duplicate cancellations release once and cannot release another order's stock", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 3 }]);
+    await handleInventoryCheckout(input);
+    const cancel = createIntegrationEvent({ eventType: "order.cancelled", correlationId: input.correlationId, causationId: input.eventId,
+      data: { orderId: input.data.orderId, userId: "user", items: input.data.items } });
+    const released = await handleInventoryCheckout(cancel);
+    expect(released?.eventType).toBe("inventory.released");
+    expect(await handleInventoryCheckout(cancel)).toEqual(released);
+    expect(await getInventory(productId)).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(await prisma.inventoryOperation.count()).toBe(2);
+    const unrelated = createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: null,
+      data: { ...cancel.data, orderId: randomUUID() } });
+    expect(await handleInventoryCheckout(unrelated)).toBeNull();
   });
 });
 

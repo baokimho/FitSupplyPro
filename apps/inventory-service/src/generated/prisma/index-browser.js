@@ -120,6 +120,12 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.CheckoutEventScalarFieldEnum = {
+  eventId: 'eventId',
+  fingerprint: 'fingerprint',
+  result: 'result'
+};
+
 exports.Prisma.InventoryScalarFieldEnum = {
   id: 'id',
   productId: 'productId',
@@ -149,8 +155,14 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
 
 exports.Prisma.ModelName = {
+  CheckoutEvent: 'CheckoutEvent',
   Inventory: 'Inventory',
   InventoryOperation: 'InventoryOperation'
 };

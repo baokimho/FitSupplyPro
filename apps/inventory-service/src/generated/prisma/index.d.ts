@@ -14,6 +14,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
 
 /**
+ * Model CheckoutEvent
+ *
+ */
+export type CheckoutEvent = $Result.DefaultSelection<Prisma.$CheckoutEventPayload>
+/**
  * Model Inventory
  * 
  */
@@ -33,8 +38,8 @@ export type InventoryOperation = $Result.DefaultSelection<Prisma.$InventoryOpera
  * const prisma = new PrismaClient({
  *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
  * })
- * // Fetch zero or more Inventories
- * const inventories = await prisma.inventory.findMany()
+ * // Fetch zero or more CheckoutEvents
+ * const checkoutEvents = await prisma.checkoutEvent.findMany()
  * ```
  *
  *
@@ -56,8 +61,8 @@ export class PrismaClient<
    * const prisma = new PrismaClient({
    *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
    * })
-   * // Fetch zero or more Inventories
-   * const inventories = await prisma.inventory.findMany()
+   * // Fetch zero or more CheckoutEvents
+   * const checkoutEvents = await prisma.checkoutEvent.findMany()
    * ```
    *
    *
@@ -146,6 +151,16 @@ export class PrismaClient<
   }>>
 
       /**
+   * `prisma.checkoutEvent`: Exposes CRUD operations for the **CheckoutEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CheckoutEvents
+    * const checkoutEvents = await prisma.checkoutEvent.findMany()
+    * ```
+    */
+  get checkoutEvent(): Prisma.CheckoutEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
    * `prisma.inventory`: Exposes CRUD operations for the **Inventory** model.
     * Example usage:
     * ```ts
@@ -598,6 +613,7 @@ export namespace Prisma {
 
 
   export const ModelName: {
+    CheckoutEvent: 'CheckoutEvent',
     Inventory: 'Inventory',
     InventoryOperation: 'InventoryOperation'
   };
@@ -615,10 +631,84 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "inventory" | "inventoryOperation"
+      modelProps: "checkoutEvent" | "inventory" | "inventoryOperation"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
+      CheckoutEvent: {
+        payload: Prisma.$CheckoutEventPayload<ExtArgs>
+        fields: Prisma.CheckoutEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CheckoutEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CheckoutEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          findFirst: {
+            args: Prisma.CheckoutEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CheckoutEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          findMany: {
+            args: Prisma.CheckoutEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          create: {
+            args: Prisma.CheckoutEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          createMany: {
+            args: Prisma.CheckoutEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CheckoutEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          delete: {
+            args: Prisma.CheckoutEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          update: {
+            args: Prisma.CheckoutEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.CheckoutEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CheckoutEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CheckoutEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.CheckoutEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          aggregate: {
+            args: Prisma.CheckoutEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCheckoutEvent>
+          }
+          groupBy: {
+            args: Prisma.CheckoutEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CheckoutEventCountArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutEventCountAggregateOutputType> | number
+          }
+        }
+      }
       Inventory: {
         payload: Prisma.$InventoryPayload<ExtArgs>
         fields: Prisma.InventoryFieldRefs
@@ -875,6 +965,7 @@ export namespace Prisma {
     comments?: runtime.SqlCommenterPlugin[]
   }
   export type GlobalOmitConfig = {
+    checkoutEvent?: CheckoutEventOmit
     inventory?: InventoryOmit
     inventoryOperation?: InventoryOperationOmit
   }
@@ -986,6 +1077,980 @@ export namespace Prisma {
   /**
    * Models
    */
+
+  /**
+   * Model CheckoutEvent
+   */
+
+  export type AggregateCheckoutEvent = {
+    _count: CheckoutEventCountAggregateOutputType | null
+    _min: CheckoutEventMinAggregateOutputType | null
+    _max: CheckoutEventMaxAggregateOutputType | null
+  }
+
+  export type CheckoutEventMinAggregateOutputType = {
+    eventId: string | null
+    fingerprint: string | null
+    result: string | null
+  }
+
+  export type CheckoutEventMaxAggregateOutputType = {
+    eventId: string | null
+    fingerprint: string | null
+    result: string | null
+  }
+
+  export type CheckoutEventCountAggregateOutputType = {
+    eventId: number
+    fingerprint: number
+    result: number
+    _all: number
+  }
+
+
+  export type CheckoutEventMinAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+  }
+
+  export type CheckoutEventMaxAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+  }
+
+  export type CheckoutEventCountAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+    _all?: true
+  }
+
+  export type CheckoutEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutEvent to aggregate.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the start position
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Count returned CheckoutEvents
+    **/
+    _count?: true | CheckoutEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the minimum value
+    **/
+    _min?: CheckoutEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the maximum value
+    **/
+    _max?: CheckoutEventMaxAggregateInputType
+  }
+
+  export type GetCheckoutEventAggregateType<T extends CheckoutEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateCheckoutEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCheckoutEvent[P]>
+      : GetScalarType<T[P], AggregateCheckoutEvent[P]>
+  }
+
+
+
+
+  export type CheckoutEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CheckoutEventWhereInput
+    orderBy?: CheckoutEventOrderByWithAggregationInput | CheckoutEventOrderByWithAggregationInput[]
+    by: CheckoutEventScalarFieldEnum[] | CheckoutEventScalarFieldEnum
+    having?: CheckoutEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CheckoutEventCountAggregateInputType | true
+    _min?: CheckoutEventMinAggregateInputType
+    _max?: CheckoutEventMaxAggregateInputType
+  }
+
+  export type CheckoutEventGroupByOutputType = {
+    eventId: string
+    fingerprint: string
+    result: string | null
+    _count: CheckoutEventCountAggregateOutputType | null
+    _min: CheckoutEventMinAggregateOutputType | null
+    _max: CheckoutEventMaxAggregateOutputType | null
+  }
+
+  type GetCheckoutEventGroupByPayload<T extends CheckoutEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CheckoutEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CheckoutEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CheckoutEventGroupByOutputType[P]>
+            : GetScalarType<T[P], CheckoutEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CheckoutEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectScalar = {
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }
+
+  export type CheckoutEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"eventId" | "fingerprint" | "result", ExtArgs["result"]["checkoutEvent"]>
+
+  export type $CheckoutEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CheckoutEvent"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      eventId: string
+      fingerprint: string
+      result: string | null
+    }, ExtArgs["result"]["checkoutEvent"]>
+    composites: {}
+  }
+
+  type CheckoutEventGetPayload<S extends boolean | null | undefined | CheckoutEventDefaultArgs> = $Result.GetResult<Prisma.$CheckoutEventPayload, S>
+
+  type CheckoutEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CheckoutEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CheckoutEventCountAggregateInputType | true
+    }
+
+  export interface CheckoutEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CheckoutEvent'], meta: { name: 'CheckoutEvent' } }
+    /**
+     * Find zero or one CheckoutEvent that matches the filter.
+     * @param {CheckoutEventFindUniqueArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CheckoutEventFindUniqueArgs>(args: SelectSubset<T, CheckoutEventFindUniqueArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CheckoutEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CheckoutEventFindUniqueOrThrowArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CheckoutEventFindUniqueOrThrowArgs>(args: SelectSubset<T, CheckoutEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindFirstArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CheckoutEventFindFirstArgs>(args?: SelectSubset<T, CheckoutEventFindFirstArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindFirstOrThrowArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CheckoutEventFindFirstOrThrowArgs>(args?: SelectSubset<T, CheckoutEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CheckoutEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CheckoutEvents
+     * const checkoutEvents = await prisma.checkoutEvent.findMany()
+     *
+     * // Get first 10 CheckoutEvents
+     * const checkoutEvents = await prisma.checkoutEvent.findMany({ take: 10 })
+     *
+     * // Only select the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.findMany({ select: { eventId: true } })
+     *
+     */
+    findMany<T extends CheckoutEventFindManyArgs>(args?: SelectSubset<T, CheckoutEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CheckoutEvent.
+     * @param {CheckoutEventCreateArgs} args - Arguments to create a CheckoutEvent.
+     * @example
+     * // Create one CheckoutEvent
+     * const CheckoutEvent = await prisma.checkoutEvent.create({
+     *   data: {
+     *     // ... data to create a CheckoutEvent
+     *   }
+     * })
+     *
+     */
+    create<T extends CheckoutEventCreateArgs>(args: SelectSubset<T, CheckoutEventCreateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CheckoutEvents.
+     * @param {CheckoutEventCreateManyArgs} args - Arguments to create many CheckoutEvents.
+     * @example
+     * // Create many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     */
+    createMany<T extends CheckoutEventCreateManyArgs>(args?: SelectSubset<T, CheckoutEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CheckoutEvents and returns the data saved in the database.
+     * @param {CheckoutEventCreateManyAndReturnArgs} args - Arguments to create many CheckoutEvents.
+     * @example
+     * // Create many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Create many CheckoutEvents and only return the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.createManyAndReturn({
+     *   select: { eventId: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    createManyAndReturn<T extends CheckoutEventCreateManyAndReturnArgs>(args?: SelectSubset<T, CheckoutEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CheckoutEvent.
+     * @param {CheckoutEventDeleteArgs} args - Arguments to delete one CheckoutEvent.
+     * @example
+     * // Delete one CheckoutEvent
+     * const CheckoutEvent = await prisma.checkoutEvent.delete({
+     *   where: {
+     *     // ... filter to delete one CheckoutEvent
+     *   }
+     * })
+     *
+     */
+    delete<T extends CheckoutEventDeleteArgs>(args: SelectSubset<T, CheckoutEventDeleteArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CheckoutEvent.
+     * @param {CheckoutEventUpdateArgs} args - Arguments to update one CheckoutEvent.
+     * @example
+     * // Update one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    update<T extends CheckoutEventUpdateArgs>(args: SelectSubset<T, CheckoutEventUpdateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CheckoutEvents.
+     * @param {CheckoutEventDeleteManyArgs} args - Arguments to filter CheckoutEvents to delete.
+     * @example
+     * // Delete a few CheckoutEvents
+     * const { count } = await prisma.checkoutEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     *
+     */
+    deleteMany<T extends CheckoutEventDeleteManyArgs>(args?: SelectSubset<T, CheckoutEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    updateMany<T extends CheckoutEventUpdateManyArgs>(args: SelectSubset<T, CheckoutEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutEvents and returns the data updated in the database.
+     * @param {CheckoutEventUpdateManyAndReturnArgs} args - Arguments to update many CheckoutEvents.
+     * @example
+     * // Update many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Update zero or more CheckoutEvents and only return the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.updateManyAndReturn({
+     *   select: { eventId: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    updateManyAndReturn<T extends CheckoutEventUpdateManyAndReturnArgs>(args: SelectSubset<T, CheckoutEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CheckoutEvent.
+     * @param {CheckoutEventUpsertArgs} args - Arguments to update or create a CheckoutEvent.
+     * @example
+     * // Update or create a CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.upsert({
+     *   create: {
+     *     // ... data to create a CheckoutEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CheckoutEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CheckoutEventUpsertArgs>(args: SelectSubset<T, CheckoutEventUpsertArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CheckoutEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventCountArgs} args - Arguments to filter CheckoutEvents to count.
+     * @example
+     * // Count the number of CheckoutEvents
+     * const count = await prisma.checkoutEvent.count({
+     *   where: {
+     *     // ... the filter for the CheckoutEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends CheckoutEventCountArgs>(
+      args?: Subset<T, CheckoutEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CheckoutEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CheckoutEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CheckoutEventAggregateArgs>(args: Subset<T, CheckoutEventAggregateArgs>): Prisma.PrismaPromise<GetCheckoutEventAggregateType<T>>
+
+    /**
+     * Group by CheckoutEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     *
+    **/
+    groupBy<
+      T extends CheckoutEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CheckoutEventGroupByArgs['orderBy'] }
+        : { orderBy?: CheckoutEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CheckoutEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCheckoutEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CheckoutEvent model
+   */
+  readonly fields: CheckoutEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CheckoutEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CheckoutEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CheckoutEvent model
+   */
+  interface CheckoutEventFieldRefs {
+    readonly eventId: FieldRef<"CheckoutEvent", 'String'>
+    readonly fingerprint: FieldRef<"CheckoutEvent", 'String'>
+    readonly result: FieldRef<"CheckoutEvent", 'String'>
+  }
+
+
+  // Custom InputTypes
+  /**
+   * CheckoutEvent findUnique
+   */
+  export type CheckoutEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent findUniqueOrThrow
+   */
+  export type CheckoutEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent findFirst
+   */
+  export type CheckoutEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent findFirstOrThrow
+   */
+  export type CheckoutEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent findMany
+   */
+  export type CheckoutEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvents to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for listing CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent create
+   */
+  export type CheckoutEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data needed to create a CheckoutEvent.
+     */
+    data: XOR<CheckoutEventCreateInput, CheckoutEventUncheckedCreateInput>
+  }
+
+  /**
+   * CheckoutEvent createMany
+   */
+  export type CheckoutEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CheckoutEvents.
+     */
+    data: CheckoutEventCreateManyInput | CheckoutEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CheckoutEvent createManyAndReturn
+   */
+  export type CheckoutEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many CheckoutEvents.
+     */
+    data: CheckoutEventCreateManyInput | CheckoutEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CheckoutEvent update
+   */
+  export type CheckoutEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data needed to update a CheckoutEvent.
+     */
+    data: XOR<CheckoutEventUpdateInput, CheckoutEventUncheckedUpdateInput>
+    /**
+     * Choose, which CheckoutEvent to update.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent updateMany
+   */
+  export type CheckoutEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CheckoutEvents.
+     */
+    data: XOR<CheckoutEventUpdateManyMutationInput, CheckoutEventUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutEvents to update
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent updateManyAndReturn
+   */
+  export type CheckoutEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data used to update CheckoutEvents.
+     */
+    data: XOR<CheckoutEventUpdateManyMutationInput, CheckoutEventUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutEvents to update
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent upsert
+   */
+  export type CheckoutEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The filter to search for the CheckoutEvent to update in case it exists.
+     */
+    where: CheckoutEventWhereUniqueInput
+    /**
+     * In case the CheckoutEvent found by the `where` argument doesn't exist, create a new CheckoutEvent with this data.
+     */
+    create: XOR<CheckoutEventCreateInput, CheckoutEventUncheckedCreateInput>
+    /**
+     * In case the CheckoutEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CheckoutEventUpdateInput, CheckoutEventUncheckedUpdateInput>
+  }
+
+  /**
+   * CheckoutEvent delete
+   */
+  export type CheckoutEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter which CheckoutEvent to delete.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent deleteMany
+   */
+  export type CheckoutEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutEvents to delete
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent without action
+   */
+  export type CheckoutEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+  }
+
 
   /**
    * Model Inventory
@@ -3254,6 +4319,15 @@ export namespace Prisma {
   export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
+  export const CheckoutEventScalarFieldEnum: {
+    eventId: 'eventId',
+    fingerprint: 'fingerprint',
+    result: 'result'
+  };
+
+  export type CheckoutEventScalarFieldEnum = (typeof CheckoutEventScalarFieldEnum)[keyof typeof CheckoutEventScalarFieldEnum]
+
+
   export const InventoryScalarFieldEnum: {
     id: 'id',
     productId: 'productId',
@@ -3293,6 +4367,14 @@ export namespace Prisma {
   };
 
   export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+  export const NullsOrder: {
+    first: 'first',
+    last: 'last'
+  };
+
+  export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
   /**
@@ -3358,6 +4440,48 @@ export namespace Prisma {
    * Deep Input Types
    */
 
+
+  export type CheckoutEventWhereInput = {
+    AND?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    OR?: CheckoutEventWhereInput[]
+    NOT?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    eventId?: StringFilter<"CheckoutEvent"> | string
+    fingerprint?: StringFilter<"CheckoutEvent"> | string
+    result?: StringNullableFilter<"CheckoutEvent"> | string | null
+  }
+
+  export type CheckoutEventOrderByWithRelationInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrderInput | SortOrder
+  }
+
+  export type CheckoutEventWhereUniqueInput = Prisma.AtLeast<{
+    eventId?: string
+    AND?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    OR?: CheckoutEventWhereInput[]
+    NOT?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    fingerprint?: StringFilter<"CheckoutEvent"> | string
+    result?: StringNullableFilter<"CheckoutEvent"> | string | null
+  }, "eventId">
+
+  export type CheckoutEventOrderByWithAggregationInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrderInput | SortOrder
+    _count?: CheckoutEventCountOrderByAggregateInput
+    _max?: CheckoutEventMaxOrderByAggregateInput
+    _min?: CheckoutEventMinOrderByAggregateInput
+  }
+
+  export type CheckoutEventScalarWhereWithAggregatesInput = {
+    AND?: CheckoutEventScalarWhereWithAggregatesInput | CheckoutEventScalarWhereWithAggregatesInput[]
+    OR?: CheckoutEventScalarWhereWithAggregatesInput[]
+    NOT?: CheckoutEventScalarWhereWithAggregatesInput | CheckoutEventScalarWhereWithAggregatesInput[]
+    eventId?: StringWithAggregatesFilter<"CheckoutEvent"> | string
+    fingerprint?: StringWithAggregatesFilter<"CheckoutEvent"> | string
+    result?: StringNullableWithAggregatesFilter<"CheckoutEvent"> | string | null
+  }
 
   export type InventoryWhereInput = {
     AND?: InventoryWhereInput | InventoryWhereInput[]
@@ -3486,6 +4610,48 @@ export namespace Prisma {
     type?: StringWithAggregatesFilter<"InventoryOperation"> | string
     quantity?: IntWithAggregatesFilter<"InventoryOperation"> | number
     createdAt?: DateTimeWithAggregatesFilter<"InventoryOperation"> | Date | string
+  }
+
+  export type CheckoutEventCreateInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUncheckedCreateInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUpdateInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventUncheckedUpdateInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventCreateManyInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUpdateManyMutationInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventUncheckedUpdateManyInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type InventoryCreateInput = {
@@ -3639,6 +4805,80 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
+  export type CheckoutEventCountOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type CheckoutEventMaxOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type CheckoutEventMinOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type StringWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringWithAggregatesFilter<$PrismaModel> | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedStringFilter<$PrismaModel>
+    _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -3713,24 +4953,6 @@ export namespace Prisma {
     lowStockThreshold?: SortOrder
   }
 
-  export type StringWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringWithAggregatesFilter<$PrismaModel> | string
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedStringFilter<$PrismaModel>
-    _max?: NestedStringFilter<$PrismaModel>
-  }
-
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -3801,6 +5023,14 @@ export namespace Prisma {
     quantity?: SortOrder
   }
 
+  export type StringFieldUpdateOperationsInput = {
+    set?: string
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
   export type InventoryOperationCreateNestedManyWithoutInventoryInput = {
     create?: XOR<InventoryOperationCreateWithoutInventoryInput, InventoryOperationUncheckedCreateWithoutInventoryInput> | InventoryOperationCreateWithoutInventoryInput[] | InventoryOperationUncheckedCreateWithoutInventoryInput[]
     connectOrCreate?: InventoryOperationCreateOrConnectWithoutInventoryInput | InventoryOperationCreateOrConnectWithoutInventoryInput[]
@@ -3813,10 +5043,6 @@ export namespace Prisma {
     connectOrCreate?: InventoryOperationCreateOrConnectWithoutInventoryInput | InventoryOperationCreateOrConnectWithoutInventoryInput[]
     createMany?: InventoryOperationCreateManyInventoryInputEnvelope
     connect?: InventoryOperationWhereUniqueInput | InventoryOperationWhereUniqueInput[]
-  }
-
-  export type StringFieldUpdateOperationsInput = {
-    set?: string
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -3887,26 +5113,18 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
-  }
-
-  export type NestedDateTimeFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeFilter<$PrismaModel> | Date | string
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
@@ -3924,6 +5142,56 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedDateTimeFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {

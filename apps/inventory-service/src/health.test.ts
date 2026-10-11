@@ -15,6 +15,13 @@ function app() {
 }
 
 describe("inventory-service probes", () => {
+  it("broker failure makes readiness unavailable; liveness remains available", async () => {
+    readiness.brokerReady = () => false;
+    try {
+      await request(app()).get("/ready").expect(503);
+      await request(app()).get("/health").expect(200);
+    } finally { readiness.brokerReady = () => true; }
+  });
   beforeEach(() => { readiness.stopping = false; vi.clearAllMocks(); mocks.query.mockResolvedValue([{ value: 1 }]); });
 
   it("health is dependency-free; ready checks database only", async () => {
