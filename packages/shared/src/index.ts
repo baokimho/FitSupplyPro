@@ -19,3 +19,4 @@ export * from "./testing/cleanup.js";
 export * from "./messaging/config.js";
 export * from "./messaging/topology.js";
 export * from "./messaging/broker.js";
+export * from "./events/envelope.js";
