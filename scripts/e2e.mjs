@@ -74,16 +74,22 @@ function seedAdmin() {
 let failure = 0;
 
 try {
-  runOrThrow("stack teardown", "docker", [...compose, "down", "-v", "--remove-orphans"]);
-  runOrThrow("stack startup", "docker", [...compose, "up", "-d", "--build", "--wait", "--wait-timeout", "180"]);
-  seedAdmin();
-  failure = run("npm", ["exec", "--", "vitest", "run", "tests/e2e/purchase-lifecycle.e2e.test.ts"], {
-    env: {
-      API_GATEWAY_URL: "http://localhost:3500",
-      E2E_ADMIN_EMAIL: adminEmail,
-      E2E_ADMIN_PASSWORD: adminPassword,
-    },
-  });
+  for (const mode of ["sync", "async-success", "async-failure"]) {
+    const env = { EVENT_DRIVEN_CHECKOUT: mode === "sync" ? "false" : "true", TEST_CHECKOUT_PAYMENT_OUTCOME: mode === "async-failure" ? "FAILED" : "SUCCEEDED" };
+    runOrThrow("stack teardown", "docker", [...compose, "down", "-v", "--remove-orphans"]);
+    runOrThrow("stack startup", "docker", [...compose, "up", "-d", "--build", "--wait", "--wait-timeout", "180"], { env });
+    seedAdmin();
+    failure = run("npm", ["exec", "--", "vitest", "run", mode === "sync" ? "tests/e2e/purchase-lifecycle.e2e.test.ts" : "tests/e2e/event-checkout.e2e.test.ts"], {
+      env: {
+        ...env,
+        RABBITMQ_URL: "amqp://fitsupply_test:fitsupply_test@localhost:5674",
+        API_GATEWAY_URL: "http://localhost:3500",
+        E2E_ADMIN_EMAIL: adminEmail,
+        E2E_ADMIN_PASSWORD: adminPassword,
+      },
+    });
+    if (failure) break;
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   failure = 1;

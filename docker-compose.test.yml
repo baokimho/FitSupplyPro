@@ -1,4 +1,17 @@
 services:
+  rabbitmq-test:
+    image: rabbitmq:4.3.5-management-alpine
+    container_name: fitsupply-stack-rabbitmq-test
+    environment:
+      RABBITMQ_DEFAULT_USER: fitsupply_test
+      RABBITMQ_DEFAULT_PASS: fitsupply_test
+    ports:
+      - "127.0.0.1:5674:5672"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
   postgres-test:
     image: postgres:16-alpine
     container_name: fitsupply-stack-postgres-test
@@ -116,6 +129,8 @@ services:
     environment:
       NODE_ENV: test
       PORT: 3004
+      EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
+      RABBITMQ_URL: amqp://fitsupply_test:fitsupply_test@rabbitmq-test:5672
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/inventory_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
     command: sh -c "npx prisma migrate deploy --config apps/inventory-service/prisma.config.ts --schema apps/inventory-service/prisma/schema.prisma && exec node apps/inventory-service/dist/index.js"
@@ -137,6 +152,8 @@ services:
     environment:
       NODE_ENV: test
       PORT: 3003
+      EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
+      RABBITMQ_URL: amqp://fitsupply_test:fitsupply_test@rabbitmq-test:5672
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/order_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
       CATALOG_SERVICE_URL: http://catalog-service:3002
@@ -194,6 +211,9 @@ services:
     environment:
       NODE_ENV: test
       PORT: 3006
+      EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
+      RABBITMQ_URL: amqp://fitsupply_test:fitsupply_test@rabbitmq-test:5672
+      TEST_CHECKOUT_PAYMENT_OUTCOME: ${TEST_CHECKOUT_PAYMENT_OUTCOME:-SUCCEEDED}
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/payment_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
       ORDER_SERVICE_URL: http://order-service:3003
