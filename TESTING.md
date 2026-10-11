@@ -157,3 +157,40 @@ and Gateway role/internal-route boundaries are covered.
 Existing gaps: Notification unit tests; Auth/Catalog/Notification integration tests.
 The matrix reports these as gaps, not passing suites. Coverage reports were not
 generated during Phase 4. No environment-only verification failures remain.
+
+## Phase 6 closeout
+
+Integration event foundation complete. No HTTP workflow, broker topology, business
+producer/consumer, Saga or Outbox changed. See
+[Integration event contracts](docs/phase6-integration-events.md) for schemas,
+payload meaning, identifiers, compatibility and decoding/error semantics.
+
+Added **213 tests** across three shared event test files: envelope validation,
+all 11 V1 business contracts, required fields, UUID/quantity/money constraints,
+producer ownership, additive-field compatibility, registry uniqueness, TypeScript
+discriminator narrowing, metadata creation/propagation, round trips for every
+event, malformed UTF-8/JSON, unsupported/unknown contracts and output validation.
+
+Verified on 2026-10-11:
+
+- `npm exec --workspace @shared/utils -- vitest run src/events`: **213 passed**.
+- `npm run lint`: passed.
+- `npm run typecheck`: passed across all workspaces.
+- Explicit `tsc --noEmit` command in event documentation: passed; test type
+  assertions compile, including event-specific payload narrowing.
+- `npm run test`: **642 unit**, **177 integration** tests passed. Integration
+  includes real disposable RabbitMQ delivery checks and PostgreSQL service tests;
+  matrix runs both unit and integration workflows and tears down test resources.
+- `npm run build`: passed across all workspaces.
+- `npm run test:e2e`: **6 passed**, rebuilt disposable Docker HTTP purchase stack;
+  stack and test volume torn down.
+- `docker compose config --quiet`: passed.
+- `docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config --quiet`: passed.
+- `docker compose -p fitsupply-e2e -f docker-compose.test.yml config --quiet`: passed.
+- `git diff --check`: passed; reviewed diff contains only shared event foundation,
+  its exports/tests and documentation. No dependencies added.
+
+Docker Desktop initially was stopped; background startup enabled all Docker checks.
+Existing test coverage gaps remain reported by the matrix, not marked as passing
+suites. Coverage reports were not generated for Phase 6. Contract foundation is
+ready for Phase 7 design/implementation; no asynchronous checkout migration exists.

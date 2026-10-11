@@ -645,7 +645,9 @@ Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, or Stripe 
 
 RabbitMQ infrastructure and delivery primitives are available; existing checkout,
 inventory, payment and notification paths remain synchronous HTTP. No business
-consumer or canonical event envelope exists yet. See
+consumer runs yet. Phase 6 provides typed, validated integration contracts; see
+[Integration events](docs/phase6-integration-events.md) for envelope, payloads,
+correlation/causation, versions and serialization. See
 [RabbitMQ fundamentals](docs/phase5-rabbitmq-fundamentals.md) for setup, exact
 topology, confirms, ACK/NACK, prefetch, DLQs, lifecycle and deferred guarantees.
 Copy `docker/rabbitmq/.env.example` to `docker/rabbitmq/.env`, then run
