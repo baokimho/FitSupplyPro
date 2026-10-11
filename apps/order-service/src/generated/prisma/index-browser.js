@@ -120,7 +120,15 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.CheckoutEventScalarFieldEnum = {
+  eventId: 'eventId',
+  fingerprint: 'fingerprint',
+  result: 'result'
+};
+
 exports.Prisma.OrderScalarFieldEnum = {
+  eventDriven: 'eventDriven',
+  creationEvent: 'creationEvent',
   id: 'id',
   userId: 'userId',
   status: 'status',
@@ -203,6 +211,7 @@ exports.OrderStatus = exports.$Enums.OrderStatus = {
 };
 
 exports.Prisma.ModelName = {
+  CheckoutEvent: 'CheckoutEvent',
   Order: 'Order',
   OrderItem: 'OrderItem',
   CheckoutIdempotency: 'CheckoutIdempotency'

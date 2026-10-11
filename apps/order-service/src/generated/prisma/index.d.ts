@@ -14,6 +14,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
 
 /**
+ * Model CheckoutEvent
+ *
+ */
+export type CheckoutEvent = $Result.DefaultSelection<Prisma.$CheckoutEventPayload>
+/**
  * Model Order
  * 
  */
@@ -59,8 +64,8 @@ export const OrderStatus: typeof $Enums.OrderStatus
  * const prisma = new PrismaClient({
  *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
  * })
- * // Fetch zero or more Orders
- * const orders = await prisma.order.findMany()
+ * // Fetch zero or more CheckoutEvents
+ * const checkoutEvents = await prisma.checkoutEvent.findMany()
  * ```
  *
  *
@@ -82,8 +87,8 @@ export class PrismaClient<
    * const prisma = new PrismaClient({
    *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
    * })
-   * // Fetch zero or more Orders
-   * const orders = await prisma.order.findMany()
+   * // Fetch zero or more CheckoutEvents
+   * const checkoutEvents = await prisma.checkoutEvent.findMany()
    * ```
    *
    *
@@ -172,6 +177,16 @@ export class PrismaClient<
   }>>
 
       /**
+   * `prisma.checkoutEvent`: Exposes CRUD operations for the **CheckoutEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CheckoutEvents
+    * const checkoutEvents = await prisma.checkoutEvent.findMany()
+    * ```
+    */
+  get checkoutEvent(): Prisma.CheckoutEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
    * `prisma.order`: Exposes CRUD operations for the **Order** model.
     * Example usage:
     * ```ts
@@ -634,6 +649,7 @@ export namespace Prisma {
 
 
   export const ModelName: {
+    CheckoutEvent: 'CheckoutEvent',
     Order: 'Order',
     OrderItem: 'OrderItem',
     CheckoutIdempotency: 'CheckoutIdempotency'
@@ -652,10 +668,84 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "order" | "orderItem" | "checkoutIdempotency"
+      modelProps: "checkoutEvent" | "order" | "orderItem" | "checkoutIdempotency"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
+      CheckoutEvent: {
+        payload: Prisma.$CheckoutEventPayload<ExtArgs>
+        fields: Prisma.CheckoutEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CheckoutEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CheckoutEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          findFirst: {
+            args: Prisma.CheckoutEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CheckoutEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          findMany: {
+            args: Prisma.CheckoutEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          create: {
+            args: Prisma.CheckoutEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          createMany: {
+            args: Prisma.CheckoutEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CheckoutEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          delete: {
+            args: Prisma.CheckoutEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          update: {
+            args: Prisma.CheckoutEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.CheckoutEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CheckoutEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CheckoutEventUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>[]
+          }
+          upsert: {
+            args: Prisma.CheckoutEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CheckoutEventPayload>
+          }
+          aggregate: {
+            args: Prisma.CheckoutEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCheckoutEvent>
+          }
+          groupBy: {
+            args: Prisma.CheckoutEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CheckoutEventCountArgs<ExtArgs>
+            result: $Utils.Optional<CheckoutEventCountAggregateOutputType> | number
+          }
+        }
+      }
       Order: {
         payload: Prisma.$OrderPayload<ExtArgs>
         fields: Prisma.OrderFieldRefs
@@ -986,6 +1076,7 @@ export namespace Prisma {
     comments?: runtime.SqlCommenterPlugin[]
   }
   export type GlobalOmitConfig = {
+    checkoutEvent?: CheckoutEventOmit
     order?: OrderOmit
     orderItem?: OrderItemOmit
     checkoutIdempotency?: CheckoutIdempotencyOmit
@@ -1109,6 +1200,980 @@ export namespace Prisma {
    */
 
   /**
+   * Model CheckoutEvent
+   */
+
+  export type AggregateCheckoutEvent = {
+    _count: CheckoutEventCountAggregateOutputType | null
+    _min: CheckoutEventMinAggregateOutputType | null
+    _max: CheckoutEventMaxAggregateOutputType | null
+  }
+
+  export type CheckoutEventMinAggregateOutputType = {
+    eventId: string | null
+    fingerprint: string | null
+    result: string | null
+  }
+
+  export type CheckoutEventMaxAggregateOutputType = {
+    eventId: string | null
+    fingerprint: string | null
+    result: string | null
+  }
+
+  export type CheckoutEventCountAggregateOutputType = {
+    eventId: number
+    fingerprint: number
+    result: number
+    _all: number
+  }
+
+
+  export type CheckoutEventMinAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+  }
+
+  export type CheckoutEventMaxAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+  }
+
+  export type CheckoutEventCountAggregateInputType = {
+    eventId?: true
+    fingerprint?: true
+    result?: true
+    _all?: true
+  }
+
+  export type CheckoutEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutEvent to aggregate.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CheckoutEvents
+    **/
+    _count?: true | CheckoutEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CheckoutEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CheckoutEventMaxAggregateInputType
+  }
+
+  export type GetCheckoutEventAggregateType<T extends CheckoutEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateCheckoutEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCheckoutEvent[P]>
+      : GetScalarType<T[P], AggregateCheckoutEvent[P]>
+  }
+
+
+
+
+  export type CheckoutEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CheckoutEventWhereInput
+    orderBy?: CheckoutEventOrderByWithAggregationInput | CheckoutEventOrderByWithAggregationInput[]
+    by: CheckoutEventScalarFieldEnum[] | CheckoutEventScalarFieldEnum
+    having?: CheckoutEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CheckoutEventCountAggregateInputType | true
+    _min?: CheckoutEventMinAggregateInputType
+    _max?: CheckoutEventMaxAggregateInputType
+  }
+
+  export type CheckoutEventGroupByOutputType = {
+    eventId: string
+    fingerprint: string
+    result: string | null
+    _count: CheckoutEventCountAggregateOutputType | null
+    _min: CheckoutEventMinAggregateOutputType | null
+    _max: CheckoutEventMaxAggregateOutputType | null
+  }
+
+  type GetCheckoutEventGroupByPayload<T extends CheckoutEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CheckoutEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CheckoutEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CheckoutEventGroupByOutputType[P]>
+            : GetScalarType<T[P], CheckoutEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CheckoutEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }, ExtArgs["result"]["checkoutEvent"]>
+
+  export type CheckoutEventSelectScalar = {
+    eventId?: boolean
+    fingerprint?: boolean
+    result?: boolean
+  }
+
+  export type CheckoutEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"eventId" | "fingerprint" | "result", ExtArgs["result"]["checkoutEvent"]>
+
+  export type $CheckoutEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CheckoutEvent"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      eventId: string
+      fingerprint: string
+      result: string | null
+    }, ExtArgs["result"]["checkoutEvent"]>
+    composites: {}
+  }
+
+  type CheckoutEventGetPayload<S extends boolean | null | undefined | CheckoutEventDefaultArgs> = $Result.GetResult<Prisma.$CheckoutEventPayload, S>
+
+  type CheckoutEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CheckoutEventFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CheckoutEventCountAggregateInputType | true
+    }
+
+  export interface CheckoutEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CheckoutEvent'], meta: { name: 'CheckoutEvent' } }
+    /**
+     * Find zero or one CheckoutEvent that matches the filter.
+     * @param {CheckoutEventFindUniqueArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CheckoutEventFindUniqueArgs>(args: SelectSubset<T, CheckoutEventFindUniqueArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CheckoutEvent that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CheckoutEventFindUniqueOrThrowArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CheckoutEventFindUniqueOrThrowArgs>(args: SelectSubset<T, CheckoutEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindFirstArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CheckoutEventFindFirstArgs>(args?: SelectSubset<T, CheckoutEventFindFirstArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CheckoutEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindFirstOrThrowArgs} args - Arguments to find a CheckoutEvent
+     * @example
+     * // Get one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CheckoutEventFindFirstOrThrowArgs>(args?: SelectSubset<T, CheckoutEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CheckoutEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CheckoutEvents
+     * const checkoutEvents = await prisma.checkoutEvent.findMany()
+     *
+     * // Get first 10 CheckoutEvents
+     * const checkoutEvents = await prisma.checkoutEvent.findMany({ take: 10 })
+     *
+     * // Only select the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.findMany({ select: { eventId: true } })
+     *
+     */
+    findMany<T extends CheckoutEventFindManyArgs>(args?: SelectSubset<T, CheckoutEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CheckoutEvent.
+     * @param {CheckoutEventCreateArgs} args - Arguments to create a CheckoutEvent.
+     * @example
+     * // Create one CheckoutEvent
+     * const CheckoutEvent = await prisma.checkoutEvent.create({
+     *   data: {
+     *     // ... data to create a CheckoutEvent
+     *   }
+     * })
+     *
+     */
+    create<T extends CheckoutEventCreateArgs>(args: SelectSubset<T, CheckoutEventCreateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CheckoutEvents.
+     * @param {CheckoutEventCreateManyArgs} args - Arguments to create many CheckoutEvents.
+     * @example
+     * // Create many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     */
+    createMany<T extends CheckoutEventCreateManyArgs>(args?: SelectSubset<T, CheckoutEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CheckoutEvents and returns the data saved in the database.
+     * @param {CheckoutEventCreateManyAndReturnArgs} args - Arguments to create many CheckoutEvents.
+     * @example
+     * // Create many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Create many CheckoutEvents and only return the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.createManyAndReturn({
+     *   select: { eventId: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    createManyAndReturn<T extends CheckoutEventCreateManyAndReturnArgs>(args?: SelectSubset<T, CheckoutEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CheckoutEvent.
+     * @param {CheckoutEventDeleteArgs} args - Arguments to delete one CheckoutEvent.
+     * @example
+     * // Delete one CheckoutEvent
+     * const CheckoutEvent = await prisma.checkoutEvent.delete({
+     *   where: {
+     *     // ... filter to delete one CheckoutEvent
+     *   }
+     * })
+     *
+     */
+    delete<T extends CheckoutEventDeleteArgs>(args: SelectSubset<T, CheckoutEventDeleteArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CheckoutEvent.
+     * @param {CheckoutEventUpdateArgs} args - Arguments to update one CheckoutEvent.
+     * @example
+     * // Update one CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    update<T extends CheckoutEventUpdateArgs>(args: SelectSubset<T, CheckoutEventUpdateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CheckoutEvents.
+     * @param {CheckoutEventDeleteManyArgs} args - Arguments to filter CheckoutEvents to delete.
+     * @example
+     * // Delete a few CheckoutEvents
+     * const { count } = await prisma.checkoutEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     *
+     */
+    deleteMany<T extends CheckoutEventDeleteManyArgs>(args?: SelectSubset<T, CheckoutEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    updateMany<T extends CheckoutEventUpdateManyArgs>(args: SelectSubset<T, CheckoutEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CheckoutEvents and returns the data updated in the database.
+     * @param {CheckoutEventUpdateManyAndReturnArgs} args - Arguments to update many CheckoutEvents.
+     * @example
+     * // Update many CheckoutEvents
+     * const checkoutEvent = await prisma.checkoutEvent.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Update zero or more CheckoutEvents and only return the `eventId`
+     * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.updateManyAndReturn({
+     *   select: { eventId: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    updateManyAndReturn<T extends CheckoutEventUpdateManyAndReturnArgs>(args: SelectSubset<T, CheckoutEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CheckoutEvent.
+     * @param {CheckoutEventUpsertArgs} args - Arguments to update or create a CheckoutEvent.
+     * @example
+     * // Update or create a CheckoutEvent
+     * const checkoutEvent = await prisma.checkoutEvent.upsert({
+     *   create: {
+     *     // ... data to create a CheckoutEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CheckoutEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CheckoutEventUpsertArgs>(args: SelectSubset<T, CheckoutEventUpsertArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CheckoutEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventCountArgs} args - Arguments to filter CheckoutEvents to count.
+     * @example
+     * // Count the number of CheckoutEvents
+     * const count = await prisma.checkoutEvent.count({
+     *   where: {
+     *     // ... the filter for the CheckoutEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends CheckoutEventCountArgs>(
+      args?: Subset<T, CheckoutEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CheckoutEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CheckoutEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CheckoutEventAggregateArgs>(args: Subset<T, CheckoutEventAggregateArgs>): Prisma.PrismaPromise<GetCheckoutEventAggregateType<T>>
+
+    /**
+     * Group by CheckoutEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CheckoutEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     *
+    **/
+    groupBy<
+      T extends CheckoutEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CheckoutEventGroupByArgs['orderBy'] }
+        : { orderBy?: CheckoutEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CheckoutEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCheckoutEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CheckoutEvent model
+   */
+  readonly fields: CheckoutEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CheckoutEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CheckoutEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CheckoutEvent model
+   */
+  interface CheckoutEventFieldRefs {
+    readonly eventId: FieldRef<"CheckoutEvent", 'String'>
+    readonly fingerprint: FieldRef<"CheckoutEvent", 'String'>
+    readonly result: FieldRef<"CheckoutEvent", 'String'>
+  }
+
+
+  // Custom InputTypes
+  /**
+   * CheckoutEvent findUnique
+   */
+  export type CheckoutEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent findUniqueOrThrow
+   */
+  export type CheckoutEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent findFirst
+   */
+  export type CheckoutEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent findFirstOrThrow
+   */
+  export type CheckoutEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvent to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent findMany
+   */
+  export type CheckoutEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter, which CheckoutEvents to fetch.
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CheckoutEvents to fetch.
+     */
+    orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for listing CheckoutEvents.
+     */
+    cursor?: CheckoutEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CheckoutEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CheckoutEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CheckoutEvents.
+     */
+    distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
+  }
+
+  /**
+   * CheckoutEvent create
+   */
+  export type CheckoutEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data needed to create a CheckoutEvent.
+     */
+    data: XOR<CheckoutEventCreateInput, CheckoutEventUncheckedCreateInput>
+  }
+
+  /**
+   * CheckoutEvent createMany
+   */
+  export type CheckoutEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CheckoutEvents.
+     */
+    data: CheckoutEventCreateManyInput | CheckoutEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CheckoutEvent createManyAndReturn
+   */
+  export type CheckoutEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data used to create many CheckoutEvents.
+     */
+    data: CheckoutEventCreateManyInput | CheckoutEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CheckoutEvent update
+   */
+  export type CheckoutEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data needed to update a CheckoutEvent.
+     */
+    data: XOR<CheckoutEventUpdateInput, CheckoutEventUncheckedUpdateInput>
+    /**
+     * Choose, which CheckoutEvent to update.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent updateMany
+   */
+  export type CheckoutEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CheckoutEvents.
+     */
+    data: XOR<CheckoutEventUpdateManyMutationInput, CheckoutEventUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutEvents to update
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent updateManyAndReturn
+   */
+  export type CheckoutEventUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The data used to update CheckoutEvents.
+     */
+    data: XOR<CheckoutEventUpdateManyMutationInput, CheckoutEventUncheckedUpdateManyInput>
+    /**
+     * Filter which CheckoutEvents to update
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent upsert
+   */
+  export type CheckoutEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * The filter to search for the CheckoutEvent to update in case it exists.
+     */
+    where: CheckoutEventWhereUniqueInput
+    /**
+     * In case the CheckoutEvent found by the `where` argument doesn't exist, create a new CheckoutEvent with this data.
+     */
+    create: XOR<CheckoutEventCreateInput, CheckoutEventUncheckedCreateInput>
+    /**
+     * In case the CheckoutEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CheckoutEventUpdateInput, CheckoutEventUncheckedUpdateInput>
+  }
+
+  /**
+   * CheckoutEvent delete
+   */
+  export type CheckoutEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+    /**
+     * Filter which CheckoutEvent to delete.
+     */
+    where: CheckoutEventWhereUniqueInput
+  }
+
+  /**
+   * CheckoutEvent deleteMany
+   */
+  export type CheckoutEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CheckoutEvents to delete
+     */
+    where?: CheckoutEventWhereInput
+    /**
+     * Limit how many CheckoutEvents to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CheckoutEvent without action
+   */
+  export type CheckoutEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CheckoutEvent
+     */
+    select?: CheckoutEventSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CheckoutEvent
+     */
+    omit?: CheckoutEventOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Model Order
    */
 
@@ -1129,6 +2194,8 @@ export namespace Prisma {
   }
 
   export type OrderMinAggregateOutputType = {
+    eventDriven: boolean | null
+    creationEvent: string | null
     id: string | null
     userId: string | null
     status: $Enums.OrderStatus | null
@@ -1148,6 +2215,8 @@ export namespace Prisma {
   }
 
   export type OrderMaxAggregateOutputType = {
+    eventDriven: boolean | null
+    creationEvent: string | null
     id: string | null
     userId: string | null
     status: $Enums.OrderStatus | null
@@ -1167,6 +2236,8 @@ export namespace Prisma {
   }
 
   export type OrderCountAggregateOutputType = {
+    eventDriven: number
+    creationEvent: number
     id: number
     userId: number
     status: number
@@ -1196,6 +2267,8 @@ export namespace Prisma {
   }
 
   export type OrderMinAggregateInputType = {
+    eventDriven?: true
+    creationEvent?: true
     id?: true
     userId?: true
     status?: true
@@ -1215,6 +2288,8 @@ export namespace Prisma {
   }
 
   export type OrderMaxAggregateInputType = {
+    eventDriven?: true
+    creationEvent?: true
     id?: true
     userId?: true
     status?: true
@@ -1234,6 +2309,8 @@ export namespace Prisma {
   }
 
   export type OrderCountAggregateInputType = {
+    eventDriven?: true
+    creationEvent?: true
     id?: true
     userId?: true
     status?: true
@@ -1260,55 +2337,55 @@ export namespace Prisma {
     where?: OrderWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of Orders to fetch.
      */
     orderBy?: OrderOrderByWithRelationInput | OrderOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the start position
      */
     cursor?: OrderWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` Orders from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` Orders.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Count returned Orders
     **/
     _count?: true | OrderCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to average
     **/
     _avg?: OrderAvgAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to sum
     **/
     _sum?: OrderSumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the minimum value
     **/
     _min?: OrderMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the maximum value
     **/
     _max?: OrderMaxAggregateInputType
@@ -1340,6 +2417,8 @@ export namespace Prisma {
   }
 
   export type OrderGroupByOutputType = {
+    eventDriven: boolean
+    creationEvent: string | null
     id: string
     userId: string
     status: $Enums.OrderStatus
@@ -1378,6 +2457,8 @@ export namespace Prisma {
 
 
   export type OrderSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventDriven?: boolean
+    creationEvent?: boolean
     id?: boolean
     userId?: boolean
     status?: boolean
@@ -1400,6 +2481,8 @@ export namespace Prisma {
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventDriven?: boolean
+    creationEvent?: boolean
     id?: boolean
     userId?: boolean
     status?: boolean
@@ -1419,6 +2502,8 @@ export namespace Prisma {
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    eventDriven?: boolean
+    creationEvent?: boolean
     id?: boolean
     userId?: boolean
     status?: boolean
@@ -1438,6 +2523,8 @@ export namespace Prisma {
   }, ExtArgs["result"]["order"]>
 
   export type OrderSelectScalar = {
+    eventDriven?: boolean
+    creationEvent?: boolean
     id?: boolean
     userId?: boolean
     status?: boolean
@@ -1456,7 +2543,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "status" | "pendingStatus" | "reservationConsumed" | "totalAmount" | "recipientName" | "contactPhone" | "deliveryAddressLine1" | "deliveryAddressLine2" | "deliveryCity" | "deliveryRegion" | "deliveryPostalCode" | "deliveryCountryCode" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+  export type OrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"eventDriven" | "creationEvent" | "id" | "userId" | "status" | "pendingStatus" | "reservationConsumed" | "totalAmount" | "recipientName" | "contactPhone" | "deliveryAddressLine1" | "deliveryAddressLine2" | "deliveryCity" | "deliveryRegion" | "deliveryPostalCode" | "deliveryCountryCode" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
   export type OrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Order$itemsArgs<ExtArgs>
     idempotencyAttempts?: boolean | Order$idempotencyAttemptsArgs<ExtArgs>
@@ -1472,6 +2559,8 @@ export namespace Prisma {
       idempotencyAttempts: Prisma.$CheckoutIdempotencyPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
+      eventDriven: boolean
+      creationEvent: string | null
       id: string
       userId: string
       status: $Enums.OrderStatus
@@ -1571,8 +2660,8 @@ export namespace Prisma {
      * // Get first 10 Orders
      * const orders = await prisma.order.findMany({ take: 10 })
      * 
-     * // Only select the `id`
-     * const orderWithIdOnly = await prisma.order.findMany({ select: { id: true } })
+     * // Only select the `eventDriven`
+     * const orderWithEventDrivenOnly = await prisma.order.findMany({ select: { eventDriven: true } })
      * 
      */
     findMany<T extends OrderFindManyArgs>(args?: SelectSubset<T, OrderFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
@@ -1616,9 +2705,9 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Create many Orders and only return the `id`
-     * const orderWithIdOnly = await prisma.order.createManyAndReturn({
-     *   select: { id: true },
+     * // Create many Orders and only return the `eventDriven`
+     * const orderWithEventDrivenOnly = await prisma.order.createManyAndReturn({
+     *   select: { eventDriven: true },
      *   data: [
      *     // ... provide data here
      *   ]
@@ -1707,9 +2796,9 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Update zero or more Orders and only return the `id`
-     * const orderWithIdOnly = await prisma.order.updateManyAndReturn({
-     *   select: { id: true },
+     * // Update zero or more Orders and only return the `eventDriven`
+     * const orderWithEventDrivenOnly = await prisma.order.updateManyAndReturn({
+     *   select: { eventDriven: true },
      *   where: {
      *     // ... provide filter here
      *   },
@@ -1913,6 +3002,8 @@ export namespace Prisma {
    * Fields of the Order model
    */
   interface OrderFieldRefs {
+    readonly eventDriven: FieldRef<"Order", 'Boolean'>
+    readonly creationEvent: FieldRef<"Order", 'String'>
     readonly id: FieldRef<"Order", 'String'>
     readonly userId: FieldRef<"Order", 'String'>
     readonly status: FieldRef<"Order", 'OrderStatus'>
@@ -4746,7 +5837,18 @@ export namespace Prisma {
   export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
+  export const CheckoutEventScalarFieldEnum: {
+    eventId: 'eventId',
+    fingerprint: 'fingerprint',
+    result: 'result'
+  };
+
+  export type CheckoutEventScalarFieldEnum = (typeof CheckoutEventScalarFieldEnum)[keyof typeof CheckoutEventScalarFieldEnum]
+
+
   export const OrderScalarFieldEnum: {
+    eventDriven: 'eventDriven',
+    creationEvent: 'creationEvent',
     id: 'id',
     userId: 'userId',
     status: 'status',
@@ -4864,6 +5966,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'OrderStatus'
    */
   export type EnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OrderStatus'>
@@ -4874,13 +5983,6 @@ export namespace Prisma {
    * Reference to a field of type 'OrderStatus[]'
    */
   export type ListEnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OrderStatus[]'>
-    
-
-
-  /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -4957,10 +6059,54 @@ export namespace Prisma {
    */
 
 
+  export type CheckoutEventWhereInput = {
+    AND?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    OR?: CheckoutEventWhereInput[]
+    NOT?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    eventId?: StringFilter<"CheckoutEvent"> | string
+    fingerprint?: StringFilter<"CheckoutEvent"> | string
+    result?: StringNullableFilter<"CheckoutEvent"> | string | null
+  }
+
+  export type CheckoutEventOrderByWithRelationInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrderInput | SortOrder
+  }
+
+  export type CheckoutEventWhereUniqueInput = Prisma.AtLeast<{
+    eventId?: string
+    AND?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    OR?: CheckoutEventWhereInput[]
+    NOT?: CheckoutEventWhereInput | CheckoutEventWhereInput[]
+    fingerprint?: StringFilter<"CheckoutEvent"> | string
+    result?: StringNullableFilter<"CheckoutEvent"> | string | null
+  }, "eventId">
+
+  export type CheckoutEventOrderByWithAggregationInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrderInput | SortOrder
+    _count?: CheckoutEventCountOrderByAggregateInput
+    _max?: CheckoutEventMaxOrderByAggregateInput
+    _min?: CheckoutEventMinOrderByAggregateInput
+  }
+
+  export type CheckoutEventScalarWhereWithAggregatesInput = {
+    AND?: CheckoutEventScalarWhereWithAggregatesInput | CheckoutEventScalarWhereWithAggregatesInput[]
+    OR?: CheckoutEventScalarWhereWithAggregatesInput[]
+    NOT?: CheckoutEventScalarWhereWithAggregatesInput | CheckoutEventScalarWhereWithAggregatesInput[]
+    eventId?: StringWithAggregatesFilter<"CheckoutEvent"> | string
+    fingerprint?: StringWithAggregatesFilter<"CheckoutEvent"> | string
+    result?: StringNullableWithAggregatesFilter<"CheckoutEvent"> | string | null
+  }
+
   export type OrderWhereInput = {
     AND?: OrderWhereInput | OrderWhereInput[]
     OR?: OrderWhereInput[]
     NOT?: OrderWhereInput | OrderWhereInput[]
+    eventDriven?: BoolFilter<"Order"> | boolean
+    creationEvent?: StringNullableFilter<"Order"> | string | null
     id?: StringFilter<"Order"> | string
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
@@ -4982,6 +6128,8 @@ export namespace Prisma {
   }
 
   export type OrderOrderByWithRelationInput = {
+    eventDriven?: SortOrder
+    creationEvent?: SortOrderInput | SortOrder
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
@@ -5007,6 +6155,8 @@ export namespace Prisma {
     AND?: OrderWhereInput | OrderWhereInput[]
     OR?: OrderWhereInput[]
     NOT?: OrderWhereInput | OrderWhereInput[]
+    eventDriven?: BoolFilter<"Order"> | boolean
+    creationEvent?: StringNullableFilter<"Order"> | string | null
     userId?: StringFilter<"Order"> | string
     status?: EnumOrderStatusFilter<"Order"> | $Enums.OrderStatus
     pendingStatus?: EnumOrderStatusNullableFilter<"Order"> | $Enums.OrderStatus | null
@@ -5027,6 +6177,8 @@ export namespace Prisma {
   }, "id">
 
   export type OrderOrderByWithAggregationInput = {
+    eventDriven?: SortOrder
+    creationEvent?: SortOrderInput | SortOrder
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
@@ -5054,6 +6206,8 @@ export namespace Prisma {
     AND?: OrderScalarWhereWithAggregatesInput | OrderScalarWhereWithAggregatesInput[]
     OR?: OrderScalarWhereWithAggregatesInput[]
     NOT?: OrderScalarWhereWithAggregatesInput | OrderScalarWhereWithAggregatesInput[]
+    eventDriven?: BoolWithAggregatesFilter<"Order"> | boolean
+    creationEvent?: StringNullableWithAggregatesFilter<"Order"> | string | null
     id?: StringWithAggregatesFilter<"Order"> | string
     userId?: StringWithAggregatesFilter<"Order"> | string
     status?: EnumOrderStatusWithAggregatesFilter<"Order"> | $Enums.OrderStatus
@@ -5251,7 +6405,51 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"CheckoutIdempotency"> | Date | string
   }
 
+  export type CheckoutEventCreateInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUncheckedCreateInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUpdateInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventUncheckedUpdateInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventCreateManyInput = {
+    eventId: string
+    fingerprint: string
+    result?: string | null
+  }
+
+  export type CheckoutEventUpdateManyMutationInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CheckoutEventUncheckedUpdateManyInput = {
+    eventId?: StringFieldUpdateOperationsInput | string
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type OrderCreateInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -5273,6 +6471,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedCreateInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -5294,6 +6494,8 @@ export namespace Prisma {
   }
 
   export type OrderUpdateInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -5315,6 +6517,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedUpdateInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -5336,6 +6540,8 @@ export namespace Prisma {
   }
 
   export type OrderCreateManyInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -5355,6 +6561,8 @@ export namespace Prisma {
   }
 
   export type OrderUpdateManyMutationInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -5374,6 +6582,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedUpdateManyInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -5608,6 +6818,85 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
+  export type CheckoutEventCountOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type CheckoutEventMaxOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type CheckoutEventMinOrderByAggregateInput = {
+    eventId?: SortOrder
+    fingerprint?: SortOrder
+    result?: SortOrder
+  }
+
+  export type StringWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel>
+    in?: string[] | ListStringFieldRefInput<$PrismaModel>
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringWithAggregatesFilter<$PrismaModel> | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedStringFilter<$PrismaModel>
+    _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type EnumOrderStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel>
     in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
@@ -5622,11 +6911,6 @@ export namespace Prisma {
     not?: NestedEnumOrderStatusNullableFilter<$PrismaModel> | $Enums.OrderStatus | null
   }
 
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
   export type DecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -5636,21 +6920,6 @@ export namespace Prisma {
     gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
-  }
-
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type DateTimeFilter<$PrismaModel = never> = {
@@ -5676,11 +6945,6 @@ export namespace Prisma {
     none?: CheckoutIdempotencyWhereInput
   }
 
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
-  }
-
   export type OrderItemOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -5690,6 +6954,8 @@ export namespace Prisma {
   }
 
   export type OrderCountOrderByAggregateInput = {
+    eventDriven?: SortOrder
+    creationEvent?: SortOrder
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
@@ -5713,6 +6979,8 @@ export namespace Prisma {
   }
 
   export type OrderMaxOrderByAggregateInput = {
+    eventDriven?: SortOrder
+    creationEvent?: SortOrder
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
@@ -5732,6 +7000,8 @@ export namespace Prisma {
   }
 
   export type OrderMinOrderByAggregateInput = {
+    eventDriven?: SortOrder
+    creationEvent?: SortOrder
     id?: SortOrder
     userId?: SortOrder
     status?: SortOrder
@@ -5754,22 +7024,12 @@ export namespace Prisma {
     totalAmount?: SortOrder
   }
 
-  export type StringWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel>
-    in?: string[] | ListStringFieldRefInput<$PrismaModel>
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel>
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringWithAggregatesFilter<$PrismaModel> | string
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedStringFilter<$PrismaModel>
-    _max?: NestedStringFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type EnumOrderStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -5792,14 +7052,6 @@ export namespace Prisma {
     _max?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
   }
 
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
-  }
-
   export type DecimalWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -5814,24 +7066,6 @@ export namespace Prisma {
     _sum?: NestedDecimalFilter<$PrismaModel>
     _min?: NestedDecimalFilter<$PrismaModel>
     _max?: NestedDecimalFilter<$PrismaModel>
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -6037,6 +7271,14 @@ export namespace Prisma {
     _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
+  export type StringFieldUpdateOperationsInput = {
+    set?: string
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
   export type OrderItemCreateNestedManyWithoutOrderInput = {
     create?: XOR<OrderItemCreateWithoutOrderInput, OrderItemUncheckedCreateWithoutOrderInput> | OrderItemCreateWithoutOrderInput[] | OrderItemUncheckedCreateWithoutOrderInput[]
     connectOrCreate?: OrderItemCreateOrConnectWithoutOrderInput | OrderItemCreateOrConnectWithoutOrderInput[]
@@ -6065,8 +7307,8 @@ export namespace Prisma {
     connect?: CheckoutIdempotencyWhereUniqueInput | CheckoutIdempotencyWhereUniqueInput[]
   }
 
-  export type StringFieldUpdateOperationsInput = {
-    set?: string
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
   }
 
   export type EnumOrderStatusFieldUpdateOperationsInput = {
@@ -6077,20 +7319,12 @@ export namespace Prisma {
     set?: $Enums.OrderStatus | null
   }
 
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
-  }
-
   export type DecimalFieldUpdateOperationsInput = {
     set?: Decimal | DecimalJsLike | number | string
     increment?: Decimal | DecimalJsLike | number | string
     decrement?: Decimal | DecimalJsLike | number | string
     multiply?: Decimal | DecimalJsLike | number | string
     divide?: Decimal | DecimalJsLike | number | string
-  }
-
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
   }
 
   export type DateTimeFieldUpdateOperationsInput = {
@@ -6205,36 +7439,6 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
-  export type NestedEnumOrderStatusFilter<$PrismaModel = never> = {
-    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
-  }
-
-  export type NestedEnumOrderStatusNullableFilter<$PrismaModel = never> = {
-    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
-    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
-    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
-    not?: NestedEnumOrderStatusNullableFilter<$PrismaModel> | $Enums.OrderStatus | null
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type NestedDecimalFilter<$PrismaModel = never> = {
-    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
-    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
-    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
-    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
-    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
-    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
-    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
-    not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
-  }
-
   export type NestedStringNullableFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel> | null
     in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
@@ -6247,17 +7451,6 @@ export namespace Prisma {
     startsWith?: string | StringFieldRefInput<$PrismaModel>
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type NestedDateTimeFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
@@ -6288,6 +7481,83 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
+  export type NestedEnumOrderStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumOrderStatusFilter<$PrismaModel> | $Enums.OrderStatus
+  }
+
+  export type NestedEnumOrderStatusNullableFilter<$PrismaModel = never> = {
+    equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel> | null
+    in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    notIn?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel> | null
+    not?: NestedEnumOrderStatusNullableFilter<$PrismaModel> | $Enums.OrderStatus | null
+  }
+
+  export type NestedDecimalFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string
+  }
+
+  export type NestedDateTimeFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeFilter<$PrismaModel> | Date | string
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
   export type NestedEnumOrderStatusWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.OrderStatus | EnumOrderStatusFieldRefInput<$PrismaModel>
     in?: $Enums.OrderStatus[] | ListEnumOrderStatusFieldRefInput<$PrismaModel>
@@ -6308,25 +7578,6 @@ export namespace Prisma {
     _max?: NestedEnumOrderStatusNullableFilter<$PrismaModel>
   }
 
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
-  }
-
   export type NestedDecimalWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -6341,23 +7592,6 @@ export namespace Prisma {
     _sum?: NestedDecimalFilter<$PrismaModel>
     _min?: NestedDecimalFilter<$PrismaModel>
     _max?: NestedDecimalFilter<$PrismaModel>
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -6566,6 +7800,8 @@ export namespace Prisma {
   }
 
   export type OrderCreateWithoutItemsInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -6586,6 +7822,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedCreateWithoutItemsInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -6622,6 +7860,8 @@ export namespace Prisma {
   }
 
   export type OrderUpdateWithoutItemsInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -6642,6 +7882,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedUpdateWithoutItemsInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -6662,6 +7904,8 @@ export namespace Prisma {
   }
 
   export type OrderCreateWithoutIdempotencyAttemptsInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -6682,6 +7926,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedCreateWithoutIdempotencyAttemptsInput = {
+    eventDriven?: boolean
+    creationEvent?: string | null
     id?: string
     userId: string
     status?: $Enums.OrderStatus
@@ -6718,6 +7964,8 @@ export namespace Prisma {
   }
 
   export type OrderUpdateWithoutIdempotencyAttemptsInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
@@ -6738,6 +7986,8 @@ export namespace Prisma {
   }
 
   export type OrderUncheckedUpdateWithoutIdempotencyAttemptsInput = {
+    eventDriven?: BoolFieldUpdateOperationsInput | boolean
+    creationEvent?: NullableStringFieldUpdateOperationsInput | string | null
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus

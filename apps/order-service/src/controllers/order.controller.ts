@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, getParam } from "@shared/utils";
+import { config } from "../config/index.js";
 import {
   cancelOrderService,
   confirmOrderService,
@@ -8,6 +9,7 @@ import {
   advanceOrderService,
   checkoutOrderService,
   createOrderService,
+  createEventDrivenOrderService,
   getMyOrdersService,
   getOrderByIdService,
   getOrderShippingSnapshotService,
@@ -41,7 +43,9 @@ const getUserId = (req: Request) => {
 };
 
 export const createOrder = async (req: Request<{}, {}, CreateOrderInput>, res: Response) => {
-  const order = await createOrderService(getUserId(req), req.body);
+  const order = config.checkout.enabled
+    ? await createEventDrivenOrderService(getUserId(req), req.body, getIdempotencyKey(req))
+    : await createOrderService(getUserId(req), req.body);
   res.status(StatusCodes.CREATED).json(order);
 };
 

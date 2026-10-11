@@ -8,7 +8,15 @@ datasource db {
   provider = "postgresql"
 }
 
+model CheckoutEvent {
+  eventId     String  @id
+  fingerprint String
+  result      String?
+}
+
 model Order {
+  eventDriven          Boolean      @default(false)
+  creationEvent        String?
   id                   String       @id @default(uuid())
   userId               String
   status               OrderStatus  @default(PENDING)

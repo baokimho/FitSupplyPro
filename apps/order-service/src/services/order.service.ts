@@ -1,6 +1,7 @@
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
-import { logPath, correlationHeaders } from "@shared/utils";
+import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent } from "@shared/utils";
+import { publishCheckoutEvent } from "../messaging/publisher.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -598,6 +599,7 @@ export const createOrderService = async (
   userId: string,
   body: CreateOrderInput,
   checkoutAttemptId?: string,
+  finalization?: CartFinalizationState,
 ) => {
   body = createOrderSchema.parse(body);
   const aggregatedItems = aggregateOrderItems(body.items);
@@ -638,10 +640,12 @@ export const createOrderService = async (
     }
   }
 
-  const inventoryMap = await getInventoryMap(productIds);
+  const inventoryMap = config.checkout.enabled ? new Map<string, InventoryItem>() : await getInventoryMap(productIds);
 
   for (const productId of productIds) {
     const inventory = inventoryMap.get(productId);
+
+    if (config.checkout.enabled) continue;
 
     if (!inventory) {
       throw new BadRequestError("Insufficient stock", { productId, availableStock: 0 });
@@ -692,6 +696,7 @@ export const createOrderService = async (
 
   try {
     for (const [productId, quantity] of aggregatedItems.entries()) {
+      if (config.checkout.enabled) break;
       await reserveStock(productId, quantity, `${reservationId}:reserve:${productId}`);
       reservedItems.push({ productId, quantity });
       if (checkoutAttemptId) {
@@ -705,6 +710,7 @@ export const createOrderService = async (
         data: {
           userId,
           totalAmount,
+          eventDriven: config.checkout.enabled,
           items: {
             create: itemsToCreate,
           },
@@ -725,10 +731,25 @@ export const createOrderService = async (
             "deliveryCountryCode" = ${delivery.countryCode}
         WHERE "id" = ${created.id}`;
 
+      if (created.eventDriven) {
+        const event = createIntegrationEvent({ eventType: "order.created", causationId: null, data: {
+          orderId: created.id, userId, items: [...aggregatedItems].map(([productId, quantity]) => ({ productId, quantity })),
+          totalAmount: totalAmount.toFixed(2), currency: "USD",
+        } });
+        await tx.order.update({ where: { id: created.id }, data: { creationEvent: serializeIntegrationEvent(event).toString("utf8") } });
+        if (checkoutAttemptId) {
+          await tx.checkoutIdempotency.update({ where: { id: checkoutAttemptId }, data: {
+            status: "ORDER_CREATED", orderId: created.id,
+            responseBody: JSON.parse(JSON.stringify(toOrderResponse(created, delivery))),
+            ...(finalization ? { finalizationCart: JSON.parse(JSON.stringify(finalization)) } : {}),
+          } });
+        }
+      }
       return created;
     });
 
-    await createNotification(userId, {
+    if (order.eventDriven) await publishPendingCreation(order.id);
+    else await createNotification(userId, {
       type: "ORDER_CREATED",
       title: "Order created",
       message: `Order ${order.id} has been created.`,
@@ -763,6 +784,39 @@ export const createOrderService = async (
   }
 };
 
+const publishPendingCreation = async (id: string) => {
+  const order = await getOrderByIdOrThrow(id);
+  if (order.creationEvent) {
+    try { await publishCheckoutEvent(deserializeIntegrationEvent(order.creationEvent)); }
+    catch (err) { throw new ServiceUnavailableError("Checkout publication failed; retry same idempotency key", { orderId: id }, undefined, err); }
+  }
+};
+
+export const createEventDrivenOrderService = async (userId: string, body: CreateOrderInput, idempotencyKey: string) => {
+  const fingerprint = createHash("sha256").update(`direct:${JSON.stringify(canonicalize(body))}`).digest("hex");
+  const attempt = await claimCheckoutIdempotency(userId, idempotencyKey, fingerprint);
+  if (attempt.row.requestFingerprint !== fingerprint) throw new ConflictError("Idempotency key was reused with a different request");
+  if (!attempt.owner) {
+    if ((attempt.row.status === "ORDER_CREATED" || attempt.row.status === "COMPLETED") && attempt.row.responseBody) {
+      const order = attempt.row.responseBody as unknown as OrderResponse;
+      if (attempt.row.status === "ORDER_CREATED") {
+        await publishPendingCreation(order.id);
+        await completeCheckoutIdempotency(attempt.row.id, order);
+      }
+      return order;
+    }
+    throw new ConflictError("Checkout already in progress");
+  }
+  try {
+    const order = await createOrderService(userId, body, attempt.row.id);
+    await completeCheckoutIdempotency(attempt.row.id, order);
+    return order;
+  } catch (err) {
+    await failCheckoutIdempotency(attempt.row.id, err);
+    throw err;
+  }
+};
+
 export const checkoutOrderService = async (
   userId: string,
   body: CheckoutInput,
@@ -781,6 +835,7 @@ export const checkoutOrderService = async (
     }
 
     if (attempt.row.status === "ORDER_CREATED" && attempt.row.responseBody) {
+      await publishPendingCreation((attempt.row.responseBody as unknown as OrderResponse).id);
       const finalization = parseCartFinalizationState(attempt.row.finalizationCart);
       if (!finalization) {
         throw new ServiceUnavailableError("Checkout finalization state is incomplete", { checkoutAttemptId: attempt.row.id });
@@ -835,8 +890,8 @@ export const checkoutOrderService = async (
       };
     });
 
-    const order = await createOrderService(userId, { items, delivery: body.delivery }, attempt.row.id);
     const finalization = { cartItemIds: requestedIds, cart: { id: cart.id, version: cart.version } };
+    const order = await createOrderService(userId, { items, delivery: body.delivery }, attempt.row.id, finalization);
     await recordCheckoutFinalization(attempt.row.id, order, finalization);
     try {
       await removeCheckedOutCartItems(userId, requestedIds, finalization.cart);
@@ -898,6 +953,7 @@ export const getOrderByIdService = async (id: string, userId: string) => {
 const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: string) => {
   const order = await getOrderByIdOrThrow(id);
   if (ownerId !== undefined) ensureOwnership(order, ownerId);
+  if (order.eventDriven && order.status === "PENDING") throw new ConflictError("Event-driven checkout is still pending");
   assertOrderTransition(order.status, status);
   const context = { orderId: id, userId: order.userId, fromStatus: order.status, toStatus: status, operation: "transition-order" };
 
@@ -934,13 +990,7 @@ const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: stri
     }
   }
 
-  const result = await prisma.order.updateMany({
-    where: { id, status: order.status, pendingStatus: inventoryCommand ? status : null },
-    data: { status, pendingStatus: null, ...(status === "PROCESSING" ? { reservationConsumed: true } : {}) },
-  });
-  if (result.count !== 1) {
-    throw new ConflictError("Order changed during command", { orderId: id }, "INVALID_ORDER_TRANSITION");
-  }
+  await completeOrderTransition(order, status, prisma, inventoryCommand ? status : null);
   logger.info(context, "order transitioned");
   if (status === "CANCELLED") {
     await createNotification(order.userId, {
@@ -950,11 +1000,25 @@ const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: stri
   return toOrderResponseWithDelivery(await getOrderByIdOrThrow(id));
 };
 
+/** Shared persistence path for HTTP commands and validated checkout outcomes. */
+export async function completeOrderTransition(
+  order: Pick<OrderWithItems, "id" | "status">, status: OrderStatus,
+  database: Prisma.TransactionClient, pendingStatus: OrderStatus | null = null,
+) {
+  assertOrderTransition(order.status, status);
+  const result = await database.order.updateMany({
+    where: { id: order.id, status: order.status, pendingStatus },
+    data: { status, pendingStatus: null, ...(status === "PROCESSING" ? { reservationConsumed: true } : {}) },
+  });
+  if (result.count !== 1) throw new ConflictError("Order changed during command", { orderId: order.id }, "INVALID_ORDER_TRANSITION");
+}
+
 export const getOrderPaymentSnapshotService = async (id: string) => {
   const order = await getOrderByIdOrThrow(id);
   return {
     id: order.id, userId: order.userId, status: order.status,
     pendingStatus: order.pendingStatus, totalAmount: order.totalAmount.toFixed(2), currency: "USD",
+    ...(order.eventDriven ? { eventDriven: true, items: order.items.map(({ productId, quantity }) => ({ productId, quantity })) } : {}),
   };
 };
 

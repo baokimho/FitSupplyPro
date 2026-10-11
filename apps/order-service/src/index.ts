@@ -1,4 +1,7 @@
 import { closeDb } from "./config/db.js";
+import { startCheckoutMessaging } from "@shared/utils";
+import { handleOrderCheckout } from "./services/checkout.service.js";
+import { setCheckoutPublisher } from "./messaging/publisher.js";
 import express from "express";
 import { healthRouter, readiness } from "./health.js";
 import { logger } from "./logger.js";
@@ -35,14 +38,23 @@ app.use(createErrorHandler(logger));
 const PORT = config.port;
 
 async function bootstrap() {
+  let messaging: Awaited<ReturnType<typeof startCheckoutMessaging>> | undefined;
   try {
     await connectDb();
+    if (config.checkout.broker) {
+      readiness.brokerReady = () => false;
+      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "order.payment-events", ["payment.succeeded", "payment.failed", "inventory.reservation_failed", "inventory.released"], handleOrderCheckout);
+      readiness.brokerReady = messaging.isReady;
+      setCheckoutPublisher(messaging.publish);
+    }
 
     const server = app.listen(PORT, () => {
       logger.info({ port: PORT }, "service started");
     });
-    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
+    installShutdown({ server, logger, state: readiness, cleanup: [...(messaging ? [messaging.close] : []), closeDb] });
   } catch (err) {
+    if (messaging) await messaging.close();
+    await closeDb();
     logger.fatal({ err: err }, "service startup failed");
     process.exitCode = 1;
   }

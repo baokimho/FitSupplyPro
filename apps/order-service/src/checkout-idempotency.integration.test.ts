@@ -1,4 +1,6 @@
 import express from "express";
+import { randomUUID } from "node:crypto";
+import { createIntegrationEvent, runWithCorrelation } from "@shared/utils";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
@@ -239,6 +241,57 @@ beforeEach(async () => {
   setInventory("product-2", 10);
   cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+});
+
+describe("async Order checkout", () => {
+  it("accepts pending creation without Inventory HTTP, preserves root event through failed publication and HTTP replay", async () => {
+    const { config } = await import("./config/index.js");
+    const { setCheckoutPublisher } = await import("./messaging/publisher.js");
+    const { createEventDrivenOrderService } = await import("./services/order.service.js");
+    const productId = randomUUID();
+    setProduct({ id: productId, name: "Protein", slug: "protein", price: "10.00", isPublished: true });
+    const body = { items: [{ productId, quantity: 2 }], delivery: defaultDelivery() };
+    const correlationId = randomUUID();
+    let fail = true;
+    const published: string[] = [];
+    setCheckoutPublisher(async (event) => { published.push(event.eventId); if (fail) throw new Error("broker unavailable"); });
+    config.checkout.enabled = true;
+    try {
+      await runWithCorrelation({ requestId: randomUUID(), traceId: correlationId }, async () => {
+        await expect(createEventDrivenOrderService("user-1", body, "async-create")).rejects.toThrow("Checkout publication failed");
+        expect(await prisma.order.count()).toBe(1);
+        expect(reserveCalls).toHaveLength(0);
+        fail = false;
+        const pending = await createEventDrivenOrderService("user-1", body, "async-create");
+        expect(pending.status).toBe("PENDING");
+        expect(await createEventDrivenOrderService("user-1", body, "async-create")).toEqual(pending);
+        expect(published[0]).toBe(published[1]);
+        const order = await prisma.order.findUniqueOrThrow({ where: { id: pending.id } });
+        expect(JSON.parse(order.creationEvent ?? "{}")).toMatchObject({ correlationId, causationId: null });
+        await expect(cancelOrderService(pending.id, "user-1")).rejects.toThrow("still pending");
+      });
+    } finally { config.checkout.enabled = false; }
+  });
+  it.each(["payment.succeeded", "payment.failed", "inventory.reservation_failed"] as const)("applies %s once, replays outcome and rejects conflicting late events", async (type) => {
+    const { handleOrderCheckout } = await import("./services/checkout.service.js");
+    const productId = randomUUID();
+    const order = await prisma.order.create({ data: { userId: "user-1", eventDriven: true, totalAmount: "10.00", items: {
+      create: { productId, productName: "Protein", productSlug: "protein", quantity: 2, unitPrice: "5.00", subtotal: "10.00" },
+    } } });
+    const metadata = { correlationId: randomUUID(), causationId: randomUUID() };
+    const payment = { orderId: order.id, paymentId: randomUUID(), amount: "10.00", currency: "USD" as const };
+    const input = type === "payment.succeeded" ? createIntegrationEvent({ eventType: type, ...metadata, data: payment }) :
+      type === "payment.failed" ? createIntegrationEvent({ eventType: type, ...metadata, data: { ...payment, failureCode: "FAKE_DECLINED" } }) :
+        createIntegrationEvent({ eventType: type, ...metadata, data: { orderId: order.id, productId, quantity: 2, reason: "INSUFFICIENT_STOCK" } });
+    const first = await handleOrderCheckout(input);
+    expect(await handleOrderCheckout(input)).toEqual(first);
+    expect(first).toMatchObject({ correlationId: input.correlationId, causationId: input.eventId });
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe(type === "payment.succeeded" ? "CONFIRMED" : "CANCELLED");
+    expect(releaseCalls).toHaveLength(0);
+    const opposite = type === "payment.succeeded" ? createIntegrationEvent({ eventType: "payment.failed", ...metadata, data: { ...payment, failureCode: null } }) :
+      createIntegrationEvent({ eventType: "payment.succeeded", ...metadata, data: payment });
+    await expect(handleOrderCheckout(opposite)).rejects.toThrow("Obsolete checkout outcome");
+  });
 });
 
 describe("checkout idempotency", () => {
