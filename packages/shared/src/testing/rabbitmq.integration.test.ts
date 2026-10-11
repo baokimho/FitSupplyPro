@@ -8,6 +8,8 @@ import { installShutdown } from "../http/shutdown.js";
 import { readRabbitMqConfig } from "../messaging/config.js";
 import { openRabbitMq } from "../messaging/broker.js";
 import { DEAD_LETTER_EXCHANGE, DOMAIN_EXCHANGE, DOMAIN_QUEUES, declareRabbitMqTopology } from "../messaging/topology.js";
+import { checkoutMessageHandler } from "../messaging/checkout.js";
+import { createIntegrationEvent } from "../events/boundary.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -72,6 +74,29 @@ describe("real RabbitMQ mechanics", () => {
     await channel.close();
     channel = await broker.createChannel();
     await declareRabbitMqTopology(channel);
+  });
+
+  it.each(["json", "envelope", "version", "payload", "unexpected"])("dead-letters checkout %s contract violations before business work", async (kind) => {
+    const input = createIntegrationEvent({ eventType: "order.created", correlationId: randomUUID(), causationId: null, data: {
+      orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }], totalAmount: "1.00", currency: "USD",
+    } });
+    const payload = kind === "json" ? "{" : JSON.stringify(kind === "envelope" ? {} : kind === "version" ? { ...input, eventVersion: 2 } :
+      kind === "payload" ? { ...input, data: {} } : input);
+    const handler = vi.fn(async () => null);
+    const logger = createLogger({ service: "checkout-test", environment: "test", level: "silent" });
+    const process = checkoutMessageHandler(kind === "unexpected" ? ["payment.failed"] : ["order.created"], handler, async () => undefined, logger);
+    const consumer = await broker.subscribe("inventory.order-created", (message) => process(message.content));
+    await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from(payload));
+    channel.ack(await receive("inventory.order-created.dlq"));
+    expect(handler).not.toHaveBeenCalled();
+    await consumer.stop();
+  });
+
+  it("critical publisher/consumer channel loss makes readiness false", async () => {
+    const consumer = await broker.subscribe("inventory.order-created", async () => undefined);
+    expect(broker.isReady()).toBe(true);
+    await consumer.stop();
+    expect(broker.isReady()).toBe(false);
   });
 
   it.each(DOMAIN_QUEUES.flatMap((queue) => queue.bindings.map((key) => ({ queue: queue.name, key }))))(
@@ -258,6 +283,30 @@ describe("real RabbitMQ mechanics", () => {
     await broker.close();
     await expect(pending).resolves.toBeUndefined();
     expect(logs.some((line) => JSON.parse(line).msg === "broker publish confirmed")).toBe(true);
+  });
+
+  it("shutdown allows accepted consumers to confirm output before ACK while rejecting new publications", async () => {
+    const started = deferred();
+    const release = deferred();
+    const inspector = await openRabbitMq(readRabbitMqConfig(), createLogger({ service: "test", environment: "test", level: "silent" }));
+    const reader = await inspector.createChannel();
+    try {
+      await broker.subscribe("inventory.order-created", async () => {
+        started.resolve();
+        await release.promise;
+        await publisher.publish(DOMAIN_EXCHANGE, "inventory.reserved", Buffer.from("durable outcome"));
+      });
+      await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from("accepted"));
+      await started.promise;
+      const closing = broker.close();
+      await expect(publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from("new work"))).rejects.toThrow("shutting down");
+      release.resolve();
+      await closing;
+      const message = await reader.get("payment.inventory-reserved", { noAck: true });
+      if (!message) throw new Error("Required output lost during drain");
+      expect(message.content.toString()).toBe("durable outcome");
+      expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(true);
+    } finally { release.resolve(); await inspector.close(); }
   });
 
   it("existing HTTP shutdown hook drains broker before DB cleanup and handles duplicate signals", async () => {

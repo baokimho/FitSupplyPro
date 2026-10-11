@@ -1,4 +1,5 @@
 import { connect, type Channel, type ChannelModel, type ConfirmChannel } from "amqplib";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { Logger } from "../logging/logger.js";
 import { getCorrelation } from "../http/correlation.js";
 import type { RabbitMqConfig } from "./config.js";
@@ -19,6 +20,10 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
   let blocked = false;
   let closing = false;
   let pendingClose: Promise<void> | undefined;
+  let criticalChannelsReady = true;
+  let allowConsumerPublish = true;
+  const consumerWork = new AsyncLocalStorage<boolean>();
+  const subscriptionReadiness = new Set<() => boolean>();
   const channels = new Set<Channel>();
   const consumers = new Set<() => Promise<void>>();
   const publishers = new Set<() => Promise<void>>();
@@ -34,8 +39,9 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
   });
   logger.info("broker connected");
 
-  function assertOpen() {
-    if (closing || !connected) throw new Error("Broker unavailable or shutting down");
+  function assertOpen(publishing = false) {
+    const drainingAcceptedWork = publishing && allowConsumerPublish && consumerWork.getStore() === true;
+    if (!connected || (closing && !drainingAcceptedWork)) throw new Error("Broker unavailable or shutting down");
   }
 
   async function createChannel(confirm: true): Promise<ConfirmChannel>;
@@ -55,12 +61,13 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
 
   async function createPublisher() {
     const channel = await createChannel(true);
+    channel.on("close", () => { criticalChannelsReady = false; });
     let tail: Promise<void> = Promise.resolve();
     // ponytail: one publish in flight per publisher; use multiple publishers for higher throughput.
     function publish(exchange: string, routingKey: string, content: Buffer): Promise<void> {
       const correlation = getCorrelation();
       const result = tail.then(() => {
-        assertOpen();
+        assertOpen(true);
         if (blocked) throw new Error("Broker connection blocked");
         return new Promise<void>((resolve, reject) => {
           let returned = false;
@@ -115,9 +122,11 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
 
   async function subscribe(queue: string, handler: RabbitMqHandler, prefetch = 10) {
     const channel = await createChannel();
+    channel.on("close", () => { criticalChannelsReady = false; });
     try {
-      const consumer = await consumeRabbitMq(channel, queue, handler, logger, prefetch);
+      const consumer = await consumeRabbitMq(channel, queue, (message) => consumerWork.run(true, () => handler(message)), logger, prefetch);
       consumers.add(consumer.stop);
+      subscriptionReadiness.add(consumer.isReady);
       if (closing) { await consumer.stop(); throw new Error("Broker shutting down"); }
       return consumer;
     } catch (err) {
@@ -130,10 +139,12 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
     if (pendingClose) return pendingClose;
     closing = true;
     pendingClose = (async () => {
-      const stopped = await Promise.allSettled([...consumers, ...publishers].map((stop) => stop()));
+      const stopped = await Promise.allSettled([...consumers].map((stop) => stop()));
+      allowConsumerPublish = false;
+      const published = await Promise.allSettled([...publishers].map((drain) => drain()));
       const closed = await Promise.allSettled([...channels].map((channel) => channel.close()));
       if (connected) await connection.close();
-      const failure = [...stopped, ...closed].find((result) => result.status === "rejected");
+      const failure = [...stopped, ...published, ...closed].find((result) => result.status === "rejected");
       if (failure?.status === "rejected") throw failure.reason;
       logger.info("broker resources closed");
     })();
@@ -141,5 +152,5 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
   }
 
   return { createChannel: () => createChannel(), createPublisher, subscribe, close,
-    isReady: () => connected && !blocked && !closing };
+    isReady: () => connected && !blocked && !closing && criticalChannelsReady && [...subscriptionReadiness].every((ready) => ready()) };
 }

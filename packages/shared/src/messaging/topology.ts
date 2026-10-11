@@ -5,12 +5,13 @@ export const DEAD_LETTER_EXCHANGE = "domain.events.dlx";
 export const DOMAIN_ROUTING_KEYS = [
   "order.created", "inventory.reserved", "inventory.reservation_failed",
   "payment.succeeded", "payment.failed", "order.confirmed", "order.cancelled",
+  "inventory.released",
 ] as const;
 
 export const DOMAIN_QUEUES = [
-  { name: "inventory.order-created", bindings: ["order.created"] },
+  { name: "inventory.order-created", bindings: ["order.created", "order.cancelled"] },
   { name: "payment.inventory-reserved", bindings: ["inventory.reserved"] },
-  { name: "order.payment-events", bindings: ["payment.succeeded", "payment.failed"] },
+  { name: "order.payment-events", bindings: ["payment.succeeded", "payment.failed", "inventory.reservation_failed", "inventory.released"] },
   { name: "notification.order-events", bindings: ["order.confirmed", "order.cancelled"] },
 ] as const;
 

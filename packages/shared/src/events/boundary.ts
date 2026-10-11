@@ -60,6 +60,7 @@ export type NewIntegrationEvent = {
 }[EventType];
 
 /** Creates a new fact once; retries must reuse the stored event, including its ID. */
+export function createIntegrationEvent<T extends NewIntegrationEvent>(input: T): IntegrationEventFor<T["eventType"]>;
 export function createIntegrationEvent(input: NewIntegrationEvent): KnownIntegrationEvent {
   const schema = integrationEventRegistry.find((entry) => entry.shape.eventType.value === input.eventType);
   if (!schema) throw new IntegrationEventError("UNKNOWN_EVENT_TYPE");

@@ -15,12 +15,14 @@ export async function consumeRabbitMq(
   }
   let open = true;
   let stopping = false;
+  let active = true;
   let pendingStop: Promise<void> | undefined;
   const inFlight = new Set<Promise<void>>();
   channel.on("close", () => { open = false; });
   await channel.prefetch(prefetch);
   const { consumerTag } = await channel.consume(queue, (message) => {
     if (!message) {
+      active = false;
       logger.error({ queue }, "broker cancelled consumer");
       return;
     }
@@ -69,5 +71,5 @@ export async function consumeRabbitMq(
     })();
     return pendingStop;
   }
-  return { stop };
+  return { stop, isReady: () => open && active && !stopping };
 }
