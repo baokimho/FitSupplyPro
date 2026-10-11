@@ -645,7 +645,7 @@ Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, or Stripe 
 
 RabbitMQ infrastructure and delivery primitives are available; existing checkout,
 inventory, payment and notification paths remain synchronous HTTP. No business
-consumer runs yet. Phase 6 provides typed, validated integration contracts; see
+consumers run unless opted into Phase 7. Phase 6 provides typed, validated integration contracts; see
 [Integration events](docs/phase6-integration-events.md) for envelope, payloads,
 correlation/causation, versions and serialization. See
 [RabbitMQ fundamentals](docs/phase5-rabbitmq-fundamentals.md) for setup, exact
@@ -653,3 +653,9 @@ topology, confirms, ACK/NACK, prefetch, DLQs, lifecycle and deferred guarantees.
 Copy `docker/rabbitmq/.env.example` to `docker/rabbitmq/.env`, then run
 `docker compose up -d --wait rabbitmq`. Root `.env.example` documents opt-in client
 settings. Integration tests own a separate disposable broker on port 5673.
+
+Phase 7 adds feature-gated event-driven checkout for Order, Inventory and Payment.
+Default remains synchronous. See [Async checkout](docs/phase7-event-driven-checkout.md)
+for enablement, pending HTTP responses, choreography, idempotency, compensation,
+DLQ policy and remaining DB/broker atomicity limits. `npm run test:e2e` now verifies
+both synchronous and async success/decline stacks with disposable RabbitMQ.

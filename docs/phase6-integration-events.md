@@ -1,5 +1,9 @@
 # Phase 6: Integration event contracts
 
+This page records Phase 6's contract-only scope. Phase 7's first business mappings
+and current consumer wiring are documented in [Event-driven checkout](phase7-event-driven-checkout.md),
+including eventual Inventory compensation after committed async Order cancellation.
+
 Phase 6 defines public facts exchanged between services. It adds no producers,
 business consumers, async checkout, Saga, Outbox, command bus or event sourcing.
 Order, Inventory, Payment and notifications retain existing HTTP workflows.

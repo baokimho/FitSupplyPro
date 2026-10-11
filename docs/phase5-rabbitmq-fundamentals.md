@@ -1,5 +1,10 @@
 # Phase 5: RabbitMQ fundamentals
 
+This page records Phase 5's infrastructure-only scope and original topology.
+Phase 7 now adds opt-in checkout consumers and extra bindings; see
+[Event-driven checkout](phase7-event-driven-checkout.md) for current routing,
+readiness, bounded retries and draining consumer publications.
+
 Phase 5 introduces broker infrastructure. Checkout, inventory reservation/release,
 payment commands, protected HTTP order confirmation, and notifications still use
 their existing synchronous paths. No domain service starts a broker consumer or

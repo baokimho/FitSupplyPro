@@ -194,3 +194,46 @@ Docker Desktop initially was stopped; background startup enabled all Docker chec
 Existing test coverage gaps remain reported by the matrix, not marked as passing
 suites. Coverage reports were not generated for Phase 6. Contract foundation is
 ready for Phase 7 design/implementation; no asynchronous checkout migration exists.
+
+## Phase 7 closeout
+
+Feature-gated asynchronous checkout complete; default synchronous flow remains.
+See [Event-driven checkout](docs/phase7-event-driven-checkout.md) for workflow map,
+routing, pending API semantics, deterministic keys, transaction/replay boundaries,
+compensation, retry/DLQ policy and remaining DB/broker atomicity gaps.
+
+Verified on 2026-10-11:
+
+- `npm run lint`: passed.
+- `npm run typecheck`: passed across all workspaces.
+- `npm run test`: **651 unit**, **198 integration** passed. Includes all 213 Phase 6
+  contracts and real disposable RabbitMQ/PostgreSQL checks; resources torn down.
+- `node scripts/test-matrix.mjs all --workspace order-service`: **83 unit**,
+  **44 integration** passed after sharing lifecycle persistence with async outcomes.
+- `npm run build`: passed across all workspaces.
+- `npm run test:e2e`: **10 passed** across three rebuilt disposable stacks:
+  **6 synchronous**, **2 async success**, **2 async decline/compensation**. Each
+  async mode also verifies Inventory failure without Payment creation. Bounded
+  polling checks eventual state, complete correlation/causation chains, duplicate
+  deliveries, reserve/release/provider effect counts and no valid-flow DLQs.
+- Explicit strict `tsc --noEmit` for Phase 6 event tests, new checkout boundary test
+  and async E2E test: passed.
+- `docker compose config --quiet`: passed.
+- `docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config --quiet`: passed.
+- `docker compose -p fitsupply-e2e -f docker-compose.test.yml config --quiet`: passed.
+- `git diff --check`: passed; source/generated-client diff reviewed for scope.
+
+New tests cover concurrent/duplicate reservations, stable outgoing events after
+publish failure, whole-batch stock rollback, missing Inventory, duplicate release,
+payload mismatch, pending root acceptance/republication, conflicting late outcomes,
+automatic provider success/decline, financial commit before receipt failure,
+readiness, poison-event DLQs, bounded transient attempts and publisher-confirm drain
+during graceful shutdown. Existing broker tests expand to the new bindings. No test
+was weakened or disabled. Existing matrix coverage gaps remain explicit; coverage
+reports were not generated. No development data reset, Outbox, Saga framework,
+notification/shipping migration or push was performed.
+
+Additive schema migrations introduce per-service incoming receipts and Order's
+durable async mode/root event. Prisma clients regenerated under the repository's
+existing checked-in-client convention; only new generated comment whitespace was
+normalized for diff checks. A later generation may restore generator formatting.
