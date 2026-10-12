@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, getParam } from "@shared/utils";
 import { config } from "../config/index.js";
+import { getCheckoutSaga } from "../services/checkout.service.js";
 import {
   cancelOrderService,
   confirmOrderService,
@@ -92,4 +93,8 @@ export const getInternalOrderShippingSnapshot = async (req: Request<OrderParamsI
 
 export const getInternalOrderPaymentSnapshot = async (req: Request<OrderParamsInput>, res: Response) => {
   res.status(StatusCodes.OK).json(await getOrderPaymentSnapshotService(getParam(req, "id")));
+};
+
+export const getInternalCheckoutSaga = async (req: Request<OrderParamsInput>, res: Response) => {
+  res.status(StatusCodes.OK).json(await getCheckoutSaga(getParam(req, "id")));
 };

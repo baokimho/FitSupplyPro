@@ -1,6 +1,6 @@
 import { closeDb } from "./config/db.js";
 import { startCheckoutMessaging } from "@shared/utils";
-import { handleOrderCheckout } from "./services/checkout.service.js";
+import { handleOrderCheckout, recordSagaFailure, sagaEventTypes } from "./services/checkout.service.js";
 import { setCheckoutPublisher } from "./messaging/publisher.js";
 import express from "express";
 import { healthRouter, readiness } from "./health.js";
@@ -43,7 +43,7 @@ async function bootstrap() {
     await connectDb();
     if (config.checkout.broker) {
       readiness.brokerReady = () => false;
-      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "order.payment-events", ["payment.succeeded", "payment.failed", "inventory.reservation_failed", "inventory.released"], handleOrderCheckout);
+      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "order.payment-events", sagaEventTypes, handleOrderCheckout, recordSagaFailure);
       readiness.brokerReady = messaging.isReady;
       setCheckoutPublisher(messaging.publish);
     }

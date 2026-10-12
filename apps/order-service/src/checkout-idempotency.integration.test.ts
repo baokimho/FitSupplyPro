@@ -1,5 +1,7 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import pg from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { createIntegrationEvent, runWithCorrelation } from "@shared/utils";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -241,6 +243,133 @@ beforeEach(async () => {
   setInventory("product-2", 10);
   cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+});
+
+describe("durable checkout Saga", () => {
+  async function fixture() {
+    const productId = randomUUID();
+    const correlationId = randomUUID();
+    const order = await prisma.order.create({ data: { userId: "user-1", eventDriven: true, totalAmount: "10.00", items: {
+      create: { productId, productName: "Protein", productSlug: "protein", quantity: 2, unitPrice: "5.00", subtotal: "10.00" },
+    }, checkoutSaga: { create: { correlationId } } } });
+    const { handleOrderCheckout, recordSagaFailure } = await import("./services/checkout.service.js");
+    const reserved = createIntegrationEvent({ eventType: "inventory.reserved", correlationId, causationId: randomUUID(),
+      data: { orderId: order.id, reservations: [{ productId, quantity: 2 }] } });
+    const succeeded = createIntegrationEvent({ eventType: "payment.succeeded", correlationId, causationId: randomUUID(),
+      data: { orderId: order.id, paymentId: randomUUID(), amount: "10.00", currency: "USD" } });
+    const progress = () => prisma.checkoutSaga.findUniqueOrThrow({ where: { orderId: order.id } });
+    return { order, reserved, succeeded, progress, handleOrderCheckout, recordSagaFailure, productId, correlationId };
+  }
+  it("separates receipts, business state and Saga progress; duplicate reservation cannot request a second payment", async () => {
+    const f = await fixture();
+    const { getCheckoutSaga } = await import("./services/checkout.service.js");
+    const request = await f.handleOrderCheckout(f.reserved);
+    expect(request?.eventType).toBe("checkout.payment_requested");
+    expect(await f.handleOrderCheckout(f.reserved)).toEqual(request);
+    expect(await f.progress()).toMatchObject({ state: "PAYING", inventoryReserved: true, paymentOutcome: null });
+    expect(await getCheckoutSaga(f.order.id)).toMatchObject({ terminal: false, requiresAttention: false });
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status).toBe("PENDING");
+    await f.handleOrderCheckout(f.succeeded);
+    expect(await f.progress()).toMatchObject({ state: "COMPLETED", paymentOutcome: "SUCCEEDED" });
+    expect(await getCheckoutSaga(f.order.id)).toMatchObject({ terminal: true, requiresAttention: false });
+    const before = await f.progress();
+    await f.handleOrderCheckout({ ...f.reserved, eventId: randomUUID() });
+    expect(await f.progress()).toEqual(before);
+  });
+  it("durably remembers payment success after transient confirmation failure and resumes without refund", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION saga_test_block_confirmation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."status"='CONFIRMED' THEN RAISE EXCEPTION 'confirmation DB unavailable'; END IF; RETURN NEW; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER saga_test_block_confirmation BEFORE UPDATE ON "Order" FOR EACH ROW EXECUTE FUNCTION saga_test_block_confirmation()');
+    try {
+      await expect(f.handleOrderCheckout(f.succeeded)).rejects.toThrow("confirmation DB unavailable");
+      await f.recordSagaFailure(f.succeeded, new Error("DB unavailable"), true);
+      expect(await f.progress()).toMatchObject({ state: "CONFIRMING", paymentOutcome: "SUCCEEDED", compensationRetryable: true });
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: f.succeeded.eventId } })).toBeNull();
+      await expect(f.handleOrderCheckout({ ...f.succeeded, causationId: randomUUID() })).rejects.toThrow("Event ID reused");
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER saga_test_block_confirmation ON "Order"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION saga_test_block_confirmation()');
+    }
+    expect((await f.handleOrderCheckout(f.succeeded))?.eventType).toBe("order.confirmed");
+    expect(await f.progress()).toMatchObject({ state: "COMPLETED", compensationError: null });
+  });
+  it("refunds business-invalid confirmation, persists incomplete compensation and resumes repaired failures", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    // Arrange legitimate cancellation racing with acknowledged settlement.
+    await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED" } });
+    const refund = await f.handleOrderCheckout(f.succeeded);
+    expect(refund?.eventType).toBe("checkout.refund_requested");
+    const failed = createIntegrationEvent({ eventType: "payment.refund_failed", correlationId: f.correlationId, causationId: refund?.eventId ?? randomUUID(),
+      data: { orderId: f.order.id, paymentId: f.succeeded.data.paymentId, failureCode: "REFUND_FAILED", retryable: false } });
+    await f.handleOrderCheckout(failed);
+    expect(await f.progress()).toMatchObject({ state: "FAILED", failedStep: "REFUND", paymentOutcome: "SUCCEEDED" });
+    const refunded = createIntegrationEvent({ eventType: "payment.refunded", correlationId: f.correlationId, causationId: refund?.eventId ?? randomUUID(), data: f.succeeded.data });
+    const cancel = await f.handleOrderCheckout(refunded);
+    expect(cancel?.eventType).toBe("order.cancelled");
+    expect(await f.progress()).toMatchObject({ state: "RELEASING", paymentOutcome: "REFUNDED", inventoryReleased: false });
+    const releaseFailed = createIntegrationEvent({ eventType: "inventory.release_failed", correlationId: f.correlationId, causationId: cancel?.eventId ?? randomUUID(),
+      data: { orderId: f.order.id, failureCode: "RELEASE_FAILED", retryable: true } });
+    await f.handleOrderCheckout(releaseFailed);
+    expect(await f.progress()).toMatchObject({ state: "RELEASING", compensationRetryable: true });
+    await f.handleOrderCheckout({ ...releaseFailed, eventId: randomUUID(), data: { ...releaseFailed.data, retryable: false } });
+    expect(await f.progress()).toMatchObject({ state: "FAILED", failedStep: "RELEASE", inventoryReleased: false });
+    const released = createIntegrationEvent({ eventType: "inventory.released", correlationId: f.correlationId, causationId: cancel?.eventId ?? randomUUID(), data: f.reserved.data });
+    await f.handleOrderCheckout(released);
+    expect(await f.progress()).toMatchObject({ state: "COMPENSATED", inventoryReleased: true, compensationError: null });
+    expect(await f.handleOrderCheckout(f.succeeded)).toEqual(refund);
+    expect((await f.progress()).state).toBe("COMPENSATED");
+  });
+  it("release may arrive before refund, but cannot mark compensation finished early", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED" } });
+    await f.handleOrderCheckout(f.succeeded);
+    await f.handleOrderCheckout(createIntegrationEvent({ eventType: "inventory.released", correlationId: f.correlationId, causationId: randomUUID(), data: f.reserved.data }));
+    expect(await f.progress()).toMatchObject({ state: "REFUNDING", inventoryReleased: true, paymentOutcome: "SUCCEEDED" });
+    await f.handleOrderCheckout(createIntegrationEvent({ eventType: "payment.refunded", correlationId: f.correlationId, causationId: randomUUID(), data: f.succeeded.data }));
+    expect((await f.progress()).state).toBe("COMPENSATED");
+  });
+  it("unreconcilable financial/fulfilment conflicts remain observable without destructive compensation", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    await expect(f.handleOrderCheckout({ ...f.succeeded, data: { ...f.succeeded.data, amount: "11.00" } })).rejects.toThrow("Order cannot safely complete checkout");
+    expect(await f.progress()).toMatchObject({ state: "FAILED", paymentOutcome: "SUCCEEDED", failureCode: "PAYMENT_DATA_CONFLICT" });
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status).toBe("PENDING");
+  });
+  it("concurrent success/failure permits one legal path, and duplicate successes converge", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    const failure = createIntegrationEvent({ eventType: "payment.failed", correlationId: f.correlationId, causationId: randomUUID(), data: { ...f.succeeded.data, failureCode: "DECLINED" } });
+    const { PrismaClient } = await import("./generated/prisma/index.js");
+    const otherPool = new pg.Pool({ connectionString: databaseUrl });
+    const other = new PrismaClient({ adapter: new PrismaPg(otherPool) });
+    let results;
+    try { results = await Promise.allSettled([f.handleOrderCheckout(f.succeeded), f.handleOrderCheckout(failure, other)]); }
+    finally { await other.$disconnect(); await otherPool.end(); }
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const saga = await f.progress();
+    expect(["COMPLETED", "RELEASING"]).toContain(saga.state);
+    if (saga.state === "COMPLETED") {
+      const duplicates = await Promise.all([f.handleOrderCheckout(f.succeeded), f.handleOrderCheckout(f.succeeded)]);
+      expect(duplicates[0]).toEqual(duplicates[1]);
+    }
+  });
+  it("serializes cancellation racing with payment acknowledgement before requesting refund", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    const { completeOrderTransition } = await import("./services/order.service.js");
+    let paid: ReturnType<typeof f.handleOrderCheckout> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${f.order.id} FOR UPDATE`;
+      const order = await tx.order.findUniqueOrThrow({ where: { id: f.order.id } });
+      paid = f.handleOrderCheckout(f.succeeded);
+      await completeOrderTransition(order, "CANCELLED", tx);
+    });
+    expect((await paid)?.eventType).toBe("checkout.refund_requested");
+    expect(await f.progress()).toMatchObject({ state: "REFUNDING", paymentOutcome: "SUCCEEDED" });
+  });
 });
 
 describe("async Order checkout", () => {

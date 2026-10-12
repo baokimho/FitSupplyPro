@@ -737,6 +737,7 @@ export const createOrderService = async (
           totalAmount: totalAmount.toFixed(2), currency: "USD",
         } });
         await tx.order.update({ where: { id: created.id }, data: { creationEvent: serializeIntegrationEvent(event).toString("utf8") } });
+        await tx.checkoutSaga.create({ data: { orderId: created.id, correlationId: event.correlationId, lastEventId: event.eventId } });
         if (checkoutAttemptId) {
           await tx.checkoutIdempotency.update({ where: { id: checkoutAttemptId }, data: {
             status: "ORDER_CREATED", orderId: created.id,
