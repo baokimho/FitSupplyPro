@@ -237,3 +237,54 @@ Additive schema migrations introduce per-service incoming receipts and Order's
 durable async mode/root event. Prisma clients regenerated under the repository's
 existing checked-in-client convention; only new generated comment whitespace was
 normalized for diff checks. A later generation may restore generator formatting.
+
+## Phase 8 closeout
+
+Order-owned durable checkout Saga complete. See
+[Checkout Saga](docs/phase8-checkout-saga.md) for states, compensation policy,
+concurrency, migration/rollout, query, DLQ recovery and Phase 9 publication limits.
+
+Verified on 2026-10-12:
+
+- `npm run lint`: passed.
+- `npm run typecheck`: passed across all workspaces.
+- `npm run build`: passed across all workspaces; Order Prisma client regenerated.
+- `npm run test`: **696 unit**, **214 integration** passed; disposable PostgreSQL
+  and RabbitMQ resources torn down. Order: **99 unit**, **52 integration**;
+  Inventory: **29 integration**; Payment: **56 integration**. Full Phase 0-7
+  regression retained; no test weakened, skipped or removed.
+- `npm run test:e2e`: **11 passed** across rebuilt disposable stacks:
+  **6 synchronous**, **3 async success/refund**, **2 async decline**. Both async
+  modes also verify inventory failure without Payment creation. Stock/financial
+  effect counts, correlation/causation, Saga terminal state and duplicate replay
+  assertions pass. Test stacks and volumes torn down.
+- Strict `tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext
+  --moduleResolution NodeNext --esModuleInterop` over Saga policy tests, Saga
+  migration upgrade test, shared contract tests and async E2E test: passed.
+- `docker compose config --quiet`: passed.
+- `docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config --quiet`: passed.
+- `docker compose -p fitsupply-e2e -f docker-compose.test.yml config --quiet`: passed.
+- Fresh disposable database migration deployment and Prisma drift checks: passed
+  for all services. Upgrade test applies real migration chain to Phase 7 fixtures;
+  verifies conservative legacy backfill, synchronous exclusion and unique Saga.
+- `git diff --check`: passed; source, generated-client and documentation diff
+  reviewed for scope. Only new generated comment whitespace normalized.
+
+New coverage distinguishes delivery receipts from Saga progress and business
+idempotency; exercises transient SQL confirmation failure with paid progress
+preserved before receipt, changed pending-event fingerprint rejection, duplicate
+and stale events, separate-connection success/failure races, cancellation race,
+refund/release ordering, permanent compensation diagnosis/repaired replay and
+unreconcilable cash conflict. Real SQL triggers interrupt stock release and refund
+receipt persistence; same-key retries converge to one business/provider effect.
+Real broker test verifies permanent compensation source reaches its service DLQ
+while diagnosis reaches coordinator. Docker E2E crash snapshot proves acknowledged
+payment compensation performs one refund and one release across service boundaries.
+
+Initial failures exposed a missing async audit binding, late success after failed
+reservation and PostgreSQL enum transaction handling in upgrade backfill; fixed
+and verification rerun. Docker access required execution outside filesystem
+sandbox. No development data reset, dependency, generic Saga framework, Outbox,
+automatic DLQ drain, production deployment or push. Existing matrix coverage gaps
+remain explicit; coverage reports were not generated. Phase 9 still owns durable
+DB-to-broker publication scheduling.

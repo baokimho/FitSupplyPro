@@ -659,3 +659,9 @@ Default remains synchronous. See [Async checkout](docs/phase7-event-driven-check
 for enablement, pending HTTP responses, choreography, idempotency, compensation,
 DLQ policy and remaining DB/broker atomicity limits. `npm run test:e2e` now verifies
 both synchronous and async success/decline stacks with disposable RabbitMQ.
+
+Phase 8 adds Order-owned durable checkout coordination and explicit refund/release
+progress. Payment starts from coordinator requests; failed compensation remains
+observable and recoverable by source replay. See [Checkout Saga](docs/phase8-checkout-saga.md)
+for state transitions, coordinated rollout, internal status query and remaining
+Phase 9 publication gap. Synchronous default and existing domain guards remain.
