@@ -63,6 +63,33 @@ describe("async Inventory checkout", () => {
     eventType: "order.created", correlationId: randomUUID(), causationId: null,
     data: { orderId: randomUUID(), userId: "user", items, totalAmount: "10.00", currency: "USD" },
   });
+  it("failed release publishes diagnosis without completing receipt; repaired replay releases once", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 3 }]);
+    await handleInventoryCheckout(input);
+    const cancel = createIntegrationEvent({ eventType: "order.cancelled", correlationId: input.correlationId, causationId: input.eventId,
+      data: { orderId: input.data.orderId, userId: "user", items: input.data.items } });
+    const { inventoryCompensationFailure } = await import("./services/checkout.service.js");
+    const published: string[] = [];
+    const process = checkoutMessageHandler(["order.cancelled"], handleInventoryCheckout, async (event) => { published.push(event.eventType); },
+      createLogger({ service: "test", environment: "test", level: "silent" }), inventoryCompensationFailure);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION saga_test_release() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."reservedStock"<OLD."reservedStock" THEN RAISE EXCEPTION 'release DB unavailable'; END IF; RETURN NEW; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER saga_test_release BEFORE UPDATE ON "Inventory" FOR EACH ROW EXECUTE FUNCTION saga_test_release()');
+    try {
+      await expect(process(serializeIntegrationEvent(cancel))).rejects.toThrow("release DB unavailable");
+      expect(published).toEqual(["inventory.release_failed"]);
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: cancel.eventId } })).toBeNull();
+      expect((await getInventory(productId)).reservedStock).toBe(3);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER saga_test_release ON "Inventory"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION saga_test_release()');
+    }
+    await process(serializeIntegrationEvent(cancel));
+    expect(published).toEqual(["inventory.release_failed", "inventory.released"]);
+    expect(await getInventory(productId)).toMatchObject({ reservedStock: 0 });
+    expect(await prisma.inventoryOperation.count()).toBe(2);
+  });
   it("concurrent redelivery and publish retry reserve once and replay same result", async () => {
     const productId = randomUUID();
     await createInventory({ productId, stock: 10 });

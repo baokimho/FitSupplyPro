@@ -189,7 +189,16 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
 
   return {
     checkout: async (event: KnownIntegrationEvent, outcome: "SUCCEEDED" | "FAILED" = "SUCCEEDED") => {
-      if (event.eventType !== "inventory.reserved") throw new ConflictError("Unexpected Payment checkout event");
+      if (event.eventType === "checkout.refund_requested") {
+        return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
+          const payment = await getPayment(database, event.data.paymentId);
+          if (payment.orderId !== event.data.orderId) throw new ConflictError("Refund request differs from Payment Order");
+          const refunded = await command(payment.id, payment.userId, "REFUNDED", "ADMIN", false);
+          return createIntegrationEvent({ eventType: "payment.refunded", correlationId: event.correlationId, causationId: event.eventId,
+            data: { orderId: payment.orderId, paymentId: payment.id, amount: refunded.amount, currency: "USD" } });
+        }), transactionOptions);
+      }
+      if (event.eventType !== "inventory.reserved" && event.eventType !== "checkout.payment_requested") throw new ConflictError("Unexpected Payment checkout event");
       return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
         const order = await getOrder(event.data.orderId);
         if (!order.eventDriven || !order.items || JSON.stringify([...order.items].sort((a, b) => a.productId.localeCompare(b.productId))) !==

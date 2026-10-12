@@ -1,6 +1,6 @@
 import { closeDb } from "./config/db.js";
 import { startCheckoutMessaging } from "@shared/utils";
-import { handleInventoryCheckout } from "./services/checkout.service.js";
+import { handleInventoryCheckout, inventoryCompensationFailure } from "./services/checkout.service.js";
 import express from "express";
 import { healthRouter, readiness } from "./health.js";
 import { logger } from "./logger.js";
@@ -40,7 +40,7 @@ async function bootstrap() {
     await connectDb();
     if (config.checkout.broker) {
       readiness.brokerReady = () => false;
-      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "inventory.order-created", ["order.created", "order.cancelled"], handleInventoryCheckout);
+      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "inventory.order-created", ["order.created", "order.cancelled"], handleInventoryCheckout, inventoryCompensationFailure);
       readiness.brokerReady = messaging.isReady;
     }
 

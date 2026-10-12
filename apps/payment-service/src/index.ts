@@ -1,6 +1,7 @@
 import express from "express";
 import { startCheckoutMessaging } from "@shared/utils";
 import { handlePaymentCheckout } from "./services/payment.service.js";
+import { paymentCompensationFailure } from "./services/checkout-failure.js";
 import cors from "cors";
 import { installShutdown, shutdownGuard, correlationMiddleware, httpLogger, createErrorHandler, createGatewaySecretMiddleware } from "@shared/utils";
 import { closeDb } from "./config/db.js";
@@ -30,8 +31,9 @@ async function bootstrap() {
     await connectDb();
     if (config.checkout.broker) {
       readiness.brokerReady = () => false;
-      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "payment.inventory-reserved", ["inventory.reserved"],
-        (event) => handlePaymentCheckout(event, config.checkoutPaymentOutcome));
+      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "payment.inventory-reserved",
+        ["inventory.reserved", "checkout.payment_requested", "checkout.refund_requested"],
+        (event) => event.eventType === "inventory.reserved" ? Promise.resolve(event) : handlePaymentCheckout(event, config.checkoutPaymentOutcome), paymentCompensationFailure);
       readiness.brokerReady = messaging.isReady;
     }
     const server = app.listen(config.port, () => logger.info({ port: config.port }, "service started"));

@@ -173,6 +173,29 @@ describe("async Payment checkout", () => {
     return createIntegrationEvent({ eventType: "inventory.reserved", correlationId: randomUUID(), causationId: randomUUID(),
       data: { orderId: order.id, reservations: order.items } });
   }
+  it("refund retry and receipt-write crash converge through existing provider idempotency", async () => {
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    await service.checkout(input);
+    const payment = await prisma.payment.findFirstOrThrow({ where: { orderId: input.data.orderId } });
+    const request = createIntegrationEvent({ eventType: "checkout.refund_requested", correlationId: input.correlationId, causationId: randomUUID(),
+      data: { orderId: payment.orderId, paymentId: payment.id } });
+    vi.spyOn(paymentProvider, "refund").mockRejectedValueOnce(new Error("refund temporarily unavailable"));
+    await expect(service.checkout(request)).rejects.toThrow("refund temporarily unavailable");
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("SUCCEEDED");
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION saga_test_refund_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."eventId"=TG_ARGV[0] THEN RAISE EXCEPTION 'refund receipt unavailable'; END IF; RETURN NEW; END; $$`);
+    await prisma.$executeRawUnsafe(`CREATE TRIGGER saga_test_refund_receipt BEFORE INSERT ON "CheckoutEvent" FOR EACH ROW EXECUTE FUNCTION saga_test_refund_receipt('${request.eventId}')`);
+    try { await expect(service.checkout(request)).rejects.toThrow("refund receipt unavailable"); }
+    finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER saga_test_refund_receipt ON "CheckoutEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION saga_test_refund_receipt()');
+    }
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("REFUNDED");
+    const refunded = await service.checkout(request);
+    expect(refunded?.eventType).toBe("payment.refunded");
+    expect(await service.checkout(request)).toEqual(refunded);
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+  });
   it.each(["SUCCEEDED", "FAILED"] as const)("deduplicates automatic %s attempt and provider effect with stable result", async (outcome) => {
     const input = reservation();
     const service = buildPaymentService(prisma, paymentProvider);

@@ -39,3 +39,8 @@ export async function handleInventoryCheckout(event: KnownIntegrationEvent) {
     return createIntegrationEvent({ eventType: "inventory.reserved", ...metadata, data: { orderId, reservations: items } });
   }), { timeout: 15000 });
 }
+
+export async function inventoryCompensationFailure(event: KnownIntegrationEvent, _error: unknown, retryable: boolean) {
+  return event.eventType === "order.cancelled" ? createIntegrationEvent({ eventType: "inventory.release_failed",
+    correlationId: event.correlationId, causationId: event.eventId, data: { orderId: event.data.orderId, failureCode: "RELEASE_FAILED", retryable } }) : null;
+}
