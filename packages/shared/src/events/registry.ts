@@ -31,11 +31,19 @@ export const integrationEventRegistry = Object.freeze([
   })),
   eventSchema("inventory.released", "inventory-service", reservationDataSchema),
   eventSchema("inventory.consumed", "inventory-service", reservationDataSchema),
+  eventSchema("inventory.release_failed", "inventory-service", z.object({
+    orderId: eventUuidSchema, failureCode: z.literal("RELEASE_FAILED"), retryable: z.boolean(),
+  })),
+  eventSchema("checkout.payment_requested", "order-service", reservationDataSchema),
+  eventSchema("checkout.refund_requested", "order-service", z.object({ orderId: eventUuidSchema, paymentId: eventUuidSchema })),
   eventSchema("payment.succeeded", "payment-service", paymentDataSchema),
   eventSchema("payment.failed", "payment-service", paymentDataSchema.extend({
     failureCode: z.string().regex(/^[A-Z][A-Z0-9_]*$/).max(128).nullable(),
   })),
   eventSchema("payment.refunded", "payment-service", paymentDataSchema),
+  eventSchema("payment.refund_failed", "payment-service", z.object({
+    orderId: eventUuidSchema, paymentId: eventUuidSchema, failureCode: z.literal("REFUND_FAILED"), retryable: z.boolean(),
+  })),
   eventSchema("order.created", "order-service", orderDataSchema.extend({
     items: itemsSchema, totalAmount: moneySchema, currency: z.literal("USD"),
   })),

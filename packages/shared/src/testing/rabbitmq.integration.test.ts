@@ -98,6 +98,23 @@ describe("real RabbitMQ mechanics", () => {
     await consumer.stop();
     expect(broker.isReady()).toBe(false);
   });
+  it("permanent compensation error publishes failure fact and still dead-letters source", async () => {
+    const input = createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: randomUUID(), data: {
+      orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }],
+    } });
+    const logger = createLogger({ service: "test", environment: "test", level: "silent" });
+    const { ConflictError } = await import("../errors/httpErrors.js");
+    const process = checkoutMessageHandler(["order.cancelled"], async () => { throw new ConflictError("release blocked"); },
+      (event) => publisher.publish(DOMAIN_EXCHANGE, event.eventType, Buffer.from(JSON.stringify(event))), logger,
+      async (event, _error, retryable) => createIntegrationEvent({ eventType: "inventory.release_failed", correlationId: event.correlationId, causationId: event.eventId,
+        data: { orderId: event.data.orderId, failureCode: "RELEASE_FAILED", retryable } }));
+    await broker.subscribe("inventory.order-created", (message) => process(message.content));
+    await publisher.publish(DOMAIN_EXCHANGE, "order.cancelled", Buffer.from(JSON.stringify(input)));
+    channel.ack(await receive("inventory.order-created.dlq"));
+    const diagnosis = await receive("order.payment-events");
+    expect(JSON.parse(diagnosis.content.toString())).toMatchObject({ eventType: "inventory.release_failed", data: { retryable: false } });
+    channel.ack(diagnosis);
+  });
 
   it.each(DOMAIN_QUEUES.flatMap((queue) => queue.bindings.map((key) => ({ queue: queue.name, key }))))(
     "confirms and routes $key to $queue", async ({ queue, key }) => {
@@ -294,7 +311,7 @@ describe("real RabbitMQ mechanics", () => {
       await broker.subscribe("inventory.order-created", async () => {
         started.resolve();
         await release.promise;
-        await publisher.publish(DOMAIN_EXCHANGE, "inventory.reserved", Buffer.from("durable outcome"));
+        await publisher.publish(DOMAIN_EXCHANGE, "checkout.payment_requested", Buffer.from("durable outcome"));
       });
       await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from("accepted"));
       await started.promise;

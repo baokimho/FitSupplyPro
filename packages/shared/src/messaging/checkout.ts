@@ -27,7 +27,7 @@ export interface CheckoutEventTransaction {
 export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
   tx: T, event: KnownIntegrationEvent, work: (tx: T) => Promise<KnownIntegrationEvent | null>,
 ): Promise<KnownIntegrationEvent | null> {
-  const fingerprint = createHash("sha256").update(serializeIntegrationEvent(event)).digest("hex");
+  const fingerprint = checkoutEventFingerprint(event);
   await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`checkout.event:${event.eventId}`}, 0))`;
   const receipt = await tx.checkoutEvent.findUnique({ where: { eventId: event.eventId } });
   if (receipt) {
@@ -43,8 +43,13 @@ export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
 
 export type CheckoutHandler = (event: KnownIntegrationEvent) => Promise<KnownIntegrationEvent | null>;
 export type CheckoutPublisher = (event: KnownIntegrationEvent) => Promise<void>;
+export type CheckoutFailureHandler = (event: KnownIntegrationEvent, error: unknown, retryable: boolean) => Promise<KnownIntegrationEvent | null>;
 
-export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger) {
+export function checkoutEventFingerprint(event: KnownIntegrationEvent) {
+  return createHash("sha256").update(serializeIntegrationEvent(event)).digest("hex");
+}
+
+export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger, onFailure?: CheckoutFailureHandler) {
   return async (content: Uint8Array) => {
     const event = deserializeIntegrationEvent(content);
     if (!types.includes(event.eventType)) throw new ConflictError("Unexpected checkout event type");
@@ -60,7 +65,13 @@ export function checkoutMessageHandler(types: readonly EventType[], handler: Che
         } catch (err) {
           const permanent = err instanceof IntegrationEventError || (err instanceof HttpError && err.status < 500);
           logger.error({ ...metadata, attempt, permanent, err }, "checkout event processing failed");
-          if (permanent || attempt === 3) throw err;
+          if (permanent || attempt === 3) {
+            if (onFailure) {
+              const failure = await onFailure(event, err, !permanent);
+              if (failure) await publish(failure);
+            }
+            throw err;
+          }
           await delay(100 * attempt);
         }
       }
@@ -69,7 +80,7 @@ export function checkoutMessageHandler(types: readonly EventType[], handler: Che
 }
 
 /** Phase 5 settles only after validated work plus confirmed publication completes. */
-export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler) {
+export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, onFailure?: CheckoutFailureHandler) {
   const broker = await openRabbitMq(config, logger);
   try {
     const topology = await broker.createChannel();
@@ -77,7 +88,7 @@ export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Log
     await topology.close();
     const publisher = await broker.createPublisher();
     const publish: CheckoutPublisher = (event) => publisher.publish(DOMAIN_EXCHANGE, event.eventType, serializeIntegrationEvent(event));
-    const process = checkoutMessageHandler(types, handler, publish, logger);
+    const process = checkoutMessageHandler(types, handler, publish, logger, onFailure);
     await broker.subscribe(queue, (message) => process(message.content));
     return { publish, isReady: broker.isReady, close: broker.close };
   } catch (err) {
