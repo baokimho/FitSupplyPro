@@ -14,15 +14,51 @@ model CheckoutEvent {
   result      String?
 }
 
+enum CheckoutSagaState {
+  RESERVING
+  PAYING
+  CONFIRMING
+  REFUNDING
+  RELEASING
+  COMPLETED
+  CANCELLED
+  COMPENSATED
+  FAILED
+}
+
+model CheckoutSaga {
+  id                      String            @id @default(uuid())
+  orderId                 String            @unique
+  order                   Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  state                   CheckoutSagaState @default(RESERVING)
+  correlationId           String
+  inventoryReserved       Boolean           @default(false)
+  inventoryReleased       Boolean           @default(false)
+  paymentId               String?
+  paymentEventId          String?
+  paymentEventFingerprint String?
+  paymentOutcome          String?
+  failureCode             String?
+  failedStep              String?
+  compensationError       String?
+  compensationRetryable   Boolean?
+  lastEventId             String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  @@index([state, updatedAt])
+}
+
 model Order {
-  eventDriven          Boolean      @default(false)
+  checkoutSaga         CheckoutSaga?
+  eventDriven          Boolean       @default(false)
   creationEvent        String?
-  id                   String       @id @default(uuid())
+  id                   String        @id @default(uuid())
   userId               String
-  status               OrderStatus  @default(PENDING)
+  status               OrderStatus   @default(PENDING)
   pendingStatus        OrderStatus?
-  reservationConsumed  Boolean      @default(false)
-  totalAmount          Decimal      @db.Decimal(10, 2)
+  reservationConsumed  Boolean       @default(false)
+  totalAmount          Decimal       @db.Decimal(10, 2)
   recipientName        String?
   contactPhone         String?
   deliveryAddressLine1 String?

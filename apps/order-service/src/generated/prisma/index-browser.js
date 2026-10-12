@@ -126,6 +126,26 @@ exports.Prisma.CheckoutEventScalarFieldEnum = {
   result: 'result'
 };
 
+exports.Prisma.CheckoutSagaScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  state: 'state',
+  correlationId: 'correlationId',
+  inventoryReserved: 'inventoryReserved',
+  inventoryReleased: 'inventoryReleased',
+  paymentId: 'paymentId',
+  paymentEventId: 'paymentEventId',
+  paymentEventFingerprint: 'paymentEventFingerprint',
+  paymentOutcome: 'paymentOutcome',
+  failureCode: 'failureCode',
+  failedStep: 'failedStep',
+  compensationError: 'compensationError',
+  compensationRetryable: 'compensationRetryable',
+  lastEventId: 'lastEventId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.OrderScalarFieldEnum = {
   eventDriven: 'eventDriven',
   creationEvent: 'creationEvent',
@@ -201,6 +221,18 @@ exports.Prisma.JsonNullValueFilter = {
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
 };
+exports.CheckoutSagaState = exports.$Enums.CheckoutSagaState = {
+  RESERVING: 'RESERVING',
+  PAYING: 'PAYING',
+  CONFIRMING: 'CONFIRMING',
+  REFUNDING: 'REFUNDING',
+  RELEASING: 'RELEASING',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  COMPENSATED: 'COMPENSATED',
+  FAILED: 'FAILED'
+};
+
 exports.OrderStatus = exports.$Enums.OrderStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',
@@ -212,6 +244,7 @@ exports.OrderStatus = exports.$Enums.OrderStatus = {
 
 exports.Prisma.ModelName = {
   CheckoutEvent: 'CheckoutEvent',
+  CheckoutSaga: 'CheckoutSaga',
   Order: 'Order',
   OrderItem: 'OrderItem',
   CheckoutIdempotency: 'CheckoutIdempotency'
