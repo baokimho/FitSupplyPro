@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, ServiceUnavailableError, correlationHeaders } from "@shared/utils";
-import { createIntegrationEvent, processCheckoutEvent, type KnownIntegrationEvent } from "@shared/utils";
+import { createIntegrationEvent, deserializeIntegrationEvent, enqueueOutboxEvent, processCheckoutEvent, type KnownIntegrationEvent } from "@shared/utils";
 import { Prisma, type PrismaClient, type Payment } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import { config } from "../config/index.js";
@@ -141,7 +141,7 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
     return tx.payment.update({ where: { id }, data: { orderConfirmedAt: new Date(), progressState: "ORDER_CONFIRMED" } });
   }, transactionOptions);
 
-  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string, synchronize = true) => {
+  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string, synchronize = true, source?: KnownIntegrationEvent) => {
     if (role !== "ADMIN") throw new ForbiddenError("Forbidden");
     const initial = await getPayment(database, id);
     assertPaymentTransition(initial.status, target);
@@ -161,8 +161,20 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
     const payment = await database.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Payment" WHERE "id" = ${id} FOR UPDATE`;
       const current = await getPayment(tx, id);
+      const finish = async (payment: Payment) => {
+        if (source) {
+          const metadata = { correlationId: source.correlationId, causationId: source.eventId };
+          const data = { orderId: payment.orderId, paymentId: payment.id, amount: payment.amount.toFixed(2), currency: "USD" as const };
+          const event = payment.status === "REFUNDED" ? createIntegrationEvent({ eventType: "payment.refunded", ...metadata, data }) :
+            payment.status === "SUCCEEDED" ? createIntegrationEvent({ eventType: "payment.succeeded", ...metadata, data }) :
+              createIntegrationEvent({ eventType: "payment.failed", ...metadata, data: { ...data, failureCode: payment.failureCode } });
+          const stored = await enqueueOutboxEvent(tx, event, `checkout:${source.eventId}`);
+          logger.info({ eventId: stored.eventId, eventType: stored.eventType, correlationId: stored.correlationId, paymentId: payment.id }, "outbox intent staged with financial outcome");
+        }
+        return payment;
+      };
       assertPaymentTransition(current.status, target);
-      if (current.status === target) return current;
+      if (current.status === target) return finish(current);
       if (current.pendingOperation !== target) throw new ConflictError("Another payment command requires completion");
       if (current.provider !== provider.name) throw new ConflictError("Payment provider mismatch");
       const input = { paymentId: id, idempotencyKey: `${id}:${target === "REFUNDED" ? "refund" : "settle"}`, amount: current.amount.toFixed(2), currency: current.currency };
@@ -170,15 +182,15 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         if (target === "REFUNDED") {
           if (!current.providerPaymentId) throw new ConflictError("Provider payment reference missing");
           await provider.refund({ ...input, providerPaymentId: current.providerPaymentId });
-          return tx.payment.update({ where: { id }, data: { status: "REFUNDED", pendingOperation: null, progressState: "REFUNDED" } });
+          return finish(await tx.payment.update({ where: { id }, data: { status: "REFUNDED", pendingOperation: null, progressState: "REFUNDED" } }));
         }
         // Always persist the acknowledged result, including provider decline of confirmation.
         const result = await provider.settle(input, target);
         assertPaymentTransition(current.status, result.status);
-        return tx.payment.update({ where: { id }, data: {
+        return finish(await tx.payment.update({ where: { id }, data: {
           status: result.status, providerPaymentId: result.reference, failureCode: result.failureCode ?? null,
           pendingOperation: null, progressState: result.status === "SUCCEEDED" ? "ORDER_CONFIRMATION_PENDING" : "FAILED",
-        } });
+        } }));
       } catch (error) {
         logger.error({ paymentId: id, actorId: userId, operation: target, err: error }, "payment command incomplete; retry same command");
         throw error;
@@ -193,10 +205,10 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
           const payment = await getPayment(database, event.data.paymentId);
           if (payment.orderId !== event.data.orderId) throw new ConflictError("Refund request differs from Payment Order");
-          const refunded = await command(payment.id, payment.userId, "REFUNDED", "ADMIN", false);
-          return createIntegrationEvent({ eventType: "payment.refunded", correlationId: event.correlationId, causationId: event.eventId,
-            data: { orderId: payment.orderId, paymentId: payment.id, amount: refunded.amount, currency: "USD" } });
-        }), transactionOptions);
+          await command(payment.id, payment.userId, "REFUNDED", "ADMIN", false, event);
+          const result = await database.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
+          return deserializeIntegrationEvent(result.payload);
+        }, logger), transactionOptions);
       }
       if (event.eventType !== "inventory.reserved" && event.eventType !== "checkout.payment_requested") throw new ConflictError("Unexpected Payment checkout event");
       return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
@@ -209,14 +221,10 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         logger.debug({ eventId: event.eventId, orderId: order.id, paymentId: payment.id, idempotencyKey: `checkout:${order.id}:create` }, "checkout payment attempt");
         // Create replay is an immutable response snapshot, not current lifecycle state.
         const current = await getPayment(database, payment.id);
-        const settled = current.status === "FAILED" || current.status === "SUCCEEDED"
-          ? toPaymentResponse(current) : await command(payment.id, order.userId, outcome, "ADMIN", false);
-        const data = { orderId: order.id, paymentId: settled.id, amount: settled.amount, currency: "USD" as const };
-        const metadata = { correlationId: event.correlationId, causationId: event.eventId };
-        return settled.status === "SUCCEEDED"
-          ? createIntegrationEvent({ eventType: "payment.succeeded", ...metadata, data })
-          : createIntegrationEvent({ eventType: "payment.failed", ...metadata, data: { ...data, failureCode: settled.failureCode } });
-      }), transactionOptions);
+        await command(payment.id, order.userId, current.status === "FAILED" || current.status === "SUCCEEDED" ? current.status : outcome, "ADMIN", false, event);
+        const result = await database.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
+        return deserializeIntegrationEvent(result.payload);
+      }, logger), transactionOptions);
     },
     create,
     confirm: (id: string, userId: string, role?: string) => command(id, userId, "SUCCEEDED", role),

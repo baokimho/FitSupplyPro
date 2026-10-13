@@ -37,7 +37,7 @@ export async function handleInventoryCheckout(event: KnownIntegrationEvent) {
       }
     }
     return createIntegrationEvent({ eventType: "inventory.reserved", ...metadata, data: { orderId, reservations: items } });
-  }), { timeout: 15000 });
+  }, logger), { timeout: 15000 });
 }
 
 export async function inventoryCompensationFailure(event: KnownIntegrationEvent, _error: unknown, retryable: boolean) {

@@ -1,5 +1,6 @@
 import express from "express";
-import { startCheckoutMessaging } from "@shared/utils";
+import { startOutboxCheckoutMessaging } from "@shared/utils";
+import prisma from "./config/db.js";
 import { handlePaymentCheckout } from "./services/payment.service.js";
 import { paymentCompensationFailure } from "./services/checkout-failure.js";
 import cors from "cors";
@@ -26,18 +27,18 @@ app.use((_req, res) => res.status(404).json({ error: { code: "NOT_FOUND", messag
 app.use(createErrorHandler(logger));
 
 async function bootstrap() {
-  let messaging: Awaited<ReturnType<typeof startCheckoutMessaging>> | undefined;
+  let messaging: Awaited<ReturnType<typeof startOutboxCheckoutMessaging>> | undefined;
   try {
     await connectDb();
     if (config.checkout.broker) {
       readiness.brokerReady = () => false;
-      messaging = await startCheckoutMessaging(config.checkout.broker, logger, "payment.inventory-reserved",
+      messaging = await startOutboxCheckoutMessaging(config.checkout.broker, logger, "payment.inventory-reserved",
         ["inventory.reserved", "checkout.payment_requested", "checkout.refund_requested"],
-        (event) => event.eventType === "inventory.reserved" ? Promise.resolve(event) : handlePaymentCheckout(event, config.checkoutPaymentOutcome), paymentCompensationFailure);
+        (event) => event.eventType === "inventory.reserved" ? Promise.resolve(event) : handlePaymentCheckout(event, config.checkoutPaymentOutcome), prisma, paymentCompensationFailure);
       readiness.brokerReady = messaging.isReady;
     }
     const server = app.listen(config.port, () => logger.info({ port: config.port }, "service started"));
-    installShutdown({ server, logger, state: readiness, cleanup: [...(messaging ? [messaging.close] : []), closeDb] });
+    installShutdown({ server, logger, state: readiness, stopWork: () => messaging?.stop(), cleanup: [...(messaging ? [messaging.close] : []), closeDb] });
   } catch (err) {
     if (messaging) await messaging.close();
     await closeDb();

@@ -191,10 +191,36 @@ describe("async Payment checkout", () => {
       await prisma.$executeRawUnsafe('DROP FUNCTION saga_test_refund_receipt()');
     }
     expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("REFUNDED");
+    const durable = await prisma.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${request.eventId}` } });
+    expect(durable).toMatchObject({ publishedAt: null });
     const refunded = await service.checkout(request);
     expect(refunded?.eventType).toBe("payment.refunded");
+    expect(refunded?.eventId).toBe(durable.eventId);
     expect(await service.checkout(request)).toEqual(refunded);
     expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+  });
+  it("financial outcome rolls back with failed Outbox insert; provider replay commits both without another charge", async () => {
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION payment_test_reject_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'financial outbox failed'; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER payment_test_reject_outbox BEFORE INSERT ON "OutboxEvent" FOR EACH ROW EXECUTE FUNCTION payment_test_reject_outbox()');
+    let paymentId: string;
+    try {
+      await expect(service.checkout(input)).rejects.toThrow("financial outbox failed");
+      const payment = await prisma.payment.findFirstOrThrow({ where: { orderId: input.data.orderId } });
+      paymentId = payment.id;
+      expect(payment).toMatchObject({ status: "PENDING", pendingOperation: "SUCCEEDED" });
+      expect(await prisma.outboxEvent.findUnique({ where: { deduplicationKey: `checkout:${input.eventId}` } })).toBeNull();
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: input.eventId } })).toBeNull();
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER payment_test_reject_outbox ON "OutboxEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION payment_test_reject_outbox()');
+    }
+    const result = await service.checkout(input);
+    expect(await prisma.payment.findUnique({ where: { id: paymentId } })).toMatchObject({ status: "SUCCEEDED" });
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: result!.eventId } })).toMatchObject({ publishedAt: null });
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${paymentId}:settle` } })).toBe(1);
   });
   it.each(["SUCCEEDED", "FAILED"] as const)("deduplicates automatic %s attempt and provider effect with stable result", async (outcome) => {
     const input = reservation();
@@ -227,6 +253,7 @@ describe("async Payment checkout", () => {
       await prisma.$executeRawUnsafe('DROP FUNCTION checkout_test_fail_receipt()');
     }
     const first = await service.checkout(input);
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: first!.eventId } })).toMatchObject({ publishedAt: null });
     expect(first?.eventType).toBe(providerOutcome === "SUCCEEDED" ? "payment.succeeded" : "payment.failed");
     expect(await service.checkout(input)).toEqual(first);
     expect(await prisma.payment.count()).toBe(1);

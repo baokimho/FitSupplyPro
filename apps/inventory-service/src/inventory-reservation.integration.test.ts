@@ -105,6 +105,7 @@ describe("async Inventory checkout", () => {
     expect(await prisma.inventoryOperation.count()).toBe(1);
     const result = results[0];
     expect(result).toMatchObject({ eventType: "inventory.reserved", correlationId: input.correlationId, causationId: input.eventId });
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: result!.eventId } })).toMatchObject({ publishedAt: null });
     await expect(handleInventoryCheckout({ ...input, data: { ...input.data, totalAmount: "11.00" } })).rejects.toThrow("Event ID reused");
   });
   it("rolls back entire multi-product batch on insufficient/missing stock; duplicate failure is stable", async () => {
@@ -114,6 +115,7 @@ describe("async Inventory checkout", () => {
     const input = creation(ids.map((productId) => ({ productId, quantity: 2 })));
     const first = await handleInventoryCheckout(input);
     expect(first?.eventType).toBe("inventory.reservation_failed");
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: first!.eventId } })).toMatchObject({ publishedAt: null });
     expect(await handleInventoryCheckout(input)).toEqual(first);
     expect(await getInventory(ids[0])).toMatchObject({ reservedStock: 0 });
     expect(await prisma.inventoryOperation.count()).toBe(0);
@@ -129,6 +131,7 @@ describe("async Inventory checkout", () => {
       data: { orderId: input.data.orderId, userId: "user", items: input.data.items } });
     const released = await handleInventoryCheckout(cancel);
     expect(released?.eventType).toBe("inventory.released");
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: released!.eventId } })).toMatchObject({ publishedAt: null });
     expect(await handleInventoryCheckout(cancel)).toEqual(released);
     expect(await getInventory(productId)).toMatchObject({ stock: 10, reservedStock: 0 });
     expect(await prisma.inventoryOperation.count()).toBe(2);
