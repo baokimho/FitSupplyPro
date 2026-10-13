@@ -2,7 +2,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { createIntegrationEvent, runWithCorrelation } from "@shared/utils";
+import { createIntegrationEvent, runWithCorrelation, dispatchOutboxOnce, startOutboxPublisher, processCheckoutEvent, createLogger } from "@shared/utils";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
@@ -226,6 +226,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await truncateOrderDb();
+  await prisma.outboxEvent.deleteMany();
   products.clear();
   inventory.clear();
   reserveCalls = [];
@@ -265,6 +266,7 @@ describe("durable checkout Saga", () => {
     const { getCheckoutSaga } = await import("./services/checkout.service.js");
     const request = await f.handleOrderCheckout(f.reserved);
     expect(request?.eventType).toBe("checkout.payment_requested");
+    expect(await prisma.outboxEvent.findUniqueOrThrow({ where: { eventId: request!.eventId } })).toMatchObject({ publishedAt: null, attempts: 0 });
     expect(await f.handleOrderCheckout(f.reserved)).toEqual(request);
     expect(await f.progress()).toMatchObject({ state: "PAYING", inventoryReserved: true, paymentOutcome: null });
     expect(await getCheckoutSaga(f.order.id)).toMatchObject({ terminal: false, requiresAttention: false });
@@ -275,6 +277,89 @@ describe("durable checkout Saga", () => {
     const before = await f.progress();
     await f.handleOrderCheckout({ ...f.reserved, eventId: randomUUID() });
     expect(await f.progress()).toEqual(before);
+  });
+  it("rolls back Saga transition and receipt when atomic Outbox insertion fails", async () => {
+    const f = await fixture();
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION outbox_test_reject_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'outbox insertion failed'; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER outbox_test_reject_insert BEFORE INSERT ON "OutboxEvent" FOR EACH ROW EXECUTE FUNCTION outbox_test_reject_insert()');
+    try {
+      await expect(f.handleOrderCheckout(f.reserved)).rejects.toThrow("outbox insertion failed");
+      expect(await f.progress()).toMatchObject({ state: "RESERVING", inventoryReserved: false });
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: f.reserved.eventId } })).toBeNull();
+      expect(await prisma.outboxEvent.count()).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER outbox_test_reject_insert ON "OutboxEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION outbox_test_reject_insert()');
+    }
+    const next = await f.handleOrderCheckout(f.reserved);
+    expect(await f.progress()).toMatchObject({ state: "PAYING" });
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: next!.eventId } })).not.toBeNull();
+  });
+  it("retains committed Saga intent during broker failure and recreated publisher drains it", async () => {
+    const f = await fixture();
+    const event = await f.handleOrderCheckout(f.reserved);
+    const logger = createLogger({ service: "outbox-test", environment: "test", level: "silent" });
+    await dispatchOutboxOnce(prisma, async () => { throw new Error("broker offline"); }, logger);
+    expect(await f.progress()).toMatchObject({ state: "PAYING" });
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: event!.eventId } })).toMatchObject({ attempts: 1, publishedAt: null, lastError: expect.any(String) });
+    await prisma.outboxEvent.updateMany({ data: { nextAttemptAt: new Date(0) } });
+    const delivered: string[] = [];
+    const worker = startOutboxPublisher(prisma, async (next) => { delivered.push(next.eventId); }, logger);
+    try { await vi.waitFor(async () => expect(await prisma.outboxEvent.count({ where: { publishedAt: { not: null } } })).toBe(1)); }
+    finally { await worker.close(); }
+    expect(delivered).toEqual([event!.eventId]);
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: event!.eventId } })).toMatchObject({ attempts: 2, lastError: null });
+  });
+  it("republishes same confirmed envelope after marker failure; downstream receipt prevents second effect", async () => {
+    const f = await fixture();
+    const event = await f.handleOrderCheckout(f.reserved);
+    const logger = createLogger({ service: "outbox-test", environment: "test", level: "silent" });
+    const deliveries: string[] = [];
+    let effects = 0;
+    const { completeOrderTransition } = await import("./services/order.service.js");
+    const publish = async (next: Parameters<typeof processCheckoutEvent>[1]) => {
+      deliveries.push(next.eventId);
+      await prisma.$transaction((tx) => processCheckoutEvent(tx, next, async () => {
+        effects++;
+        const order = await tx.order.findUniqueOrThrow({ where: { id: f.order.id } });
+        await completeOrderTransition(order, "CONFIRMED", tx);
+        return null;
+      }));
+    };
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION outbox_test_reject_marker() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."publishedAt" IS NOT NULL THEN RAISE EXCEPTION 'published marker failed'; END IF; RETURN NEW; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER outbox_test_reject_marker BEFORE UPDATE ON "OutboxEvent" FOR EACH ROW EXECUTE FUNCTION outbox_test_reject_marker()');
+    try {
+      await expect(dispatchOutboxOnce(prisma, publish, logger)).rejects.toThrow("published marker failed");
+      expect(await prisma.outboxEvent.findUnique({ where: { eventId: event!.eventId } })).toMatchObject({ publishedAt: null });
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER outbox_test_reject_marker ON "OutboxEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION outbox_test_reject_marker()');
+    }
+    await dispatchOutboxOnce(prisma, publish, logger);
+    expect(deliveries).toEqual([event!.eventId, event!.eventId]);
+    expect(effects).toBe(1);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).status).toBe("CONFIRMED");
+  });
+  it("separate publisher connections claim different rows until confirmations settle", async () => {
+    const a = await fixture();
+    const b = await fixture();
+    const first = await a.handleOrderCheckout(a.reserved);
+    const second = await b.handleOrderCheckout(b.reserved);
+    const { PrismaClient } = await import("./generated/prisma/index.js");
+    const otherPool = new pg.Pool({ connectionString: databaseUrl });
+    const other = new PrismaClient({ adapter: new PrismaPg(otherPool) });
+    const logger = createLogger({ service: "outbox-test", environment: "test", level: "silent" });
+    let confirm!: () => void;
+    const confirmation = new Promise<void>((resolve) => { confirm = resolve; });
+    const deliveries: string[] = [];
+    const publish = async (next: Parameters<typeof processCheckoutEvent>[1]) => { deliveries.push(next.eventId); await confirmation; };
+    const work = Promise.all([dispatchOutboxOnce(prisma, publish, logger), dispatchOutboxOnce(other, publish, logger)]);
+    try {
+      await vi.waitFor(() => expect(deliveries).toHaveLength(2));
+      expect(new Set(deliveries)).toEqual(new Set([first!.eventId, second!.eventId]));
+      expect(await prisma.outboxEvent.count({ where: { publishedAt: null } })).toBe(2);
+    } finally { confirm(); await work; await other.$disconnect(); await otherPool.end(); }
+    expect(await prisma.outboxEvent.count({ where: { publishedAt: { not: null } } })).toBe(2);
   });
   it("durably remembers payment success after transient confirmation failure and resumes without refund", async () => {
     const f = await fixture();
@@ -373,30 +458,27 @@ describe("durable checkout Saga", () => {
 });
 
 describe("async Order checkout", () => {
-  it("accepts pending creation without Inventory HTTP, preserves root event through failed publication and HTTP replay", async () => {
+  it("accepts pending creation without Inventory HTTP or broker, preserves durable root intent through HTTP replay", async () => {
     const { config } = await import("./config/index.js");
-    const { setCheckoutPublisher } = await import("./messaging/publisher.js");
     const { createEventDrivenOrderService } = await import("./services/order.service.js");
     const productId = randomUUID();
     setProduct({ id: productId, name: "Protein", slug: "protein", price: "10.00", isPublished: true });
     const body = { items: [{ productId, quantity: 2 }], delivery: defaultDelivery() };
     const correlationId = randomUUID();
-    let fail = true;
-    const published: string[] = [];
-    setCheckoutPublisher(async (event) => { published.push(event.eventId); if (fail) throw new Error("broker unavailable"); });
     config.checkout.enabled = true;
     try {
       await runWithCorrelation({ requestId: randomUUID(), traceId: correlationId }, async () => {
-        await expect(createEventDrivenOrderService("user-1", body, "async-create")).rejects.toThrow("Checkout publication failed");
+        const accepted = await createEventDrivenOrderService("user-1", body, "async-create");
         expect(await prisma.order.count()).toBe(1);
         expect(reserveCalls).toHaveLength(0);
-        fail = false;
         const pending = await createEventDrivenOrderService("user-1", body, "async-create");
         expect(pending.status).toBe("PENDING");
         expect(await createEventDrivenOrderService("user-1", body, "async-create")).toEqual(pending);
-        expect(published[0]).toBe(published[1]);
+        expect(pending).toEqual(JSON.parse(JSON.stringify(accepted)));
         const order = await prisma.order.findUniqueOrThrow({ where: { id: pending.id } });
         expect(JSON.parse(order.creationEvent ?? "{}")).toMatchObject({ correlationId, causationId: null });
+        const root = JSON.parse(order.creationEvent ?? "{}");
+        expect(await prisma.outboxEvent.findUniqueOrThrow({ where: { eventId: root.eventId } })).toMatchObject({ payload: order.creationEvent, publishedAt: null, attempts: 0 });
         await expect(cancelOrderService(pending.id, "user-1")).rejects.toThrow("still pending");
       });
     } finally { config.checkout.enabled = false; }

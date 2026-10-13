@@ -1,7 +1,6 @@
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
-import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent } from "@shared/utils";
-import { publishCheckoutEvent } from "../messaging/publisher.js";
+import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent } from "@shared/utils";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -738,6 +737,8 @@ export const createOrderService = async (
         } });
         await tx.order.update({ where: { id: created.id }, data: { creationEvent: serializeIntegrationEvent(event).toString("utf8") } });
         await tx.checkoutSaga.create({ data: { orderId: created.id, correlationId: event.correlationId, lastEventId: event.eventId } });
+        await enqueueOutboxEvent(tx, event);
+        logger.info({ eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId, orderId: created.id }, "outbox root intent staged with Order");
         if (checkoutAttemptId) {
           await tx.checkoutIdempotency.update({ where: { id: checkoutAttemptId }, data: {
             status: "ORDER_CREATED", orderId: created.id,
@@ -749,8 +750,7 @@ export const createOrderService = async (
       return created;
     });
 
-    if (order.eventDriven) await publishPendingCreation(order.id);
-    else await createNotification(userId, {
+    if (!order.eventDriven) await createNotification(userId, {
       type: "ORDER_CREATED",
       title: "Order created",
       message: `Order ${order.id} has been created.`,
@@ -785,11 +785,10 @@ export const createOrderService = async (
   }
 };
 
-const publishPendingCreation = async (id: string) => {
+const ensurePendingCreationOutbox = async (id: string) => {
   const order = await getOrderByIdOrThrow(id);
   if (order.creationEvent) {
-    try { await publishCheckoutEvent(deserializeIntegrationEvent(order.creationEvent)); }
-    catch (err) { throw new ServiceUnavailableError("Checkout publication failed; retry same idempotency key", { orderId: id }, undefined, err); }
+    await prisma.$transaction((tx) => enqueueOutboxEvent(tx, deserializeIntegrationEvent(order.creationEvent!)));
   }
 };
 
@@ -801,7 +800,7 @@ export const createEventDrivenOrderService = async (userId: string, body: Create
     if ((attempt.row.status === "ORDER_CREATED" || attempt.row.status === "COMPLETED") && attempt.row.responseBody) {
       const order = attempt.row.responseBody as unknown as OrderResponse;
       if (attempt.row.status === "ORDER_CREATED") {
-        await publishPendingCreation(order.id);
+        await ensurePendingCreationOutbox(order.id);
         await completeCheckoutIdempotency(attempt.row.id, order);
       }
       return order;
@@ -836,7 +835,7 @@ export const checkoutOrderService = async (
     }
 
     if (attempt.row.status === "ORDER_CREATED" && attempt.row.responseBody) {
-      await publishPendingCreation((attempt.row.responseBody as unknown as OrderResponse).id);
+      await ensurePendingCreationOutbox((attempt.row.responseBody as unknown as OrderResponse).id);
       const finalization = parseCartFinalizationState(attempt.row.finalizationCart);
       if (!finalization) {
         throw new ServiceUnavailableError("Checkout finalization state is incomplete", { checkoutAttemptId: attempt.row.id });

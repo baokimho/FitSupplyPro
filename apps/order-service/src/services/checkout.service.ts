@@ -151,7 +151,7 @@ export async function handleOrderCheckout(event: KnownIntegrationEvent, database
         return null;
       default: return null;
     }
-  }));
+  }, logger));
 }
 
 export async function recordSagaFailure(event: KnownIntegrationEvent, error: unknown, retryable: boolean) {
