@@ -120,6 +120,18 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.OutboxEventScalarFieldEnum = {
+  id: 'id',
+  eventId: 'eventId',
+  deduplicationKey: 'deduplicationKey',
+  payload: 'payload',
+  createdAt: 'createdAt',
+  publishedAt: 'publishedAt',
+  attempts: 'attempts',
+  lastError: 'lastError',
+  nextAttemptAt: 'nextAttemptAt'
+};
+
 exports.Prisma.CheckoutEventScalarFieldEnum = {
   eventId: 'eventId',
   fingerprint: 'fingerprint',
@@ -162,6 +174,7 @@ exports.Prisma.NullsOrder = {
 
 
 exports.Prisma.ModelName = {
+  OutboxEvent: 'OutboxEvent',
   CheckoutEvent: 'CheckoutEvent',
   Inventory: 'Inventory',
   InventoryOperation: 'InventoryOperation'

@@ -8,6 +8,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model OutboxEvent {
+  id               String @id @default(uuid())
+  eventId          String @unique
+  deduplicationKey String @unique
+  payload          String
+  createdAt        DateTime @default(now())
+  publishedAt      DateTime?
+  attempts         Int @default(0)
+  lastError        String?
+  nextAttemptAt    DateTime @default(now())
+
+  @@index([publishedAt, nextAttemptAt, createdAt])
+}
+
 model CheckoutEvent {
   eventId     String @id
   fingerprint String
