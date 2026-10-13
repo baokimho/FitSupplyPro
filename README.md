@@ -665,3 +665,8 @@ progress. Payment starts from coordinator requests; failed compensation remains
 observable and recoverable by source replay. See [Checkout Saga](docs/phase8-checkout-saga.md)
 for state transitions, coordinated rollout, internal status query and remaining
 Phase 9 publication gap. Synchronous default and existing domain guards remain.
+
+Phase 9 closes local database/publication gaps with service-owned transactional
+Outboxes in Order, Inventory and Payment. Confirmed dispatch retries pending events
+and reconnects after broker loss. See [Transactional Outbox](docs/phase9-transactional-outbox.md)
+for atomic boundaries, at-least-once semantics, rollout and remaining limits.

@@ -288,3 +288,67 @@ sandbox. No development data reset, dependency, generic Saga framework, Outbox,
 automatic DLQ drain, production deployment or push. Existing matrix coverage gaps
 remain explicit; coverage reports were not generated. Phase 9 still owns durable
 DB-to-broker publication scheduling.
+
+## Phase 9 closeout
+
+Transactional Outbox complete for Order, Inventory and Payment. See
+[Transactional Outbox](docs/phase9-transactional-outbox.md) for producer audit,
+atomic boundaries, dispatcher locks/confirms, reconnection, rollout and limits.
+
+Verified on 2026-10-13:
+
+- `npm run lint`: passed; no separate formatter configured.
+- `npm run typecheck`: passed across all workspaces.
+- `npm run build`: passed across all workspaces. Three Prisma clients regenerated
+  with existing checked-in-client convention; new generated comment whitespace
+  normalized for diff checks, as in previous phases.
+- `npm run test`: **700 unit**, **220 integration** passed. Includes all existing
+  RabbitMQ and service regression suites; disposable DB/broker resources torn down.
+  Order: **99 unit / 57 integration**; Inventory: **29 integration**;
+  Payment: **57 integration**; shared: **477 unit / 53 integration**.
+- `npm run test:e2e`: **12 passed**: **6 synchronous**, **4 async success/recovery**,
+  **2 async decline** across rebuilt disposable Docker stacks; stacks/volumes removed.
+- Explicit strict `tsc --noEmit --strict --skipLibCheck --target ES2022 --module
+  NodeNext --moduleResolution NodeNext --esModuleInterop` over new Outbox unit tests,
+  changed Order/Inventory/Payment integration tests, migration upgrade tests and
+  async E2E tests: passed. Payment middleware included for its existing Express
+  Request declaration; standalone invocation initially omitted that declaration.
+- `docker compose config --quiet`: passed.
+- `docker compose -p fitsupply-test-db -f docker-compose.test-db.yml config --quiet`: passed.
+- `docker compose -p fitsupply-e2e -f docker-compose.test.yml config --quiet`: passed.
+- Fresh migrations and Prisma migration/schema drift checks: passed across all
+  service databases. Upgrade test verifies retained Phase 8 root/receipt envelopes
+  enter pending Outbox with original IDs and unchanged Order status.
+- `git diff --check`: passed. Reviewed source/generated-client/doc scope; no
+  dependencies, new environment settings or unrelated service changes.
+
+New focused coverage:
+
+- Atomic Saga progress/next-event intent and rollback on real Outbox insertion failure.
+- Pending Saga intent survives publication error, records attempt/backoff and drains
+  through recreated publisher without client replay.
+- Real SQL published-marker failure after simulated confirm republishes identical
+  event ID; real receipt and guarded Order transition allow one downstream effect.
+- Separate PostgreSQL publisher connections hold distinct SKIP LOCKED claims until
+  confirmations settle; marker cannot appear before confirmation.
+- Financial Outbox insertion failure rolls back Payment outcome; existing provider
+  acknowledgement/key lets retry commit result and intent with one charge.
+- Existing financial/refund receipt-crash tests now assert Outbox intent survives
+  receipt rollback and retains original event identity on retry.
+- Inventory reserve/failure/release tests assert durable unpublished outputs.
+- Unit checks enforce event/key identity, stop polling timers, and drain in-flight
+  confirmation/marker before closing.
+- Docker E2E stops only disposable RabbitMQ, accepts Order/Saga/root intent while
+  offline, restarts broker and proves automatic checkout convergence with one stock
+  reservation and one provider settlement. No same-key HTTP/source replay needed.
+- Docker success/decline cases simulate confirm-before-marker window by clearing
+  only test Outbox published marker; retry retains event ID and effect counts.
+
+Docker Desktop initially was stopped and started in background. First verification
+also exposed service Date-versus-wire-string comparison and old duplicate-terminal
+publication expectation; tests now compare HTTP JSON form and explicitly exercise
+Outbox marker replay. Test variable collision fixed; final checks rerun. No tests
+weakened/disabled, development reset, Inbox, CDC, Kafka, Notification/Shipping
+migration, deployment or push. Existing coverage gaps remain explicit; no coverage
+report generated. At-least-once publication remains intentional; provider atomicity,
+business DLQ repair, retention/backlog operations and global ordering remain limits.
