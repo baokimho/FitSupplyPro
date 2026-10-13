@@ -113,10 +113,17 @@ describe("event-driven HTTP checkout", () => {
     for (const event of flow.filter((event) => ["order.created", "inventory.reserved", "payment.succeeded", "payment.failed", "order.cancelled"].includes(event.eventType))) {
       await publisher.publish(DOMAIN_EXCHANGE, event.eventType, serializeIntegrationEvent(event));
     }
+    const terminalEvent = flow.find((event) => event.eventType === finalType);
+    if (!terminalEvent) throw new Error("Terminal event missing");
+    // Confirm-before-marker crash window: durable row retries same event, not a new effect.
+    const terminalDatabase = decline ? "inventory_test_db" : "order_test_db";
+    sql(terminalDatabase, `UPDATE "OutboxEvent" SET "publishedAt"=NULL, "nextAttemptAt"=NOW() WHERE "eventId"='${terminalEvent.eventId}'`);
     await vi.waitFor(async () => {
       await audit();
       expect(events.filter((event) => event.data.orderId === order.id && event.eventType === finalType).length).toBeGreaterThan(before);
+      expect(scalar(terminalDatabase, `SELECT count(*) FROM "OutboxEvent" WHERE "eventId"='${terminalEvent.eventId}' AND "publishedAt" IS NOT NULL`)).toBe(1);
     }, { timeout: 10000, interval: 100 });
+    expect(new Set(events.filter((event) => event.data.orderId === order.id && event.eventType === finalType).map((event) => event.eventId))).toEqual(new Set([terminalEvent.eventId]));
     expect(scalar("order_test_db", `SELECT count(*) FROM "Order" WHERE "id"='${order.id}'`)).toBe(1);
     expect(scalar("inventory_test_db", `SELECT count(*) FROM "InventoryOperation" WHERE "operationId"='${order.id}:reserve:${productId}'`)).toBe(1);
     expect(scalar("inventory_test_db", `SELECT count(*) FROM "InventoryOperation" WHERE "operationId"='${order.id}:release:${productId}'`)).toBe(decline ? 1 : 0);
@@ -173,4 +180,32 @@ describe("event-driven HTTP checkout", () => {
     for (const name of ["checkout.refund_requested", "payment.refunded", "order.cancelled", "inventory.released"]) expect(flow.some((event) => event.eventType === name)).toBe(true);
     expect(flow.every((event) => event.correlationId === correlationId)).toBe(true);
   }, 30000);
+  if (!decline) it("commits checkout while RabbitMQ is offline and converges after automatic reconnect without client replay", async () => {
+    const { customer, productId, suffix } = await catalog(10);
+    const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
+    await broker.close();
+    execFileSync("docker", [...compose, "stop", "rabbitmq-test"], { stdio: "pipe" });
+    let order: z.infer<typeof orderSchema>;
+    try {
+      order = orderSchema.parse(await json("POST", "/order/orders", customer.accessToken, {
+        items: [{ productId, quantity: 3 }], delivery: {
+          recipientName: "Recovery Customer", contactPhone: "+358401234567", addressLine1: "Testikatu 1", city: "Helsinki", postalCode: "00100", countryCode: "FI",
+        },
+      }, `outbox:${suffix}`));
+      expect(order.status).toBe("PENDING");
+      expect(saga(order.id).state).toBe("RESERVING");
+      expect(scalar("order_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'eventType'='order.created' AND "payload"::jsonb->'data'->>'orderId'='${order.id}' AND "publishedAt" IS NULL`)).toBe(1);
+      expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}'`)).toBe(0);
+    } finally {
+      execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "60", "rabbitmq-test"], { stdio: "pipe" });
+    }
+    await vi.waitFor(async () => {
+      expect(saga(order.id).state).toBe("COMPLETED");
+      expect(scalar("order_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'eventType'='order.created' AND "payload"::jsonb->'data'->>'orderId'='${order.id}' AND "publishedAt" IS NOT NULL`)).toBe(1);
+      expect(await json("GET", `/inventory/products/${productId}`, admin)).toMatchObject({ reservedStock: 3 });
+    }, { timeout: 30000, interval: 200 });
+    expect(scalar("inventory_test_db", `SELECT count(*) FROM "InventoryOperation" WHERE "operationId"='${order.id}:reserve:${productId}'`)).toBe(1);
+    expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}' AND "status"='SUCCEEDED'`)).toBe(1);
+    expect(scalar("payment_test_db", `SELECT count(*) FROM "FakeProviderOperation" f JOIN "Payment" p ON f."idempotencyKey"=p."id"||':settle' WHERE p."orderId"='${order.id}'`)).toBe(1);
+  }, 90000);
 });
