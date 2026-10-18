@@ -1,6 +1,6 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger } from "@shared/utils";
+import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent } from "@shared/utils";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -62,6 +62,28 @@ describe("async Inventory checkout", () => {
   const creation = (items: { productId: string; quantity: number }[]) => createIntegrationEvent({
     eventType: "order.created", correlationId: randomUUID(), causationId: null,
     data: { orderId: randomUUID(), userId: "user", items, totalAmount: "10.00", currency: "USD" },
+  });
+  it("Inbox primary key rejects duplicate inserts and retains incoming type and processing time", async () => {
+    const input = creation([{ productId: randomUUID(), quantity: 1 }]);
+    await prisma.$transaction((tx) => processCheckoutEvent(tx, input, async () => null));
+    const row = await prisma.checkoutEvent.findUniqueOrThrow({ where: { eventId: input.eventId } });
+    expect(row).toMatchObject({ eventType: input.eventType, processedAt: expect.any(Date), result: null });
+    await expect(prisma.checkoutEvent.create({ data: { ...row } })).rejects.toMatchObject({ code: "P2002" });
+  });
+  it("concurrent Inbox deliveries execute one DB mutation and stage one outgoing intent", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 1 }]);
+    const run = () => prisma.$transaction((tx) => processCheckoutEvent(tx, input, async () => {
+      await tx.inventory.update({ where: { productId }, data: { reservedStock: { increment: 1 } } });
+      return createIntegrationEvent({ eventType: "inventory.reserved", correlationId: input.correlationId,
+        causationId: input.eventId, data: { orderId: input.data.orderId, reservations: input.data.items } });
+    }));
+    const results = await Promise.all([run(), run()]);
+    expect(results[1]).toEqual(results[0]);
+    expect(await getInventory(productId)).toMatchObject({ reservedStock: 1 });
+    expect(await prisma.checkoutEvent.count({ where: { eventId: input.eventId } })).toBe(1);
+    expect(await prisma.outboxEvent.count({ where: { eventId: results[0]!.eventId } })).toBe(1);
   });
   it("failed release publishes diagnosis without completing receipt; repaired replay releases once", async () => {
     const productId = randomUUID();

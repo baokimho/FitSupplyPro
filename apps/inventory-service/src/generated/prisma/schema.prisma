@@ -23,7 +23,9 @@ model OutboxEvent {
 }
 
 model CheckoutEvent {
-  eventId     String  @id
+  eventId     String   @id
+  eventType   String?
+  processedAt DateTime @default(now())
   fingerprint String
   result      String?
 }

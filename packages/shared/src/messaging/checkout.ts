@@ -21,11 +21,11 @@ export interface CheckoutEventTransaction {
   $queryRaw(query: TemplateStringsArray, ...values: string[]): Promise<unknown>;
   checkoutEvent: {
     findUnique(args: { where: { eventId: string } }): Promise<{ fingerprint: string; result: string | null } | null>;
-    create(args: { data: { eventId: string; fingerprint: string; result: string | null } }): Promise<unknown>;
+    create(args: { data: { eventId: string; eventType: string; fingerprint: string; result: string | null } }): Promise<unknown>;
   };
 }
 
-/** Minimal incoming receipt; caller owns transaction. No polling/publication worker. */
+/** Service-local Inbox; caller owns the transaction containing effects and Outbox. */
 export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
   tx: T, event: KnownIntegrationEvent, work: (tx: T) => Promise<KnownIntegrationEvent | null>, logger?: Logger,
 ): Promise<KnownIntegrationEvent | null> {
@@ -42,7 +42,7 @@ export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
     logger?.info({ eventId: result.eventId, eventType: result.eventType, correlationId: result.correlationId }, "outbox intent staged with consumer transaction");
   }
   await tx.checkoutEvent.create({ data: {
-    eventId: event.eventId, fingerprint, result: result === null ? null : serializeIntegrationEvent(result).toString("utf8"),
+    eventId: event.eventId, eventType: event.eventType, fingerprint, result: result === null ? null : serializeIntegrationEvent(result).toString("utf8"),
   } });
   return result;
 }

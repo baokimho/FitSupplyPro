@@ -134,6 +134,8 @@ exports.Prisma.OutboxEventScalarFieldEnum = {
 
 exports.Prisma.CheckoutEventScalarFieldEnum = {
   eventId: 'eventId',
+  eventType: 'eventType',
+  processedAt: 'processedAt',
   fingerprint: 'fingerprint',
   result: 'result'
 };
