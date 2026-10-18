@@ -670,3 +670,9 @@ Phase 9 closes local database/publication gaps with service-owned transactional
 Outboxes in Order, Inventory and Payment. Confirmed dispatch retries pending events
 and reconnects after broker loss. See [Transactional Outbox](docs/phase9-transactional-outbox.md)
 for atomic boundaries, at-least-once semantics, rollout and remaining limits.
+
+Phase 10 evolves checkout receipts into durable service-local Inboxes and commits
+Payment financial outcomes, receipt and Outbox together. See
+[Idempotency and transactional Inbox](docs/phase10-idempotency.md) for consumer/HTTP
+audit, uniqueness, provider preparation, recovery algorithm and limitations.
+Synchronous checkout remains default; async checkout remains opt-in.

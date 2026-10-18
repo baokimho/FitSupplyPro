@@ -1,5 +1,10 @@
 # Phase 9: transactional Outbox
 
+Historical Phase 9 boundaries below are superseded for consumer processing by
+[Phase 10 Inbox](phase10-idempotency.md): Payment's final financial transition,
+Outbox and consumer receipt now share one transaction. Provider preparation and
+acknowledgements remain separate as documented there.
+
 Phase 8 Saga persists workflow policy; it cannot make PostgreSQL commit and RabbitMQ
 publication atomic. A crash after a committed reservation, financial result or Saga
 transition could lose its next event. Each producer now persists publication intent

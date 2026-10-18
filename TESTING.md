@@ -352,3 +352,58 @@ weakened/disabled, development reset, Inbox, CDC, Kafka, Notification/Shipping
 migration, deployment or push. Existing coverage gaps remain explicit; no coverage
 report generated. At-least-once publication remains intentional; provider atomicity,
 business DLQ repair, retention/backlog operations and global ordering remain limits.
+
+## Phase 10 closeout
+
+Transactional Inbox complete for live Order, Inventory and Payment checkout
+consumers. See [Phase 10 audit and architecture](docs/phase10-idempotency.md).
+Existing `CheckoutEvent` evolved additively; no parallel deduplication table.
+HTTP idempotency audit required no implementation rewrite.
+
+Verified on 2026-10-18:
+
+- `npm run test:unit`: **700 passed** across all workspaces with existing tests.
+- `npm run test:integration`: **229 passed**, including real PostgreSQL and
+  RabbitMQ tests. Inventory **33**, Order **61**, Payment **58**, shared **53**;
+  other existing service suites passed. Disposable DB/broker resources removed.
+- `npm run test:e2e`: **12 passed** across rebuilt Docker stacks: **6 synchronous**,
+  **4 async success/recovery**, **2 async decline**. Includes source duplicates,
+  compensation, provider effect counts and broker-outage/Outbox recovery.
+  Disposable E2E resources removed.
+- `npm run typecheck`, `npm run lint`, `npm run build`: passed across workspaces.
+- `npm exec --workspace <service> -- prisma generate` and `prisma validate`:
+  passed for Order, Inventory and Payment. Existing `driverAdapters` deprecation
+  warning retained; no unrelated Prisma configuration change.
+- Integration preparation applied migrations to fresh test databases and checked
+  migration/schema drift across all service databases: passed.
+- `docker compose config --quiet`, test DB Compose config, E2E Compose config:
+  passed. No development data reset.
+- `git diff --check f700600`: passed. Generated clients retained; only newly
+  generated comment whitespace normalized while preserving existing content.
+
+New/strengthened guarantees tested:
+
+- Inbox primary-key duplicate rejection; incoming type and timestamp persistence.
+- Concurrent source deliveries stage one stock mutation, receipt and output intent.
+- Three additive migration upgrade tests preserve old receipt fingerprint/result
+  and uniqueness, including null results and unknown historical event type.
+- Actual RabbitMQ channel loss after PostgreSQL commit but before ACK requeues
+  delivery. A real consumer detects duplicate, ACKs, and retains one reservation,
+  InventoryOperation, Inbox row and outgoing event.
+- Real receipt-insert trigger failure rolls back stock, operation and Outbox;
+  repaired source replay executes successfully.
+- Payment receipt failure now rolls back final financial outcome and Outbox;
+  independent provider receipt and stable payment identity recover one charge or
+  refund. Existing financial Outbox-failure tests remain passing.
+- Independent Payment clients race duplicate refunds and retain one provider
+  refund, transition, receipt and intent.
+- Concurrent Order Saga outcomes preserve refund/release failure recovery and
+  completion; same-event replay adds no Outbox intent or further Saga transition.
+- Existing HTTP changed-input, cross-instance replay, failed-attempt, compensation,
+  provider recovery, Saga recovery and Outbox recovery regression suites pass.
+
+Existing test gaps remain: no dedicated Auth/Catalog/Notification integration
+suites and no Notification unit suite. Their existing E2E coverage is unchanged.
+At-least-once delivery, external provider atomicity, independent financial
+preparation, failure diagnostics, retention, DLQ repair and global ordering remain
+explicit limitations; see architecture document. No Phase 11 work or pushes.
