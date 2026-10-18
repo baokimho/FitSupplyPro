@@ -141,7 +141,7 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
     return tx.payment.update({ where: { id }, data: { orderConfirmedAt: new Date(), progressState: "ORDER_CONFIRMED" } });
   }, transactionOptions);
 
-  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string, synchronize = true, source?: KnownIntegrationEvent) => {
+  const command = async (id: string, userId: string, target: Exclude<PaymentState, "PENDING">, role?: string, synchronize = true, source?: KnownIntegrationEvent, transaction?: Prisma.TransactionClient) => {
     if (role !== "ADMIN") throw new ForbiddenError("Forbidden");
     const initial = await getPayment(database, id);
     assertPaymentTransition(initial.status, target);
@@ -158,7 +158,7 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         where: { id, status: initial.status, pendingOperation: null }, data: { pendingOperation: target },
       });
     }
-    const payment = await database.$transaction(async (tx) => {
+    const execute = async (tx: Prisma.TransactionClient) => {
       await tx.$queryRaw`SELECT "id" FROM "Payment" WHERE "id" = ${id} FOR UPDATE`;
       const current = await getPayment(tx, id);
       const finish = async (payment: Payment) => {
@@ -195,7 +195,8 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         logger.error({ paymentId: id, actorId: userId, operation: target, err: error }, "payment command incomplete; retry same command");
         throw error;
       }
-    }, transactionOptions);
+    };
+    const payment = transaction ? await execute(transaction) : await database.$transaction(execute, transactionOptions);
     return toPaymentResponse(payment.status === "SUCCEEDED" && synchronize ? await synchronizeOrder(id) : payment);
   };
 
@@ -203,10 +204,10 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
     checkout: async (event: KnownIntegrationEvent, outcome: "SUCCEEDED" | "FAILED" = "SUCCEEDED") => {
       if (event.eventType === "checkout.refund_requested") {
         return database.$transaction((tx) => processCheckoutEvent(tx, event, async () => {
-          const payment = await getPayment(database, event.data.paymentId);
+          const payment = await getPayment(tx, event.data.paymentId);
           if (payment.orderId !== event.data.orderId) throw new ConflictError("Refund request differs from Payment Order");
-          await command(payment.id, payment.userId, "REFUNDED", "ADMIN", false, event);
-          const result = await database.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
+          await command(payment.id, payment.userId, "REFUNDED", "ADMIN", false, event, tx);
+          const result = await tx.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
           return deserializeIntegrationEvent(result.payload);
         }, logger), transactionOptions);
       }
@@ -221,8 +222,8 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         logger.debug({ eventId: event.eventId, orderId: order.id, paymentId: payment.id, idempotencyKey: `checkout:${order.id}:create` }, "checkout payment attempt");
         // Create replay is an immutable response snapshot, not current lifecycle state.
         const current = await getPayment(database, payment.id);
-        await command(payment.id, order.userId, current.status === "FAILED" || current.status === "SUCCEEDED" ? current.status : outcome, "ADMIN", false, event);
-        const result = await database.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
+        await command(payment.id, order.userId, current.status === "FAILED" || current.status === "SUCCEEDED" ? current.status : outcome, "ADMIN", false, event, tx);
+        const result = await tx.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${event.eventId}` } });
         return deserializeIntegrationEvent(result.payload);
       }, logger), transactionOptions);
     },

@@ -173,7 +173,7 @@ describe("async Payment checkout", () => {
     return createIntegrationEvent({ eventType: "inventory.reserved", correlationId: randomUUID(), causationId: randomUUID(),
       data: { orderId: order.id, reservations: order.items } });
   }
-  it("refund retry and receipt-write crash converge through existing provider idempotency", async () => {
+  it("refund receipt failure rolls back local outcome and Outbox; provider replay recovers", async () => {
     const input = reservation();
     const service = buildPaymentService(prisma, paymentProvider);
     await service.checkout(input);
@@ -190,12 +190,12 @@ describe("async Payment checkout", () => {
       await prisma.$executeRawUnsafe('DROP TRIGGER saga_test_refund_receipt ON "CheckoutEvent"');
       await prisma.$executeRawUnsafe('DROP FUNCTION saga_test_refund_receipt()');
     }
-    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("REFUNDED");
-    const durable = await prisma.outboxEvent.findUniqueOrThrow({ where: { deduplicationKey: `checkout:${request.eventId}` } });
-    expect(durable).toMatchObject({ publishedAt: null });
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("SUCCEEDED");
+    expect(await prisma.outboxEvent.findUnique({ where: { deduplicationKey: `checkout:${request.eventId}` } })).toBeNull();
+    expect(await prisma.checkoutEvent.findUnique({ where: { eventId: request.eventId } })).toBeNull();
     const refunded = await service.checkout(request);
     expect(refunded?.eventType).toBe("payment.refunded");
-    expect(refunded?.eventId).toBe(durable.eventId);
+    expect(await prisma.outboxEvent.findUnique({ where: { eventId: refunded!.eventId } })).toMatchObject({ publishedAt: null });
     expect(await service.checkout(request)).toEqual(refunded);
     expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
   });
@@ -252,6 +252,9 @@ describe("async Payment checkout", () => {
       await prisma.$executeRawUnsafe('DROP TRIGGER checkout_test_fail_receipt ON "CheckoutEvent"');
       await prisma.$executeRawUnsafe('DROP FUNCTION checkout_test_fail_receipt()');
     }
+    expect(await prisma.payment.findFirstOrThrow()).toMatchObject({ status: "PENDING", pendingOperation: "SUCCEEDED" });
+    expect(await prisma.outboxEvent.findUnique({ where: { deduplicationKey: `checkout:${input.eventId}` } })).toBeNull();
+    expect(await prisma.checkoutEvent.findUnique({ where: { eventId: input.eventId } })).toBeNull();
     const first = await service.checkout(input);
     expect(await prisma.outboxEvent.findUnique({ where: { eventId: first!.eventId } })).toMatchObject({ publishedAt: null });
     expect(first?.eventType).toBe(providerOutcome === "SUCCEEDED" ? "payment.succeeded" : "payment.failed");
