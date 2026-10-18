@@ -27,3 +27,4 @@ export * from "./messaging/outbox.js";
 export * from "./resilience/failure.js";
 export * from "./resilience/config.js";
 export * from "./resilience/timeout.js";
+export * from "./resilience/retry.js";
