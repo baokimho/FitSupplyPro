@@ -151,10 +151,12 @@ describe("async Inventory checkout", () => {
     await handleInventoryCheckout(input);
     const cancel = createIntegrationEvent({ eventType: "order.cancelled", correlationId: input.correlationId, causationId: input.eventId,
       data: { orderId: input.data.orderId, userId: "user", items: input.data.items } });
-    const released = await handleInventoryCheckout(cancel);
+    const [released, concurrent] = await Promise.all([handleInventoryCheckout(cancel), handleInventoryCheckout(cancel)]);
+    expect(concurrent).toEqual(released);
     expect(released?.eventType).toBe("inventory.released");
     expect(await prisma.outboxEvent.findUnique({ where: { eventId: released!.eventId } })).toMatchObject({ publishedAt: null });
     expect(await handleInventoryCheckout(cancel)).toEqual(released);
+    expect(await prisma.outboxEvent.count({ where: { eventId: released!.eventId } })).toBe(1);
     expect(await getInventory(productId)).toMatchObject({ stock: 10, reservedStock: 0 });
     expect(await prisma.inventoryOperation.count()).toBe(2);
     const unrelated = createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: null,

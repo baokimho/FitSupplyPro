@@ -17,7 +17,7 @@ export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
 }
 
 export interface CheckoutEventTransaction {
-  outboxEvent?: OutboxStore["outboxEvent"];
+  outboxEvent: OutboxStore["outboxEvent"];
   $queryRaw(query: TemplateStringsArray, ...values: string[]): Promise<unknown>;
   checkoutEvent: {
     findUnique(args: { where: { eventId: string } }): Promise<{ fingerprint: string; result: string | null } | null>;
@@ -37,7 +37,7 @@ export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
     return receipt.result === null ? null : deserializeIntegrationEvent(receipt.result);
   }
   const result = await work(tx);
-  if (result && tx.outboxEvent) {
+  if (result) {
     await enqueueOutboxEvent({ outboxEvent: tx.outboxEvent }, result);
     logger?.info({ eventId: result.eventId, eventType: result.eventType, correlationId: result.correlationId }, "outbox intent staged with consumer transaction");
   }

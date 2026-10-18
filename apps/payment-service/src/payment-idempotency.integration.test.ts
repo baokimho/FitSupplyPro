@@ -237,6 +237,23 @@ describe("async Payment checkout", () => {
       correlationId: input.correlationId, causationId: input.eventId });
     await expect(service.checkout({ ...input, data: { ...input.data, reservations: [] } })).rejects.toThrow();
   });
+  it("independent consumers racing refund delivery retain one transition, receipt and Outbox intent", async () => {
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    await service.checkout(input);
+    const payment = await prisma.payment.findFirstOrThrow();
+    const event = createIntegrationEvent({ eventType: "checkout.refund_requested", correlationId: input.correlationId,
+      causationId: input.eventId, data: { orderId: payment.orderId, paymentId: payment.id } });
+    await withOtherInstance(async (other) => {
+      const results = await Promise.all([service.checkout(event), other.checkout(event)]);
+      expect(results[1]).toEqual(results[0]);
+      expect(await other.checkout(event)).toEqual(results[0]);
+    });
+    expect(await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).toMatchObject({ status: "REFUNDED" });
+    expect(await prisma.checkoutEvent.count({ where: { eventId: event.eventId } })).toBe(1);
+    expect(await prisma.outboxEvent.count({ where: { deduplicationKey: `checkout:${event.eventId}` } })).toBe(1);
+    expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:refund` } })).toBe(1);
+  });
   it.each(["SUCCEEDED", "FAILED"] as const)("converges after provider %s commits but receipt transaction fails; no double charge", async (providerOutcome) => {
     const input = reservation();
     const service = buildPaymentService(prisma, paymentProvider);

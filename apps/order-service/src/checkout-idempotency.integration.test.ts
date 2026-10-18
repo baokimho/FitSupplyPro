@@ -295,6 +295,34 @@ describe("durable checkout Saga", () => {
     expect(await f.progress()).toMatchObject({ state: "PAYING" });
     expect(await prisma.outboxEvent.findUnique({ where: { eventId: next!.eventId } })).not.toBeNull();
   });
+  it("concurrent Saga deliveries preserve refund and release compensation with one intent per event", async () => {
+    const f = await fixture();
+    const deliver = async (event: Parameters<typeof processCheckoutEvent>[1]) => {
+      const before = await prisma.outboxEvent.count();
+      const results = await Promise.all([f.handleOrderCheckout(event), f.handleOrderCheckout(event)]);
+      expect(results[1]).toEqual(results[0]);
+      expect(await prisma.checkoutEvent.count({ where: { eventId: event.eventId } })).toBe(1);
+      expect(await prisma.outboxEvent.count()).toBe(before + (results[0] ? 1 : 0));
+      const progress = await f.progress();
+      expect(await f.handleOrderCheckout(event)).toEqual(results[0]);
+      expect(await f.progress()).toEqual(progress);
+      expect(await prisma.outboxEvent.count()).toBe(before + (results[0] ? 1 : 0));
+    };
+    await deliver(f.reserved);
+    await prisma.order.update({ where: { id: f.order.id }, data: { status: "CANCELLED" } });
+    await deliver(f.succeeded);
+    expect(await f.progress()).toMatchObject({ state: "REFUNDING", paymentOutcome: "SUCCEEDED" });
+    await deliver(createIntegrationEvent({ eventType: "payment.refund_failed", correlationId: f.correlationId,
+      causationId: f.succeeded.eventId, data: { orderId: f.order.id, paymentId: f.succeeded.data.paymentId, failureCode: "REFUND_FAILED", retryable: true } }));
+    await deliver(createIntegrationEvent({ eventType: "payment.refunded", correlationId: f.correlationId,
+      causationId: f.succeeded.eventId, data: f.succeeded.data }));
+    await deliver(createIntegrationEvent({ eventType: "inventory.release_failed", correlationId: f.correlationId,
+      causationId: f.succeeded.eventId, data: { orderId: f.order.id, failureCode: "RELEASE_FAILED", retryable: true } }));
+    await deliver(createIntegrationEvent({ eventType: "inventory.released", correlationId: f.correlationId,
+      causationId: f.succeeded.eventId, data: f.reserved.data }));
+    expect(await f.progress()).toMatchObject({ state: "COMPENSATED", paymentOutcome: "REFUNDED", inventoryReleased: true });
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: f.order.id } })).toMatchObject({ status: "CANCELLED" });
+  });
   it("retains committed Saga intent during broker failure and recreated publisher drains it", async () => {
     const f = await fixture();
     const event = await f.handleOrderCheckout(f.reserved);
