@@ -15,6 +15,7 @@ export class DependencyError extends ServiceUnavailableError {
 export function classifyFailure(error: unknown): FailureClass {
   if (error instanceof DependencyError) return error.failureClass;
   if (error instanceof IntegrationEventError) return "permanent";
+  if (error instanceof HttpError && error.status >= 500 && error.cause) return classifyFailure(error.cause);
   if (error instanceof HttpError) return [502, 503, 504].includes(error.status) ? "transient" : "permanent";
   if (error instanceof Error && error.name === "AbortError") return "cancelled";
   const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
@@ -23,6 +24,7 @@ export function classifyFailure(error: unknown): FailureClass {
 }
 
 export function canRetry(error: unknown, safe: boolean): boolean {
+  if (error instanceof HttpError && !(error instanceof DependencyError) && error.status >= 500 && error.cause) return canRetry(error.cause, safe);
   if (!safe || error instanceof DependencyError && !error.retrySafe) return false;
   return ["transient", "ambiguous"].includes(classifyFailure(error));
 }

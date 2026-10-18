@@ -1,6 +1,7 @@
 import type { Server } from "node:http";
 import type { RequestHandler } from "express";
 import type { Logger } from "../logging/logger.js";
+import { stopDependencyWork } from "../resilience/timeout.js";
 
 export const SHUTDOWN_TIMEOUT_MS = 8000;
 type ReadinessState = { stopping: boolean };
@@ -57,6 +58,7 @@ export function installShutdown(options: {
     }, SHUTDOWN_TIMEOUT_MS);
     void (async () => {
       options.stopWork?.();
+      stopDependencyWork();
       await new Promise<void>((done, reject) => {
         options.server.close((err) => err ? reject(err) : done());
         options.logger.info({ signal }, "server stopped accepting requests");

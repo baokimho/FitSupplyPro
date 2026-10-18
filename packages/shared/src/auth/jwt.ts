@@ -1,6 +1,10 @@
 import { errors, importJWK, jwtVerify, type CryptoKey, type JWTPayload, type JWK } from "jose";
 import { UnauthorizedError } from "../errors/httpErrors.js";
 import { correlationHeaders } from "../http/correlation.js";
+import { fetchDependency } from "../resilience/timeout.js";
+import { readResilienceConfig } from "../resilience/config.js";
+import { createLogger } from "../logging/logger.js";
+import { parseNodeEnv } from "../config/env.js";
 
 export type AuthTokenType = "access" | "refresh";
 
@@ -44,6 +48,8 @@ export function isAuthTokenError(error: unknown): boolean {
 }
 
 export function createPublicKeyLoader(authServiceUrl: string, gatewaySecret: string | (() => string)) {
+  const { timeoutMs } = readResilienceConfig();
+  const logger = createLogger({ service: "auth-client", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
   let cachedPublicKey: CryptoKey | null = null;
   let publicKeyPromise: Promise<CryptoKey> | null = null;
 
@@ -54,19 +60,18 @@ export function createPublicKeyLoader(authServiceUrl: string, gatewaySecret: str
 
     if (!publicKeyPromise) {
       publicKeyPromise = (async () => {
-        const response = await fetch(new URL("/jwks", authServiceUrl), {
+        const { response, text } = await fetchDependency(new URL("/jwks", authServiceUrl), {
           headers: {
             ...correlationHeaders(),
             "x-internal-secret": typeof gatewaySecret === "function" ? gatewaySecret() : gatewaySecret,
           }
-        }
-      );
+        }, { dependency: "auth-service", operation: "jwks", timeoutMs, safe: true, logger });
 
         if (!response.ok) {
           throw new Error(`Unable to load public key from auth service: ${response.status}`);
         }
 
-        const jwks = (await response.json()) as JWKSResponse;
+        const jwks = JSON.parse(text) as JWKSResponse;
         const publicKey = jwks.keys[0];
 
         if (!publicKey) {

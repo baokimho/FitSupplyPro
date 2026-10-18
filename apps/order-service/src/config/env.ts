@@ -1,8 +1,9 @@
-import { readCheckoutConfig, parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
+import { readResilienceConfig, readCheckoutConfig, parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
 
 export function loadConfig(env: NodeJS.ProcessEnv) {
   return {
     checkout: readCheckoutConfig(env),
+    resilience: readResilienceConfig(env),
     logLevel: parseLogLevel("LOG_LEVEL", env.LOG_LEVEL),
     nodeEnv: parseNodeEnv("NODE_ENV", env.NODE_ENV, "development"),
     port: parsePort("PORT", env.PORT, 3003),

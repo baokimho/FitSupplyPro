@@ -17,6 +17,6 @@ export interface PaymentProvider {
   readonly name: string;
   // Adapters must acknowledge/verify the provider outcome and deduplicate by key.
   // The fake adapter simulates it; a real adapter must verify it with its provider.
-  settle(input: ProviderPayment, outcome: PaymentResult["status"]): Promise<PaymentResult>;
-  refund(input: ProviderRefund): Promise<Readonly<{ reference: string }>>;
+  settle(input: ProviderPayment, outcome: PaymentResult["status"], signal?: AbortSignal): Promise<PaymentResult>;
+  refund(input: ProviderRefund, signal?: AbortSignal): Promise<Readonly<{ reference: string }>>;
 }

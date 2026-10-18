@@ -1,6 +1,7 @@
+import { classifyFailure } from "@shared/utils";
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
-import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent } from "@shared/utils";
+import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent, fetchDependency } from "@shared/utils";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -198,18 +199,22 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   ].find(([base]) => url.startsWith(`${base}/`))?.[1];
   const context = { targetService, operation: `${init?.method ?? "GET"} ${logPath(new URL(url).pathname)}` };
 
+  let text: string;
   try {
     const headers = new Headers(init?.headers);
     for (const [name, value] of Object.entries(correlationHeaders())) headers.set(name, value);
-    response = await fetch(url, { ...init, headers });
+    ({ response, text } = await fetchDependency(url, { ...init, headers }, {
+      dependency: targetService ?? "downstream", operation: context.operation,
+      timeoutMs: config.resilience.timeoutMs, safe: (init?.method ?? "GET") === "GET", logger,
+    }));
   } catch (error) {
+    if (classifyFailure(error) === "cancelled") throw error;
     logger.debug(context, "downstream connection failed");
     throw new ServiceUnavailableError("Downstream service unavailable", context, undefined, error);
   }
 
   let data: unknown;
   try {
-    const text = await response.text();
     data = text ? JSON.parse(text) : {};
   } catch (error) {
     if (response.ok) throw error;

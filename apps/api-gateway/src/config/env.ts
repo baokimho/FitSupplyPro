@@ -1,7 +1,8 @@
-import { parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
+import { readProxyTimeout, parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl } from "@shared/utils";
 
 export function loadConfig(env: NodeJS.ProcessEnv) {
   return {
+    proxyTimeoutMs: readProxyTimeout(env),
     logLevel: parseLogLevel("LOG_LEVEL", env.LOG_LEVEL),
     nodeEnv: parseNodeEnv("NODE_ENV", env.NODE_ENV, "development"),
     port: parsePort("PORT", env.PORT, 3000),

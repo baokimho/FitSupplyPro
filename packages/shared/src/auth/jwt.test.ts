@@ -19,6 +19,7 @@ describe("configured JWKS loader", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(new URL("https://auth.test/jwks"), {
       headers: { "x-internal-secret": "configured-secret" },
+      signal: expect.any(AbortSignal),
     });
   });
 

@@ -26,8 +26,10 @@ export class FakePaymentProvider implements PaymentProvider {
     return receipt;
   }
 
-  async settle(input: ProviderPayment, outcome: PaymentResult["status"]): Promise<PaymentResult> {
+  async settle(input: ProviderPayment, outcome: PaymentResult["status"], signal?: AbortSignal): Promise<PaymentResult> {
+    signal?.throwIfAborted();
     const receipt = await this.acknowledge(input, outcome, `fake_payment_${input.paymentId}`);
+    signal?.throwIfAborted();
     if (receipt.result !== "SUCCEEDED" && receipt.result !== "FAILED") {
       throw new ServiceUnavailableError("Invalid provider payment receipt");
     }
@@ -37,7 +39,8 @@ export class FakePaymentProvider implements PaymentProvider {
     };
   }
 
-  async refund(input: ProviderRefund): Promise<{ reference: string }> {
+  async refund(input: ProviderRefund, signal?: AbortSignal): Promise<{ reference: string }> {
+    signal?.throwIfAborted();
     const payment = await this.database.fakeProviderOperation.findUnique({ where: { reference: input.providerPaymentId } });
     if (!payment || payment.result !== "SUCCEEDED") throw new ConflictError("Provider payment is not refundable");
     const originalFingerprint = createHash("sha256").update(JSON.stringify({
@@ -45,6 +48,7 @@ export class FakePaymentProvider implements PaymentProvider {
     })).digest("hex");
     if (payment.requestFingerprint !== originalFingerprint) throw new ConflictError("Refund differs from provider payment");
     const receipt = await this.acknowledge(input, "REFUNDED", `fake_refund_${input.paymentId}`, input.providerPaymentId);
+    signal?.throwIfAborted();
     return { reference: receipt.reference };
   }
 }

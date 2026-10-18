@@ -7,7 +7,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import { attachUserHeaders, restoreRequestId } from "./userHeaders.proxy.js";
 
 const shippingUrl = config.shippingServiceUrl;
-const proxyTimeoutMs = 5000;
+const proxyTimeoutMs = config.proxyTimeoutMs;
 
 export const shippingProxy = createProxyMiddleware<Request, Response>({
   target: shippingUrl,
@@ -18,7 +18,7 @@ export const shippingProxy = createProxyMiddleware<Request, Response>({
     proxyReq: attachUserHeaders,
     proxyRes: restoreRequestId,
     error: (err, req, res) => {
-      logger.error({ ...req.correlation, err, targetService: "shipping-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503 }, "proxy request failed");
+      logger.error({ ...req.correlation, err, targetService: "shipping-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503, timeoutMs: proxyTimeoutMs }, "proxy request failed");
       const response = res as Response;
 
       if (response.headersSent) {

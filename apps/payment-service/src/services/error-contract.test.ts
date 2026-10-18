@@ -21,7 +21,7 @@ describe("payment downstream error contract", () => {
     const cause = new Error("private upstream diagnostics");
     vi.stubGlobal("fetch", vi.fn(async () => { throw cause; }));
     await expect(createPaymentService("user-1", { orderId: "order-1" }, "network-error")).rejects.toMatchObject({
-      status: 503, message: "Order service unavailable", cause, details: undefined,
+      status: 503, message: "Order service unavailable", cause: { failureClass: "transient", cause }, details: undefined,
     });
   });
 

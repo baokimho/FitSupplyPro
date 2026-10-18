@@ -1,3 +1,4 @@
+import { readDatabaseTimeouts } from "@shared/utils";
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/index.js";
@@ -10,7 +11,7 @@ if (!connectionString) {
   throw new ServiceUnavailableError("DATABASE_URL is not set");
 }
 
-const pool = new pg.Pool({ connectionString });
+const pool = new pg.Pool({ connectionString, ...readDatabaseTimeouts() });
 const adapter = new PrismaPg(pool);
 
 const globalForPrisma = globalThis as unknown as {

@@ -1,3 +1,5 @@
+import { classifyFailure } from "@shared/utils";
+import { fetchDependency, readResilienceConfig, createLogger, parseNodeEnv } from "@shared/utils";
 import { BadRequestError, ConflictError, NotFoundError, ServiceUnavailableError } from "@shared/utils";
 import { Prisma } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
@@ -105,12 +107,20 @@ const toCartResponse = (cart: CartWithItems | null, userId: string) => {
   };
 };
 
+const resilience = readResilienceConfig();
+const dependencyLogger = createLogger({ service: "cart-service", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
+
 export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   let response: Response;
+  let text: string;
 
   try {
-    response = await fetch(url, init);
+    ({ response, text } = await fetchDependency(url, init, {
+      dependency: "catalog-service",
+      operation: init?.method ?? "GET", timeoutMs: resilience.timeoutMs, safe: (init?.method ?? "GET") === "GET", logger: dependencyLogger,
+    }));
   } catch (error) {
+    if (classifyFailure(error) === "cancelled") throw error;
     throw new ServiceUnavailableError("Downstream service unavailable", {
       url,
       cause: error instanceof Error ? error.message : "Unknown error",
@@ -119,7 +129,6 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
 
   let data: unknown;
   try {
-    const text = await response.text();
     data = text ? JSON.parse(text) : {};
   } catch (error) {
     if (response.ok) throw error;

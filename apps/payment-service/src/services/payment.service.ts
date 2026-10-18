@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, ServiceUnavailableError, correlationHeaders } from "@shared/utils";
-import { createIntegrationEvent, deserializeIntegrationEvent, enqueueOutboxEvent, processCheckoutEvent, type KnownIntegrationEvent } from "@shared/utils";
+import { createIntegrationEvent, deserializeIntegrationEvent, enqueueOutboxEvent, processCheckoutEvent, fetchDependency, withDependencyTimeout, classifyFailure, type KnownIntegrationEvent } from "@shared/utils";
 import { Prisma, type PrismaClient, type Payment } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
 import { config } from "../config/index.js";
@@ -33,14 +33,17 @@ const fetchOrderJson = async (path: string, method = "GET"): Promise<unknown> =>
   let response: Response;
   let data: unknown;
   try {
-    response = await fetch(url, {
-      method, signal: AbortSignal.timeout(5000),
+    const result = await fetchDependency(url, {
+      method,
       headers: { "content-type": "application/json", "x-internal-secret": config.gatewaySecret, ...correlationHeaders() },
-    });
-    const text = await response.text();
+    }, { dependency: "order-service", operation: method === "GET" ? "payment-snapshot" : "confirm",
+      timeoutMs: config.resilience.timeoutMs, safe: true, logger });
+    response = result.response;
+    const text = result.text;
     try { data = text ? JSON.parse(text) : {}; }
     catch { data = {}; }
   } catch (error) {
+    if (classifyFailure(error) === "cancelled") throw error;
     throw new ServiceUnavailableError("Order service unavailable", undefined, undefined, error);
   }
   if (!response.ok) {
@@ -181,11 +184,15 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
       try {
         if (target === "REFUNDED") {
           if (!current.providerPaymentId) throw new ConflictError("Provider payment reference missing");
-          await provider.refund({ ...input, providerPaymentId: current.providerPaymentId });
+          await withDependencyTimeout((signal) => provider.refund({ ...input, providerPaymentId: current.providerPaymentId! }, signal), {
+            dependency: "payment-provider", operation: "refund", timeoutMs: config.resilience.timeoutMs, safe: true, logger,
+          });
           return finish(await tx.payment.update({ where: { id }, data: { status: "REFUNDED", pendingOperation: null, progressState: "REFUNDED" } }));
         }
         // Always persist the acknowledged result, including provider decline of confirmation.
-        const result = await provider.settle(input, target);
+        const result = await withDependencyTimeout((signal) => provider.settle(input, target, signal), {
+          dependency: "payment-provider", operation: "settle", timeoutMs: config.resilience.timeoutMs, safe: true, logger,
+        });
         assertPaymentTransition(current.status, result.status);
         return finish(await tx.payment.update({ where: { id }, data: {
           status: result.status, providerPaymentId: result.reference, failureCode: result.failureCode ?? null,
