@@ -1,8 +1,8 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent } from "@shared/utils";
+import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent, openRabbitMq, readRabbitMqConfig } from "@shared/utils";
 import request from "supertest";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildInventory,
   cleanupDatabase,
@@ -84,6 +84,67 @@ describe("async Inventory checkout", () => {
     expect(await getInventory(productId)).toMatchObject({ reservedStock: 1 });
     expect(await prisma.checkoutEvent.count({ where: { eventId: input.eventId } })).toBe(1);
     expect(await prisma.outboxEvent.count({ where: { eventId: results[0]!.eventId } })).toBe(1);
+  });
+  it("real broker redelivery after commit before ACK replays Inbox and ACKs without repeating effects", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 3 }]);
+    const logs: string[] = [];
+    const logger = createLogger({ service: "inbox-recovery-test", environment: "test", level: "debug" }, {
+      write(line: string) { logs.push(line); },
+    });
+    const config = readRabbitMqConfig();
+    const url = new URL(config.url);
+    if (url.hostname !== "localhost" || url.port !== "5673" || url.username !== "fitsupply_test" || url.pathname) {
+      throw new Error("Inbox recovery requires disposable localhost:5673 broker");
+    }
+    const broker = await openRabbitMq(config, logger);
+    try {
+      const channel = await broker.createChannel();
+      const { queue } = await channel.assertQueue("", { exclusive: true });
+      const publisher = await broker.createPublisher();
+      await publisher.publish("", queue, serializeIntegrationEvent(input));
+      await vi.waitFor(async () => expect((await channel.checkQueue(queue)).messageCount).toBe(1));
+      const delivery = await channel.get(queue, { noAck: false });
+      if (!delivery) throw new Error("Missing test delivery");
+      const output = await handleInventoryCheckout(input);
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: input.eventId } })).not.toBeNull();
+      expect(await prisma.outboxEvent.findUnique({ where: { eventId: output!.eventId } })).not.toBeNull();
+      // No ACK: closing the delivery channel simulates the post-commit crash window.
+      await channel.close();
+      const process = checkoutMessageHandler(["order.created"], handleInventoryCheckout, async () => {}, logger);
+      await broker.subscribe(queue, async (message) => {
+        expect(message.fields.redelivered).toBe(true);
+        await process(message.content);
+      });
+      await vi.waitFor(() => expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(true));
+      expect(await getInventory(productId)).toMatchObject({ reservedStock: 3 });
+      expect(await prisma.inventoryOperation.count()).toBe(1);
+      expect(await prisma.checkoutEvent.count({ where: { eventId: input.eventId } })).toBe(1);
+      expect(await prisma.outboxEvent.count({ where: { eventId: output!.eventId } })).toBe(1);
+    } finally { await broker.close(); }
+  });
+  it("receipt failure rolls back Inventory operation and Outbox; redelivery executes normally", async () => {
+    const outboxCount = await prisma.outboxEvent.count();
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const input = creation([{ productId, quantity: 3 }]);
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION inbox_test_receipt_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'inbox receipt unavailable'; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER inbox_test_receipt_failure BEFORE INSERT ON "CheckoutEvent" FOR EACH ROW EXECUTE FUNCTION inbox_test_receipt_failure()');
+    try {
+      await expect(handleInventoryCheckout(input)).rejects.toThrow("inbox receipt unavailable");
+      expect(await getInventory(productId)).toMatchObject({ reservedStock: 0 });
+      expect(await prisma.inventoryOperation.count()).toBe(0);
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: input.eventId } })).toBeNull();
+      expect(await prisma.outboxEvent.count()).toBe(outboxCount);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER inbox_test_receipt_failure ON "CheckoutEvent"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION inbox_test_receipt_failure()');
+    }
+    await handleInventoryCheckout(input);
+    expect(await getInventory(productId)).toMatchObject({ reservedStock: 3 });
+    expect(await prisma.inventoryOperation.count()).toBe(1);
+    expect(await prisma.outboxEvent.count()).toBe(outboxCount + 1);
   });
   it("failed release publishes diagnosis without completing receipt; repaired replay releases once", async () => {
     const productId = randomUUID();
