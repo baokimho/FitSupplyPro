@@ -15,12 +15,12 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
 /**
  * Model OutboxEvent
- * 
+ *
  */
 export type OutboxEvent = $Result.DefaultSelection<Prisma.$OutboxEventPayload>
 /**
  * Model CheckoutEvent
- * 
+ *
  */
 export type CheckoutEvent = $Result.DefaultSelection<Prisma.$CheckoutEventPayload>
 /**
@@ -1279,55 +1279,55 @@ export namespace Prisma {
     where?: OutboxEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of OutboxEvents to fetch.
      */
     orderBy?: OutboxEventOrderByWithRelationInput | OutboxEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the start position
      */
     cursor?: OutboxEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` OutboxEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` OutboxEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Count returned OutboxEvents
     **/
     _count?: true | OutboxEventCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to average
     **/
     _avg?: OutboxEventAvgAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to sum
     **/
     _sum?: OutboxEventSumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the minimum value
     **/
     _min?: OutboxEventMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the maximum value
     **/
     _max?: OutboxEventMaxAggregateInputType
@@ -1531,13 +1531,13 @@ export namespace Prisma {
      * @example
      * // Get all OutboxEvents
      * const outboxEvents = await prisma.outboxEvent.findMany()
-     * 
+     *
      * // Get first 10 OutboxEvents
      * const outboxEvents = await prisma.outboxEvent.findMany({ take: 10 })
-     * 
+     *
      * // Only select the `id`
      * const outboxEventWithIdOnly = await prisma.outboxEvent.findMany({ select: { id: true } })
-     * 
+     *
      */
     findMany<T extends OutboxEventFindManyArgs>(args?: SelectSubset<T, OutboxEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
@@ -1551,7 +1551,7 @@ export namespace Prisma {
      *     // ... data to create a OutboxEvent
      *   }
      * })
-     * 
+     *
      */
     create<T extends OutboxEventCreateArgs>(args: SelectSubset<T, OutboxEventCreateArgs<ExtArgs>>): Prisma__OutboxEventClient<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1565,7 +1565,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *     
+     *
      */
     createMany<T extends OutboxEventCreateManyArgs>(args?: SelectSubset<T, OutboxEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1579,7 +1579,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     * 
+     *
      * // Create many OutboxEvents and only return the `id`
      * const outboxEventWithIdOnly = await prisma.outboxEvent.createManyAndReturn({
      *   select: { id: true },
@@ -1589,7 +1589,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * 
+     *
      */
     createManyAndReturn<T extends OutboxEventCreateManyAndReturnArgs>(args?: SelectSubset<T, OutboxEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
@@ -1603,7 +1603,7 @@ export namespace Prisma {
      *     // ... filter to delete one OutboxEvent
      *   }
      * })
-     * 
+     *
      */
     delete<T extends OutboxEventDeleteArgs>(args: SelectSubset<T, OutboxEventDeleteArgs<ExtArgs>>): Prisma__OutboxEventClient<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1620,7 +1620,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     * 
+     *
      */
     update<T extends OutboxEventUpdateArgs>(args: SelectSubset<T, OutboxEventUpdateArgs<ExtArgs>>): Prisma__OutboxEventClient<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -1634,7 +1634,7 @@ export namespace Prisma {
      *     // ... provide filter here
      *   }
      * })
-     * 
+     *
      */
     deleteMany<T extends OutboxEventDeleteManyArgs>(args?: SelectSubset<T, OutboxEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1653,7 +1653,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     * 
+     *
      */
     updateMany<T extends OutboxEventUpdateManyArgs>(args: SelectSubset<T, OutboxEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -1670,7 +1670,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     * 
+     *
      * // Update zero or more OutboxEvents and only return the `id`
      * const outboxEventWithIdOnly = await prisma.outboxEvent.updateManyAndReturn({
      *   select: { id: true },
@@ -1683,7 +1683,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * 
+     *
      */
     updateManyAndReturn<T extends OutboxEventUpdateManyAndReturnArgs>(args: SelectSubset<T, OutboxEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OutboxEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
@@ -1772,7 +1772,7 @@ export namespace Prisma {
      *     _all: true
      *   },
      * })
-     * 
+     *
     **/
     groupBy<
       T extends OutboxEventGroupByArgs,
@@ -1885,7 +1885,7 @@ export namespace Prisma {
     readonly lastError: FieldRef<"OutboxEvent", 'String'>
     readonly nextAttemptAt: FieldRef<"OutboxEvent", 'DateTime'>
   }
-    
+
 
   // Custom InputTypes
   /**
@@ -1942,31 +1942,31 @@ export namespace Prisma {
     where?: OutboxEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of OutboxEvents to fetch.
      */
     orderBy?: OutboxEventOrderByWithRelationInput | OutboxEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for searching for OutboxEvents.
      */
     cursor?: OutboxEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` OutboxEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` OutboxEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of OutboxEvents.
      */
     distinct?: OutboxEventScalarFieldEnum | OutboxEventScalarFieldEnum[]
@@ -1990,31 +1990,31 @@ export namespace Prisma {
     where?: OutboxEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of OutboxEvents to fetch.
      */
     orderBy?: OutboxEventOrderByWithRelationInput | OutboxEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for searching for OutboxEvents.
      */
     cursor?: OutboxEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` OutboxEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` OutboxEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of OutboxEvents.
      */
     distinct?: OutboxEventScalarFieldEnum | OutboxEventScalarFieldEnum[]
@@ -2038,31 +2038,31 @@ export namespace Prisma {
     where?: OutboxEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of OutboxEvents to fetch.
      */
     orderBy?: OutboxEventOrderByWithRelationInput | OutboxEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for listing OutboxEvents.
      */
     cursor?: OutboxEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` OutboxEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` OutboxEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of OutboxEvents.
      */
     distinct?: OutboxEventScalarFieldEnum | OutboxEventScalarFieldEnum[]
@@ -2323,43 +2323,43 @@ export namespace Prisma {
     where?: CheckoutEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of CheckoutEvents to fetch.
      */
     orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the start position
      */
     cursor?: CheckoutEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` CheckoutEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` CheckoutEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Count returned CheckoutEvents
     **/
     _count?: true | CheckoutEventCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the minimum value
     **/
     _min?: CheckoutEventMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
+     *
      * Select which fields to find the maximum value
     **/
     _max?: CheckoutEventMaxAggregateInputType
@@ -2535,13 +2535,13 @@ export namespace Prisma {
      * @example
      * // Get all CheckoutEvents
      * const checkoutEvents = await prisma.checkoutEvent.findMany()
-     * 
+     *
      * // Get first 10 CheckoutEvents
      * const checkoutEvents = await prisma.checkoutEvent.findMany({ take: 10 })
-     * 
+     *
      * // Only select the `eventId`
      * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.findMany({ select: { eventId: true } })
-     * 
+     *
      */
     findMany<T extends CheckoutEventFindManyArgs>(args?: SelectSubset<T, CheckoutEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
@@ -2555,7 +2555,7 @@ export namespace Prisma {
      *     // ... data to create a CheckoutEvent
      *   }
      * })
-     * 
+     *
      */
     create<T extends CheckoutEventCreateArgs>(args: SelectSubset<T, CheckoutEventCreateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2569,7 +2569,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     *     
+     *
      */
     createMany<T extends CheckoutEventCreateManyArgs>(args?: SelectSubset<T, CheckoutEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2583,7 +2583,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     * 
+     *
      * // Create many CheckoutEvents and only return the `eventId`
      * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.createManyAndReturn({
      *   select: { eventId: true },
@@ -2593,7 +2593,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * 
+     *
      */
     createManyAndReturn<T extends CheckoutEventCreateManyAndReturnArgs>(args?: SelectSubset<T, CheckoutEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
@@ -2607,7 +2607,7 @@ export namespace Prisma {
      *     // ... filter to delete one CheckoutEvent
      *   }
      * })
-     * 
+     *
      */
     delete<T extends CheckoutEventDeleteArgs>(args: SelectSubset<T, CheckoutEventDeleteArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2624,7 +2624,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     * 
+     *
      */
     update<T extends CheckoutEventUpdateArgs>(args: SelectSubset<T, CheckoutEventUpdateArgs<ExtArgs>>): Prisma__CheckoutEventClient<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
@@ -2638,7 +2638,7 @@ export namespace Prisma {
      *     // ... provide filter here
      *   }
      * })
-     * 
+     *
      */
     deleteMany<T extends CheckoutEventDeleteManyArgs>(args?: SelectSubset<T, CheckoutEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2657,7 +2657,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   }
      * })
-     * 
+     *
      */
     updateMany<T extends CheckoutEventUpdateManyArgs>(args: SelectSubset<T, CheckoutEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
@@ -2674,7 +2674,7 @@ export namespace Prisma {
      *     // ... provide data here
      *   ]
      * })
-     * 
+     *
      * // Update zero or more CheckoutEvents and only return the `eventId`
      * const checkoutEventWithEventIdOnly = await prisma.checkoutEvent.updateManyAndReturn({
      *   select: { eventId: true },
@@ -2687,7 +2687,7 @@ export namespace Prisma {
      * })
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * 
+     *
      */
     updateManyAndReturn<T extends CheckoutEventUpdateManyAndReturnArgs>(args: SelectSubset<T, CheckoutEventUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CheckoutEventPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
@@ -2776,7 +2776,7 @@ export namespace Prisma {
      *     _all: true
      *   },
      * })
-     * 
+     *
     **/
     groupBy<
       T extends CheckoutEventGroupByArgs,
@@ -2885,7 +2885,7 @@ export namespace Prisma {
     readonly fingerprint: FieldRef<"CheckoutEvent", 'String'>
     readonly result: FieldRef<"CheckoutEvent", 'String'>
   }
-    
+
 
   // Custom InputTypes
   /**
@@ -2942,31 +2942,31 @@ export namespace Prisma {
     where?: CheckoutEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of CheckoutEvents to fetch.
      */
     orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for searching for CheckoutEvents.
      */
     cursor?: CheckoutEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` CheckoutEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` CheckoutEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of CheckoutEvents.
      */
     distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
@@ -2990,31 +2990,31 @@ export namespace Prisma {
     where?: CheckoutEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of CheckoutEvents to fetch.
      */
     orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for searching for CheckoutEvents.
      */
     cursor?: CheckoutEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` CheckoutEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` CheckoutEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of CheckoutEvents.
      */
     distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]
@@ -3038,31 +3038,31 @@ export namespace Prisma {
     where?: CheckoutEventWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
+     *
      * Determine the order of CheckoutEvents to fetch.
      */
     orderBy?: CheckoutEventOrderByWithRelationInput | CheckoutEventOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
+     *
      * Sets the position for listing CheckoutEvents.
      */
     cursor?: CheckoutEventWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Take `±n` CheckoutEvents from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
+     *
      * Skip the first `n` CheckoutEvents.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
+     *
      * Filter by unique combinations of CheckoutEvents.
      */
     distinct?: CheckoutEventScalarFieldEnum | CheckoutEventScalarFieldEnum[]

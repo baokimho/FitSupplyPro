@@ -4,6 +4,30 @@ import pg from "pg";
 import { expect, it } from "vitest";
 import { requireTestDatabaseUrl, createIntegrationEvent, serializeIntegrationEvent } from "@shared/utils";
 
+it.each(["order-service", "inventory-service", "payment-service"])("%s Inbox migration preserves old receipt identity and replay payload", async (service) => {
+  const pool = new pg.Pool({ connectionString: requireTestDatabaseUrl("order_test_db") });
+  const client = await pool.connect();
+  const sql = readFileSync(new URL(`../../${service}/prisma/migrations/20261018010000_consumer_inbox/migration.sql`, import.meta.url), "utf8");
+  try {
+    await client.query("BEGIN");
+    await client.query('CREATE SCHEMA inbox_upgrade_test');
+    await client.query('SET LOCAL search_path TO inbox_upgrade_test');
+    await client.query('CREATE TABLE "CheckoutEvent" ("eventId" TEXT PRIMARY KEY, "fingerprint" TEXT NOT NULL, "result" TEXT)');
+    await client.query(`INSERT INTO "CheckoutEvent" VALUES ('old-event','old-fingerprint','unchanged-result'), ('null-result','null-fingerprint',NULL)`);
+    await client.query(sql);
+    const rows = await client.query('SELECT * FROM "CheckoutEvent" ORDER BY "eventId"');
+    expect(rows.rows).toEqual([
+      { eventId: "null-result", fingerprint: "null-fingerprint", result: null, eventType: null, processedAt: expect.any(Date) },
+      { eventId: "old-event", fingerprint: "old-fingerprint", result: "unchanged-result", eventType: null, processedAt: expect.any(Date) },
+    ]);
+    await expect(client.query(`INSERT INTO "CheckoutEvent" ("eventId","fingerprint") VALUES ('old-event','another-fingerprint')`)).rejects.toMatchObject({ code: "23505" });
+  } finally {
+    await client.query("ROLLBACK");
+    client.release();
+    await pool.end();
+  }
+});
+
 it("adds Sagas to Phase 7 orders without guessing incomplete compensation or changing synchronous orders", async () => {
   const pool = new pg.Pool({ connectionString: requireTestDatabaseUrl("order_test_db") });
   const client = await pool.connect();
