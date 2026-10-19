@@ -676,3 +676,9 @@ Payment financial outcomes, receipt and Outbox together. See
 [Idempotency and transactional Inbox](docs/phase10-idempotency.md) for consumer/HTTP
 audit, uniqueness, provider preparation, recovery algorithm and limitations.
 Synchronous checkout remains default; async checkout remains opt-in.
+
+Phase 11 adds explicit dependency deadlines, safe bounded retries with exponential
+backoff/jitter, shutdown cancellation and retry diagnostics. Gateway never retries
+requests; operation/event/provider identities survive retries. See
+[Failure handling and resilience](docs/phase11-resilience.md) for audit, timeout
+and retry matrices, ownership, circuit-breaker decision and remaining limits.

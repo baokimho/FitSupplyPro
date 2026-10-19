@@ -407,3 +407,67 @@ suites and no Notification unit suite. Their existing E2E coverage is unchanged.
 At-least-once delivery, external provider atomicity, independent financial
 preparation, failure diagnostics, retention, DLQ repair and global ordering remain
 explicit limitations; see architecture document. No Phase 11 work or pushes.
+
+## Phase 11 verification
+
+Completed 2026-10-19. See [Failure handling and resilience](docs/phase11-resilience.md)
+for baseline audit, actual timeout/retry matrices, ownership and limitations.
+Circuit breaker intentionally omitted; no measured dependency saturation or
+external network provider justified adding circuit state.
+
+Final checks:
+
+- `npm run test:unit`: **724 passed** (including **500 shared**); all existing
+  workspace suites passed. Notification's pre-existing unit coverage gap remains.
+- `npm run test:integration`: **236 passed**: Gateway **15**, Inventory **35**,
+  Order **64**, Cart **2**, Payment **59**, Shipping **7**, shared **54**.
+  Real PostgreSQL/RabbitMQ/HTTP tests included; disposable DB/broker torn down.
+- `npm run test:e2e`: **12 passed** across rebuilt isolated Docker stacks:
+  **6 synchronous**, **4 async success/recovery**, **2 async decline**. Includes
+  compensation, duplicates, provider effect counts and broker/Outbox recovery.
+  Disposable E2E containers/network/volume removed.
+- `npm run typecheck`, `npm run lint`, `npm run build`: passed across workspaces.
+- `npm exec --workspace <service> -- prisma validate`: all eight service schemas
+  valid. No Prisma/schema changes or new migrations; client regeneration unnecessary.
+  Integration preparation still applies fresh migrations and verifies drift.
+- Development, test DB and E2E `docker compose ... config --quiet`: passed.
+- `git diff --check 470c5d0`: passed; reviewed scoped source/config/tests/docs.
+
+High-value coverage:
+
+- Explicit failure taxonomy; wrapped HTTP 500 is not turned into retryable 503.
+  Permanent validation/business/identity failures and unknown errors stop immediately.
+- Deterministic exponential/capped jitter delays, attempt limits, correlation
+  preservation, exhaustion logs and 20 concurrent failed operations bounded to
+  60 total calls. Fake timers avoid sleeping through backoff.
+- Deadline covers HTTP response body, not only headers; abort signal reaches fetch,
+  timers/listeners cleared; cancellation stays distinct from dependency timeout.
+- Real HTTP server stalls first body, client aborts and safe second read succeeds;
+  trace headers unchanged and abandoned socket closes.
+- Real Inventory HTTP/DB mutation commits before response stalls. Retry retains
+  original operationId: one stock effect and one InventoryOperation persist.
+- Checkout Catalog transient failure recovers; same client key replays one Order.
+  Insufficient Inventory is attempted once. Exhausted lost reserve responses retain
+  uncertain operation identity and same-key compensation releases once.
+- Actual PostgreSQL serialization fault on first Inventory update rolls back.
+  Real RabbitMQ consumer retries same eventId, ACKs successful work, and duplicate
+  delivery leaves one stock/Inbox/Outbox effect.
+- Provider commits independent acknowledgement then times out; Payment final
+  transition/Inbox/Outbox roll back. Replay uses identical provider input/key and
+  records one charge, one receipt and one output intent.
+- Existing malformed/permanent-message tests retain DLX/no-hot-requeue policy.
+  Actual shutdown interrupts 60-second backoff, makes no second attempt, requeues
+  unsettled RabbitMQ delivery instead of dead-lettering, drains broker then DB.
+- Existing Saga, Inbox, Outbox, compensation, provider recovery and HTTP replay
+  suites pass unchanged except assertions explicitly checking new bounded attempts,
+  cancellation signals and classified error-cause chain.
+
+Initial regression caught missing required `reason` in new real-HTTP fixture and
+old compensation test's single-attempt expectation. Fixed fixture; strengthened
+test to require three bounded attempts sharing one operationId and original error.
+No tests skipped, weakened or disabled. Existing Prisma preview and test-runner
+shell deprecation warnings remain; no unrelated configuration changes.
+
+No circuit breaker, Phase 12 DLQ tooling, deployment, pushes, new dependencies,
+schema migrations or async-by-default change. Existing Auth/Catalog/Notification
+integration coverage gaps remain explicit.
