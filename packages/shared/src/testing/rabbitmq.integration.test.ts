@@ -10,6 +10,7 @@ import { openRabbitMq } from "../messaging/broker.js";
 import { DEAD_LETTER_EXCHANGE, DOMAIN_EXCHANGE, DOMAIN_QUEUES, declareRabbitMqTopology } from "../messaging/topology.js";
 import { checkoutMessageHandler } from "../messaging/checkout.js";
 import { createIntegrationEvent } from "../events/boundary.js";
+import { ServiceUnavailableError } from "../errors/httpErrors.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -336,6 +337,14 @@ describe("real RabbitMQ mechanics", () => {
     const shutdown = installShutdown({ server, logger, state, exit,
       cleanup: [async () => { await broker.close(); cleanup.push("broker"); }, () => { cleanup.push("database"); }],
     });
+    const input = createIntegrationEvent({ eventType: "order.created", correlationId: randomUUID(), causationId: null,
+      data: { orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }], totalAmount: "1.00", currency: "USD" } });
+    const handler = vi.fn().mockRejectedValue(new ServiceUnavailableError("temporary database outage"));
+    const process = checkoutMessageHandler(["order.created"], handler, async () => {}, logger, undefined,
+      { policy: { maxAttempts: 3, baseDelayMs: 60000, maxDelayMs: 60000 } });
+    await broker.subscribe("inventory.order-created", (message) => process(message.content));
+    await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from(JSON.stringify(input)));
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledOnce());
     const pending = shutdown.shutdown("SIGTERM");
     expect(shutdown.shutdown("SIGINT")).toBe(pending);
     expect(state.stopping).toBe(true);
@@ -343,6 +352,15 @@ describe("real RabbitMQ mechanics", () => {
     expect(cleanup).toEqual(["broker", "database"]);
     expect(exit).toHaveBeenCalledExactlyOnceWith(0);
     expect(broker.isReady()).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+    const inspector = await openRabbitMq(readRabbitMqConfig(), logger);
+    try {
+      const reader = await inspector.createChannel();
+      const message = await reader.get("inventory.order-created", { noAck: true });
+      if (!message) throw new Error("Shutdown lost unsettled delivery");
+      expect(message.fields.redelivered).toBe(true);
+      expect((await reader.checkQueue("inventory.order-created.dlq")).messageCount).toBe(0);
+    } finally { await inspector.close(); }
   });
 
   it("bounded drain closes channel, requeues unsettled work and prevents late ACK", async () => {

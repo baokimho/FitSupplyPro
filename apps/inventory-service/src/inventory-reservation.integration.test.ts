@@ -1,6 +1,6 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent, openRabbitMq, readRabbitMqConfig } from "@shared/utils";
+import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent, openRabbitMq, readRabbitMqConfig, ServiceUnavailableError, fetchDependency, retryOperation } from "@shared/utils";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -180,7 +180,7 @@ describe("async Inventory checkout", () => {
     const results = await Promise.all([handleInventoryCheckout(input), handleInventoryCheckout(input)]);
     expect(results[0]).toEqual(results[1]);
     let publications = 0;
-    const publish = async () => { if (++publications === 1) throw new Error("publish unavailable after commit"); };
+    const publish = async () => { if (++publications === 1) throw new ServiceUnavailableError("publish unavailable after commit"); };
     await checkoutMessageHandler(["order.created"], handleInventoryCheckout, publish,
       createLogger({ service: "test", environment: "test", level: "silent" }))(serializeIntegrationEvent(input));
     expect(publications).toBe(2);
@@ -223,6 +223,82 @@ describe("async Inventory checkout", () => {
     const unrelated = createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: null,
       data: { ...cancel.data, orderId: randomUUID() } });
     expect(await handleInventoryCheckout(unrelated)).toBeNull();
+  });
+});
+
+describe("resilient Inventory boundaries", () => {
+  it("real HTTP timeout after committed reserve reuses operationId and mutates stock once", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const operationId = randomUUID();
+    const identities: string[] = [];
+    let attempts = 0;
+    const remote = express();
+    remote.use(express.json());
+    remote.post("/reserve", async (req, res) => {
+      attempts++;
+      const body = req.body as { quantity: number; operationId: string };
+      identities.push(body.operationId);
+      const result = await reserveInventoryStockService(productId, body);
+      if (attempts === 1) { res.writeHead(200); res.write("{"); }
+      else res.json(result);
+    });
+    const server = remote.listen(0, "127.0.0.1");
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Missing test address");
+    const logger = createLogger({ service: "inventory-timeout-test", environment: "test", level: "silent" });
+    try {
+      const result = await retryOperation(() => fetchDependency(`http://127.0.0.1:${address.port}/reserve`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ quantity: 3, operationId }),
+      }, { dependency: "inventory", operation: "reserve", safe: true, timeoutMs: 200, logger }), {
+        dependency: "inventory", operation: "reserve", safe: true, maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, logger,
+      });
+      expect(result.response.ok).toBe(true);
+      expect(identities).toEqual([operationId, operationId]);
+      expect(await getInventory(productId)).toMatchObject({ reservedStock: 3 });
+      expect(await prisma.inventoryOperation.count({ where: { operationId } })).toBe(1);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  });
+  it("transient PostgreSQL rollback retries same incoming event and commits one Inbox/Outbox effect", async () => {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const event = createIntegrationEvent({ eventType: "order.created", correlationId: randomUUID(), causationId: null,
+      data: { orderId: randomUUID(), userId: "user", items: [{ productId, quantity: 3 }], totalAmount: "10.00", currency: "USD" } });
+    await prisma.$executeRawUnsafe('CREATE SEQUENCE resilience_test_failure');
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION resilience_test_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('resilience_test_failure')=1 THEN RAISE EXCEPTION 'temporary serialization failure' USING ERRCODE='40001'; END IF; RETURN NEW; END; $$`);
+    await prisma.$executeRawUnsafe('CREATE TRIGGER resilience_test_failure BEFORE UPDATE ON "Inventory" FOR EACH ROW EXECUTE FUNCTION resilience_test_failure()');
+    const logs: string[] = [];
+    const logger = createLogger({ service: "inventory-retry-test", environment: "test", level: "debug" }, { write(line: string) { logs.push(line); } });
+    const broker = await openRabbitMq(readRabbitMqConfig(), logger);
+    let attempts = 0;
+    try {
+      const process = checkoutMessageHandler(["order.created"], async (input) => {
+        attempts++; expect(input.eventId).toBe(event.eventId);
+        return handleInventoryCheckout(input);
+      }, async () => {}, logger, undefined, { policy: { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1 } });
+      const channel = await broker.createChannel();
+      const { queue } = await channel.assertQueue("", { exclusive: true });
+      await broker.subscribe(queue, (message) => process(message.content));
+      const publisher = await broker.createPublisher();
+      await publisher.publish("", queue, serializeIntegrationEvent(event));
+      await vi.waitFor(() => expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(true));
+      expect(attempts).toBe(2);
+      await process(serializeIntegrationEvent(event));
+      expect(await getInventory(productId)).toMatchObject({ reservedStock: 3 });
+      expect(await prisma.inventoryOperation.count()).toBe(1);
+      const receipt = await prisma.checkoutEvent.findUniqueOrThrow({ where: { eventId: event.eventId } });
+      const result = JSON.parse(receipt.result!) as { eventId: string };
+      expect(await prisma.outboxEvent.count({ where: { eventId: result.eventId } })).toBe(1);
+    } finally {
+      await broker.close();
+      await prisma.$executeRawUnsafe('DROP TRIGGER resilience_test_failure ON "Inventory"');
+      await prisma.$executeRawUnsafe('DROP FUNCTION resilience_test_failure()');
+      await prisma.$executeRawUnsafe('DROP SEQUENCE resilience_test_failure');
+    }
   });
 });
 

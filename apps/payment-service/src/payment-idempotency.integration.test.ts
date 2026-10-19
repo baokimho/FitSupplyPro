@@ -173,6 +173,35 @@ describe("async Payment checkout", () => {
     return createIntegrationEvent({ eventType: "inventory.reserved", correlationId: randomUUID(), causationId: randomUUID(),
       data: { orderId: order.id, reservations: order.items } });
   }
+  it("provider timeout after acknowledgement preserves key and recovers one charge with atomic Inbox/Outbox", async () => {
+    const { config } = await import("./config/index.js");
+    const timeout = config.resilience.timeoutMs;
+    config.resilience.timeoutMs = 200;
+    const input = reservation();
+    const service = buildPaymentService(prisma, paymentProvider);
+    const settle = paymentProvider.settle.bind(paymentProvider);
+    const spy = vi.spyOn(paymentProvider, "settle").mockImplementationOnce(async (payment, outcome, signal) => {
+      await settle(payment, outcome);
+      await new Promise<never>((_resolve, reject) => {
+        if (signal?.aborted) reject(signal.reason);
+        else signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+      throw new Error("unreachable");
+    });
+    try {
+      await expect(service.checkout(input)).rejects.toMatchObject({ failureClass: "ambiguous", retrySafe: true });
+      const payment = await prisma.payment.findFirstOrThrow();
+      expect(payment).toMatchObject({ status: "PENDING", pendingOperation: "SUCCEEDED" });
+      expect(await prisma.checkoutEvent.findUnique({ where: { eventId: input.eventId } })).toBeNull();
+      expect(await prisma.outboxEvent.findUnique({ where: { deduplicationKey: `checkout:${input.eventId}` } })).toBeNull();
+      const result = await service.checkout(input);
+      expect(result?.eventType).toBe("payment.succeeded");
+      expect(spy.mock.calls[1][0]).toEqual(spy.mock.calls[0][0]);
+      expect(await prisma.fakeProviderOperation.count({ where: { idempotencyKey: `${payment.id}:settle` } })).toBe(1);
+      expect(await prisma.checkoutEvent.count({ where: { eventId: input.eventId } })).toBe(1);
+      expect(await prisma.outboxEvent.count({ where: { eventId: result!.eventId } })).toBe(1);
+    } finally { config.resilience.timeoutMs = timeout; }
+  });
   it("refund receipt failure rolls back local outcome and Outbox; provider replay recovers", async () => {
     const input = reservation();
     const service = buildPaymentService(prisma, paymentProvider);
