@@ -18,7 +18,11 @@ export function classifyFailure(error: unknown): FailureClass {
   if (error instanceof DependencyError) return error.failureClass;
   if (error instanceof IntegrationEventError) return "permanent";
   if (error instanceof HttpError && error.status >= 500 && error.cause) return classifyFailure(error.cause);
-  if (error instanceof HttpError) return [502, 503, 504].includes(error.status) ? "transient" : "permanent";
+  if (error instanceof HttpError) {
+    const upstreamStatus = field(error.details, "statusCode") ?? field(error.details, "status");
+    const status = error.status >= 500 && typeof upstreamStatus === "number" ? upstreamStatus : error.status;
+    return [502, 503, 504].includes(status) ? "transient" : "permanent";
+  }
   if (error instanceof Error && error.name === "AbortError") return "cancelled";
   const code = field(error, "code");
   if (typeof code === "string" && transientCode.test(code)) return "transient";

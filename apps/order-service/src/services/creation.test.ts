@@ -74,7 +74,9 @@ describe("creation failure boundaries", () => {
     database.$transaction.mockRejectedValue(original);
     releaseFailures.add("B");
     await expect(createOrderService("user-1", body)).rejects.toBe(original);
-    expect(actions).toEqual(["reserve:A", "reserve:B", "release:B", "release:A"]);
+    expect(actions).toEqual(["reserve:A", "reserve:B", "release:B", "release:B", "release:B", "release:A"]);
+    const retries = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) => String(url).endsWith("/products/B/release"));
+    expect(new Set(retries.map(([, init]) => JSON.parse(String(init?.body)).operationId)).size).toBe(1);
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ originalError: original, productId: "B", quantity: 3,
       userId: "user-1", operation: "create-order-compensation", reservationId: expect.any(String) }), "inventory compensation failed");
   });

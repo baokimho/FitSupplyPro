@@ -239,7 +239,7 @@ describe("resilient Inventory boundaries", () => {
       attempts++;
       const body = req.body as { quantity: number; operationId: string };
       identities.push(body.operationId);
-      const result = await reserveInventoryStockService(productId, body);
+      const result = await reserveInventoryStockService(productId, { ...body, reason: "Resilience recovery test" });
       if (attempts === 1) { res.writeHead(200); res.write("{"); }
       else res.json(result);
     });
