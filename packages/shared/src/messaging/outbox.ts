@@ -4,6 +4,7 @@ import { deserializeIntegrationEvent, serializeIntegrationEvent } from "../event
 import type { KnownIntegrationEvent } from "../events/registry.js";
 import { runWithCorrelation } from "../http/correlation.js";
 import type { Logger } from "../logging/logger.js";
+import { retryDelay } from "../resilience/retry.js";
 
 type OutboxUpdate = { attempts?: { increment: number }; publishedAt?: Date; lastError?: string | null; nextAttemptAt?: Date };
 export interface OutboxStore {
@@ -55,9 +56,10 @@ export async function dispatchOutboxOnce(database: OutboxDatabase, publish: (eve
       logger.info(metadata, "outbox dispatch attempt");
       try { await publish(event); }
       catch (err) {
+        const retryDelayMs = retryDelay(row.attempts + 1, { baseDelayMs: 500, maxDelayMs: 30000 });
         await tx.outboxEvent.update({ where: { id: row.id }, data: { lastError: "Publication failed; inspect correlated dispatch log",
-          nextAttemptAt: new Date(Date.now() + Math.min(30000, 500 * 2 ** Math.min(row.attempts, 6))) } });
-        logger.error({ ...metadata, err }, "outbox dispatch failed; retry scheduled");
+          nextAttemptAt: new Date(Date.now() + retryDelayMs) } });
+        logger.warn({ ...metadata, retryDelayMs, dependency: "rabbitmq", operation: "publish", failureClass: "ambiguous", err }, "outbox dispatch failed; retry scheduled");
         return;
       }
       // If this write/commit fails, row remains pending and same envelope republishes.

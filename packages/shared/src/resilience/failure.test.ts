@@ -19,6 +19,8 @@ describe("failure decisions", () => {
   it("recognizes infrastructure codes, cancellation, and permanent business/unknown errors", () => {
     for (const code of ["ECONNRESET", "P1001", "P2034", "08006", "40001", "57P01"]) expect(classifyFailure({ code })).toBe("transient");
     expect(classifyFailure(new DOMException("shutdown", "AbortError"))).toBe("cancelled");
+    expect(classifyFailure({ code: "P2010", meta: { code: "40001" } })).toBe("transient");
+    expect(classifyFailure({ code: "P2010", meta: { code: "P0001" } })).toBe("permanent");
     for (const error of [new Error("bug"), new BadRequestError("Insufficient stock"), new ConflictError("Idempotency mismatch"), { code: "P2002" }]) expect(canRetry(error, true)).toBe(false);
   });
 });

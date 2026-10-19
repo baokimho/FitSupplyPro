@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Channel, ConsumeMessage } from "amqplib";
 import type { Logger } from "../logging/logger.js";
 import { runWithCorrelation, validCorrelationId } from "../http/correlation.js";
+import { dependencyShutdownSignal } from "../resilience/timeout.js";
+import { classifyFailure } from "../resilience/failure.js";
 
 export type RabbitMqHandler = (message: ConsumeMessage) => Promise<void>;
 const CONSUMER_DRAIN_TIMEOUT_MS = 3000;
@@ -38,6 +40,11 @@ export async function consumeRabbitMq(
         await handler(message);
         if (open) { channel.ack(message); logger.debug(context, "broker message acknowledged"); }
       } catch (err) {
+        if (dependencyShutdownSignal.aborted && classifyFailure(err) === "cancelled") {
+          if (open) channel.nack(message, false, true);
+          logger.info(context, "shutdown cancelled processing; delivery requeued");
+          return;
+        }
         logger.error({ ...context, err }, "broker processing failed; rejecting without requeue");
         if (open) channel.nack(message, false, false);
       }

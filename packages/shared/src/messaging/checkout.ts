@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { setTimeout as delay } from "node:timers/promises";
-import { ConflictError, HttpError } from "../errors/httpErrors.js";
-import { deserializeIntegrationEvent, IntegrationEventError, serializeIntegrationEvent } from "../events/boundary.js";
+import { ConflictError } from "../errors/httpErrors.js";
+import { deserializeIntegrationEvent, serializeIntegrationEvent } from "../events/boundary.js";
+import { retryOperation, retryDelay, type RetryPolicy } from "../resilience/retry.js";
+import { readResilienceConfig } from "../resilience/config.js";
+import { canRetry, classifyFailure } from "../resilience/failure.js";
 import type { EventType, KnownIntegrationEvent } from "../events/registry.js";
 import { runWithCorrelation } from "../http/correlation.js";
 import type { Logger } from "../logging/logger.js";
@@ -13,6 +15,7 @@ import { enqueueOutboxEvent, startOutboxPublisher, type OutboxDatabase, type Out
 export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
   const flag = env.EVENT_DRIVEN_CHECKOUT ?? "false";
   if (flag !== "true" && flag !== "false") throw new Error("EVENT_DRIVEN_CHECKOUT must be true or false");
+  if (flag === "true") readResilienceConfig(env);
   return { enabled: flag === "true", broker: flag === "true" ? readRabbitMqConfig(env) : undefined };
 }
 
@@ -55,31 +58,28 @@ export function checkoutEventFingerprint(event: KnownIntegrationEvent) {
   return createHash("sha256").update(serializeIntegrationEvent(event)).digest("hex");
 }
 
-export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger, onFailure?: CheckoutFailureHandler) {
+export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger, onFailure?: CheckoutFailureHandler, options?: { policy?: RetryPolicy; signal?: AbortSignal }) {
   return async (content: Uint8Array) => {
     const event = deserializeIntegrationEvent(content);
     if (!types.includes(event.eventType)) throw new ConflictError("Unexpected checkout event type");
     const metadata = { eventId: event.eventId, eventType: event.eventType, eventVersion: event.eventVersion,
       correlationId: event.correlationId, causationId: event.causationId, producer: event.producer, orderId: event.data.orderId };
     return runWithCorrelation({ requestId: randomUUID(), traceId: event.correlationId }, async () => {
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
+      try {
+        await retryOperation(async (attempt) => {
           const result = await handler(event);
           if (result) await publish(result);
           logger.info({ ...metadata, attempt }, "checkout event completed; safe to acknowledge");
-          return;
-        } catch (err) {
-          const permanent = err instanceof IntegrationEventError || (err instanceof HttpError && err.status < 500);
-          logger.error({ ...metadata, attempt, permanent, err }, "checkout event processing failed");
-          if (permanent || attempt === 3) {
-            if (onFailure) {
-              const failure = await onFailure(event, err, !permanent);
-              if (failure) await publish(failure);
-            }
-            throw err;
-          }
-          await delay(100 * attempt);
+        }, { ...(options?.policy ?? readResilienceConfig()), dependency: "checkout-handler", operation: event.eventType,
+          safe: true, logger: logger.child(metadata), signal: options?.signal });
+      } catch (err) {
+        if (classifyFailure(err) === "cancelled") throw err;
+        logger.error({ ...metadata, failureClass: classifyFailure(err), err }, "checkout event processing failed");
+        if (onFailure) {
+          const failure = await onFailure(event, err, canRetry(err, true));
+          if (failure) await publish(failure);
         }
+        throw err;
       }
     });
   };
@@ -114,6 +114,7 @@ export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logge
   let session = await connect();
   let stopped = false;
   let reconnecting = false;
+  let failures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let current: Promise<void> = Promise.resolve();
   const monitor = () => {
@@ -123,11 +124,11 @@ export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logge
         reconnecting = true;
         try {
           await session.close().catch((err: unknown) => logger.warn({ err }, "closing unavailable checkout session"));
-          if (!stopped) { session = await connect(); logger.info("checkout messaging recovered; pending outbox resumes"); }
-        } catch (err) { logger.error({ err }, "checkout reconnect failed; retry scheduled"); }
+          if (!stopped) { session = await connect(); failures = 0; logger.info("checkout messaging recovered; pending outbox resumes"); }
+        } catch (err) { failures++; logger.error({ err, attempt: failures, dependency: "rabbitmq", operation: "reconnect" }, "checkout reconnect failed; retry scheduled"); }
         finally { reconnecting = false; }
       }
-      if (!stopped) timer = setTimeout(monitor, 1000);
+      if (!stopped) timer = setTimeout(monitor, failures ? retryDelay(failures, { baseDelayMs: 1000, maxDelayMs: 30000 }) : 1000);
     })();
   };
   const stop = () => { stopped = true; clearTimeout(timer); session.stop(); };

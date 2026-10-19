@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createIntegrationEvent, serializeIntegrationEvent } from "../events/boundary.js";
 import { getCorrelation } from "../http/correlation.js";
-import { ConflictError } from "../errors/httpErrors.js";
+import { ConflictError, ServiceUnavailableError } from "../errors/httpErrors.js";
 import { createLogger } from "../logging/logger.js";
 import { checkoutMessageHandler, readCheckoutConfig } from "./checkout.js";
 
@@ -30,14 +30,14 @@ describe("checkout processing boundary", () => {
     expect(getCorrelation()).toBeUndefined();
   });
   it("retries transient DB/publish failures only three times", async () => {
-    const handler = vi.fn().mockRejectedValue(new Error("DB unavailable"));
+    const handler = vi.fn().mockRejectedValue(Object.assign(new Error("DB unavailable"), { code: "P1001" }));
     const publish = vi.fn();
     await expect(checkoutMessageHandler(["order.created"], handler, publish, logger)(serializeIntegrationEvent(event()))).rejects.toThrow("DB unavailable");
     expect(handler).toHaveBeenCalledTimes(3);
     expect(publish).not.toHaveBeenCalled();
     const input = event();
     const durableHandler = vi.fn(async () => input);
-    const confirms = vi.fn().mockRejectedValueOnce(new Error("confirm unavailable")).mockResolvedValue(undefined);
+    const confirms = vi.fn().mockRejectedValueOnce(new ServiceUnavailableError("confirm unavailable")).mockResolvedValue(undefined);
     await checkoutMessageHandler(["order.created"], durableHandler, confirms, logger)(serializeIntegrationEvent(input));
     expect(durableHandler).toHaveBeenCalledTimes(2);
     expect(confirms.mock.calls[0]).toEqual(confirms.mock.calls[1]);
@@ -50,6 +50,11 @@ describe("checkout processing boundary", () => {
     await expect(checkoutMessageHandler(["order.created"], handler, vi.fn(), logger)(Buffer.from("{"))).rejects.toThrow("MALFORMED_JSON");
     await expect(checkoutMessageHandler(["payment.succeeded"], handler, vi.fn(), logger)(serializeIntegrationEvent(event()))).rejects.toThrow("Unexpected checkout event type");
     expect(handler).not.toHaveBeenCalled();
+  });
+  it("does not retry an unexpected programming error", async () => {
+    const handler = vi.fn().mockRejectedValue(new Error("bug"));
+    await expect(checkoutMessageHandler(["order.created"], handler, vi.fn(), logger)(serializeIntegrationEvent(event()))).rejects.toThrow("bug");
+    expect(handler).toHaveBeenCalledOnce();
   });
 });
 
