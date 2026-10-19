@@ -2,6 +2,8 @@ import express, { type Request, type Response } from "express";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Options } from "http-proxy-middleware";
+import type { ClientRequest } from "node:http";
+import { attachUserHeaders, proxyFailureContext } from "./proxy/userHeaders.proxy.js";
 import { errorHandler } from "@shared/utils";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { authLimiter } from "./middleware/rateLimit.middleware.js";
@@ -51,6 +53,8 @@ describe("gateway direct error envelopes", () => {
     const logged = vi.spyOn(logger, "error").mockImplementation(() => {});
     expect(mocks.configs).toHaveLength(8);
     for (const config of mocks.configs) {
+      expect(config.timeout).toBe(30000);
+      expect(config.proxyTimeout).toBe(30000);
       const res = { headersSent: false, status: vi.fn(), json: vi.fn() };
       res.status.mockReturnValue(res);
       expect(config.on?.error).toBeTypeOf("function");
@@ -60,10 +64,20 @@ describe("gateway direct error envelopes", () => {
     }
     expect(logged).toHaveBeenCalledTimes(8);
     for (const [context, message] of logged.mock.calls) {
-      expect(context).toMatchObject({ err: expect.any(Error), targetService: expect.stringMatching(/-service$/), operation: "proxy", statusCode: 503 });
+      expect(context).toMatchObject({ err: expect.any(Error), targetService: expect.stringMatching(/-service$/), operation: "proxy", statusCode: 503, timeoutMs: 30000, failureClass: "ambiguous" });
       expect(context).not.toHaveProperty("headers");
       expect(message).toBe("proxy request failed");
     }
     logged.mockRestore();
+  });
+  it("proxy diagnostics retain elapsed time and distinguish read/mutation outcome", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValueOnce(100).mockReturnValue(150);
+    try {
+      const req = { method: "POST" } as Request;
+      attachUserHeaders({ removeHeader: vi.fn(), setHeader: vi.fn() } as unknown as ClientRequest, req);
+      expect(proxyFailureContext(req)).toEqual({ elapsedMs: 50, timeoutMs: 30000, failureClass: "ambiguous" });
+      req.method = "GET";
+      expect(proxyFailureContext(req).failureClass).toBe("transient");
+    } finally { clock.mockRestore(); }
   });
 });

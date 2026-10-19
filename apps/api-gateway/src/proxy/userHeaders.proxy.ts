@@ -3,6 +3,13 @@ import type { ClientRequest } from "http";
 import type { Request } from "express";
 import type { IncomingMessage } from "http";
 import { correlationHeaders } from "@shared/utils";
+const proxyStartedAt = new WeakMap<Request, number>();
+
+export function proxyFailureContext(req: Request) {
+  const started = proxyStartedAt.get(req);
+  return { timeoutMs: config.proxyTimeoutMs, elapsedMs: started === undefined ? undefined : Math.round(performance.now() - started),
+    failureClass: req.method === "GET" || req.method === "HEAD" ? "transient" : "ambiguous" };
+}
 
 export function restoreRequestId(proxyRes: IncomingMessage, req: Request) {
   if (req.correlation) proxyRes.headers["x-request-id"] = req.correlation.requestId;
@@ -16,6 +23,7 @@ type GatewayRequest = Request & {
 };
 
 export function attachUserHeaders(proxyReq: ClientRequest, req: Request) {
+  proxyStartedAt.set(req, performance.now());
   const gatewayRequest = req as GatewayRequest;
   const internalSecret = config.gatewaySecret;
 

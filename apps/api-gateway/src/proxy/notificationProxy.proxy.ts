@@ -4,7 +4,7 @@ import { config } from "../config/index.js";
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import { attachUserHeaders, restoreRequestId } from "./userHeaders.proxy.js";
+import { attachUserHeaders, restoreRequestId, proxyFailureContext } from "./userHeaders.proxy.js";
 
 const notificationUrl = config.notificationServiceUrl;
 const proxyTimeoutMs = config.proxyTimeoutMs;
@@ -18,7 +18,7 @@ export const notificationProxy = createProxyMiddleware<Request, Response>({
     proxyReq: attachUserHeaders,
     proxyRes: restoreRequestId,
     error: (err, req, res) => {
-      logger.error({ ...req.correlation, err, targetService: "notification-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503, timeoutMs: proxyTimeoutMs }, "proxy request failed");
+      logger.error({ ...req.correlation, err, targetService: "notification-service", operation: "proxy", method: req.method, path: logPath(req.originalUrl ?? ""), statusCode: 503, ...proxyFailureContext(req) }, "proxy request failed");
       const response = res as Response;
 
       if (response.headersSent) {

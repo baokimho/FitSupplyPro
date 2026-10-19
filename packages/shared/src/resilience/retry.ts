@@ -13,6 +13,7 @@ export function retryDelay(attempt: number, policy: Pick<RetryPolicy, "baseDelay
 export async function retryOperation<T>(work: (attempt: number) => Promise<T>, options: RetryPolicy & {
   dependency: string; operation: string; safe: boolean; logger: Logger;
   signal?: AbortSignal; random?: () => number;
+  timeoutMs?: number;
 }): Promise<T> {
   if (!Number.isInteger(options.maxAttempts) || options.maxAttempts < 1 || options.maxAttempts > 5 ||
       !Number.isFinite(options.baseDelayMs) || options.baseDelayMs < 1 ||
@@ -25,7 +26,7 @@ export async function retryOperation<T>(work: (attempt: number) => Promise<T>, o
       signal.throwIfAborted();
       const retryable = canRetry(error, options.safe);
       const context = { dependency: options.dependency, operation: options.operation,
-        failureClass: classifyFailure(error), attempt, maxAttempts: options.maxAttempts };
+        failureClass: classifyFailure(error), attempt, maxAttempts: options.maxAttempts, timeoutMs: options.timeoutMs };
       if (!retryable || attempt === options.maxAttempts) {
         options.logger.warn({ ...context, exhausted: retryable && attempt === options.maxAttempts }, "dependency attempts ended");
         throw error;
