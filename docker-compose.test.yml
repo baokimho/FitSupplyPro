@@ -1,3 +1,12 @@
+x-resilience-env: &resilience-env
+  DEPENDENCY_TIMEOUT_MS: ${DEPENDENCY_TIMEOUT_MS:-2500}
+  DEPENDENCY_MAX_ATTEMPTS: ${DEPENDENCY_MAX_ATTEMPTS:-3}
+  RETRY_BASE_DELAY_MS: ${RETRY_BASE_DELAY_MS:-100}
+  RETRY_MAX_DELAY_MS: ${RETRY_MAX_DELAY_MS:-1000}
+  PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-30000}
+  DB_CONNECT_TIMEOUT_MS: ${DB_CONNECT_TIMEOUT_MS:-2500}
+  DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-5000}
+
 services:
   rabbitmq-test:
     image: rabbitmq:4.3.5-management-alpine
@@ -39,6 +48,7 @@ services:
       dockerfile: ./apps/api-gateway/Dockerfile
     container_name: fitsupply-stack-api-gateway-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3000
       GATEWAY_SECRET: fitsupply_test_internal_secret
@@ -85,6 +95,7 @@ services:
     volumes:
       - ./tests/fixtures/auth-keys:/app/keys:ro
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3001
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/auth_test_db
@@ -106,6 +117,7 @@ services:
       dockerfile: ./apps/catalog-service/Dockerfile
     container_name: fitsupply-stack-catalog-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3002
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/catalog_test_db
@@ -127,6 +139,7 @@ services:
       dockerfile: ./apps/inventory-service/Dockerfile
     container_name: fitsupply-stack-inventory-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3004
       EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
@@ -150,6 +163,7 @@ services:
       dockerfile: ./apps/order-service/Dockerfile
     container_name: fitsupply-stack-order-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3003
       EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
@@ -185,6 +199,7 @@ services:
       dockerfile: ./apps/cart-service/Dockerfile
     container_name: fitsupply-stack-cart-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3005
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/cart_test_db
@@ -209,6 +224,7 @@ services:
       dockerfile: ./apps/payment-service/Dockerfile
     container_name: fitsupply-stack-payment-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3006
       EVENT_DRIVEN_CHECKOUT: ${EVENT_DRIVEN_CHECKOUT:-false}
@@ -237,6 +253,7 @@ services:
       dockerfile: ./apps/shipping-service/Dockerfile
     container_name: fitsupply-stack-shipping-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3007
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/shipping_test_db
@@ -264,6 +281,7 @@ services:
       dockerfile: ./apps/notification-service/Dockerfile
     container_name: fitsupply-stack-notification-service-test
     environment:
+      <<: *resilience-env
       NODE_ENV: test
       PORT: 3008
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/notification_test_db
