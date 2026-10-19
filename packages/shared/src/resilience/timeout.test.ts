@@ -3,7 +3,7 @@ import { createLogger } from "../logging/logger.js";
 import { fetchDependency, withDependencyTimeout } from "./timeout.js";
 import { readProxyTimeout, readResilienceConfig } from "./config.js";
 
-const options = { dependency: "inventory", operation: "reserve", safe: false, timeoutMs: 25 };
+const options = { dependency: "inventory", operation: "reserve", safe: false, mutation: true, timeoutMs: 25 };
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 it("validates timeout and retry configuration without exposing values", () => {

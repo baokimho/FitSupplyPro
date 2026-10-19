@@ -1,4 +1,4 @@
-import { classifyFailure } from "@shared/utils";
+import { classifyFailure, retryOperation, DependencyError } from "@shared/utils";
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
 import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent, fetchDependency } from "@shared/utils";
@@ -57,7 +57,7 @@ type CartResponse = {
 
 type OrderResponse = ReturnType<typeof toOrderResponse>;
 
-type ReservedInventoryItem = { productId: string; quantity: number };
+type ReservedInventoryItem = { productId: string; quantity: number; reservationUnknown?: boolean };
 
 type CartFinalizationState = { cartItemIds: string[]; cart: { id: string; version: number } };
 
@@ -191,7 +191,7 @@ const getDeliverySnapshot = async (orderId: string): Promise<DeliverySnapshot | 
 const toOrderResponseWithDelivery = async (order: OrderWithItems) =>
   toOrderResponse(order, await getDeliverySnapshot(order.id));
 
-const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
+const fetchJson = async <T>(url: string, init?: RequestInit, safe = (init?.method ?? "GET") === "GET"): Promise<T> => {
   let response: Response;
   const targetService = [
     [catalogServiceUrl, "catalog-service"], [inventoryServiceUrl, "inventory-service"],
@@ -203,10 +203,16 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   try {
     const headers = new Headers(init?.headers);
     for (const [name, value] of Object.entries(correlationHeaders())) headers.set(name, value);
-    ({ response, text } = await fetchDependency(url, { ...init, headers }, {
-      dependency: targetService ?? "downstream", operation: context.operation,
-      timeoutMs: config.resilience.timeoutMs, safe: (init?.method ?? "GET") === "GET", logger,
-    }));
+    ({ response, text } = await retryOperation(async () => {
+      const result = await fetchDependency(url, { ...init, headers }, {
+        dependency: targetService ?? "downstream", operation: context.operation,
+        timeoutMs: config.resilience.timeoutMs, safe, logger,
+      });
+      if ([502, 503, 504].includes(result.response.status)) {
+        throw new DependencyError(targetService ?? "downstream", context.operation, (init?.method ?? "GET") === "GET" ? "transient" : "ambiguous", safe);
+      }
+      return result;
+    }, { ...config.resilience, dependency: targetService ?? "downstream", operation: context.operation, safe, logger }));
   } catch (error) {
     if (classifyFailure(error) === "cancelled") throw error;
     logger.debug(context, "downstream connection failed");
@@ -330,7 +336,7 @@ const parseReservedItems = (value: Prisma.JsonValue | null): ReservedInventoryIt
       return [];
     }
 
-    return [{ productId, quantity }];
+    return [{ productId, quantity, ...((item as Record<string, unknown>).reservationUnknown === true ? { reservationUnknown: true } : {}) }];
   });
 };
 
@@ -392,6 +398,14 @@ const recordCheckoutFinalization = async (
 };
 const compensateReservedItems = async (id: string, reservedItems: ReservedInventoryItem[]) => {
   for (const item of [...reservedItems].reverse()) {
+    if (item.reservationUnknown) {
+      // Resolve ambiguous reserve using original identity before releasing any stock.
+      try { await reserveStock(item.productId, item.quantity, `${id}:reserve:${item.productId}`); }
+      catch (error) {
+        if (error instanceof BadRequestError && ["Insufficient stock", "Inventory not found"].includes(error.message)) continue;
+        throw error;
+      }
+    }
     await releaseStock(
       item.productId,
       item.quantity,
@@ -434,6 +448,7 @@ const getInventoryMap = async (productIds: string[]) => {
         headers: jsonHeaders,
         body: JSON.stringify({ productIds }),
       },
+      true,
     );
 
     return new Map(response.items.map((item) => [item.productId, item]));
@@ -459,6 +474,7 @@ const reserveStock = async (productId: string, quantity: number, operationId?: s
           ...(operationId ? { operationId } : {}),
         }),
       },
+      !!operationId,
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
@@ -482,6 +498,7 @@ const releaseStock = async (productId: string, quantity: number, reason: string,
           ...(operationId ? { operationId } : {}),
         }),
       },
+      !!operationId,
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
@@ -505,6 +522,7 @@ const consumeStock = async (productId: string, quantity: number, reason: string,
           operationId,
         }),
       },
+      true,
     );
   } catch (error) {
     if (error instanceof ServiceUnavailableError) {
@@ -701,7 +719,14 @@ export const createOrderService = async (
   try {
     for (const [productId, quantity] of aggregatedItems.entries()) {
       if (config.checkout.enabled) break;
-      await reserveStock(productId, quantity, `${reservationId}:reserve:${productId}`);
+      try { await reserveStock(productId, quantity, `${reservationId}:reserve:${productId}`); }
+      catch (error) {
+        if (checkoutAttemptId && classifyFailure(error) === "ambiguous") {
+          await recordReservedItem(checkoutAttemptId, [...reservedItems, { productId, quantity, reservationUnknown: true }]);
+          await markCompensationFailed(checkoutAttemptId, error);
+        }
+        throw error;
+      }
       reservedItems.push({ productId, quantity });
       if (checkoutAttemptId) {
         await recordReservedItem(checkoutAttemptId, reservedItems);

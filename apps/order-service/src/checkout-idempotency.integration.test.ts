@@ -131,6 +131,7 @@ function installFetchDouble() {
       const match = url.match(/\/products\/([^/]+)\/reserve/);
       const productId = match?.[1] ?? "";
       const body = JSON.parse(String(init?.body ?? "{}")) as { quantity: number; operationId?: string };
+      if (body.operationId && inventoryOperations.has(body.operationId)) return jsonResponse({});
       if (reserveDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, reserveDelayMs));
       }
@@ -139,6 +140,7 @@ function installFetchDouble() {
         return jsonResponse({ error: { code: "BAD_REQUEST", message: "Insufficient stock" } }, 400);
       }
       current.reservedStock += body.quantity;
+      if (body.operationId) inventoryOperations.set(body.operationId, { productId, action: "RESERVE", quantity: body.quantity });
       reserveCalls.push({ productId, quantity: body.quantity });
       return jsonResponse({});
     }
@@ -244,6 +246,61 @@ beforeEach(async () => {
   setInventory("product-2", 10);
   cartVersion = 1;
   setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+});
+
+describe("bounded synchronous dependency recovery", () => {
+  it("retries transient Catalog read with stable trace, then completes and replays one checkout", async () => {
+    const delegate = globalThis.fetch;
+    const traces: Array<string | null> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("catalog-service")) {
+        traces.push(new Headers(init?.headers).get("x-trace-id"));
+        if (traces.length === 1) return jsonResponse({}, 503);
+      }
+      return delegate(input, init);
+    }));
+    try {
+      const traceId = randomUUID();
+      const order = await runWithCorrelation({ requestId: randomUUID(), traceId }, () => checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "read-recovery"));
+      expect(traces).toEqual([traceId, traceId]);
+      expect(await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "read-recovery")).toEqual(JSON.parse(JSON.stringify(order)));
+      expect(await countOrders()).toBe(1);
+      expect(reserveCount("product-1")).toBe(1);
+    } finally { installFetchDouble(); }
+  });
+  it("does not retry insufficient stock and retains original business error", async () => {
+    failReserveProducts.add("product-1");
+    await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "permanent-reserve")).rejects.toMatchObject({ status: 400, message: "Insufficient stock" });
+    const calls = vi.mocked(globalThis.fetch).mock.calls.filter(([input]) => String(input).endsWith("/reserve"));
+    expect(calls).toHaveLength(1);
+    expect(await countOrders()).toBe(0);
+  });
+  it("exhausted lost reserve responses preserve uncertain identity for safe same-key compensation", async () => {
+    const delegate = globalThis.fetch;
+    const identities: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const response = await delegate(input, init);
+      if (String(input).endsWith("/reserve")) {
+        identities.push(JSON.parse(String(init?.body)).operationId);
+        throw Object.assign(new Error("reserve response lost"), { code: "ECONNRESET" });
+      }
+      return response;
+    }));
+    try {
+      await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "uncertain-reserve")).rejects.toMatchObject({ status: 503 });
+      expect(identities).toHaveLength(3);
+      expect(new Set(identities).size).toBe(1);
+      expect(reserveCount("product-1")).toBe(1);
+      expect(await prisma.checkoutIdempotency.findFirstOrThrow()).toMatchObject({ status: "COMPENSATION_FAILED", reservedItems: [{ productId: "product-1", quantity: 2, reservationUnknown: true }] });
+      installFetchDouble();
+      await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "uncertain-reserve")).rejects.toMatchObject({ status: 409, message: "Checkout failed and was compensated" });
+      expect(reserveCount("product-1")).toBe(1);
+      expect(releaseCalls).toHaveLength(1);
+      expect(inventory.get("product-1")?.reservedStock).toBe(0);
+      expect(await countOrders()).toBe(0);
+      expect(await prisma.checkoutIdempotency.count()).toBe(1);
+    } finally { installFetchDouble(); }
+  });
 });
 
 describe("durable checkout Saga", () => {

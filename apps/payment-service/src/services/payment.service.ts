@@ -185,13 +185,13 @@ export function buildPaymentService(database: PrismaClient, provider: PaymentPro
         if (target === "REFUNDED") {
           if (!current.providerPaymentId) throw new ConflictError("Provider payment reference missing");
           await withDependencyTimeout((signal) => provider.refund({ ...input, providerPaymentId: current.providerPaymentId! }, signal), {
-            dependency: "payment-provider", operation: "refund", timeoutMs: config.resilience.timeoutMs, safe: true, logger,
+            dependency: "payment-provider", operation: "refund", timeoutMs: config.resilience.timeoutMs, safe: true, mutation: true, logger,
           });
           return finish(await tx.payment.update({ where: { id }, data: { status: "REFUNDED", pendingOperation: null, progressState: "REFUNDED" } }));
         }
         // Always persist the acknowledged result, including provider decline of confirmation.
         const result = await withDependencyTimeout((signal) => provider.settle(input, target, signal), {
-          dependency: "payment-provider", operation: "settle", timeoutMs: config.resilience.timeoutMs, safe: true, logger,
+          dependency: "payment-provider", operation: "settle", timeoutMs: config.resilience.timeoutMs, safe: true, mutation: true, logger,
         });
         assertPaymentTransition(current.status, result.status);
         return finish(await tx.payment.update({ where: { id }, data: {
