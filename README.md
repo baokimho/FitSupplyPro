@@ -682,3 +682,9 @@ backoff/jitter, shutdown cancellation and retry diagnostics. Gateway never retri
 requests; operation/event/provider identities survive retries. See
 [Failure handling and resilience](docs/phase11-resilience.md) for audit, timeout
 and retry matrices, ownership, circuit-breaker decision and remaining limits.
+
+Phase 12 adds durable delivery budgets, confirmed DLQ quarantine, and explicit
+operator inspection/replay with immutable event identity. See
+[DLQ recovery and replay](docs/phase12-dlq-recovery.md) for failure policy,
+`npm run dlq` commands, crash-window guarantees, repair semantics and limitations.
+No automatic DLQ draining; synchronous checkout remains default.

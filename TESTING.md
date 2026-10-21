@@ -471,3 +471,70 @@ shell deprecation warnings remain; no unrelated configuration changes.
 No circuit breaker, Phase 12 DLQ tooling, deployment, pushes, new dependencies,
 schema migrations or async-by-default change. Existing Auth/Catalog/Notification
 integration coverage gaps remain explicit.
+
+## Phase 12 verification
+
+Verified 2026-10-21. See [DLQ recovery and replay](docs/phase12-dlq-recovery.md)
+for baseline audit, durable accounting, operator commands and limitations.
+
+- `npm run test:unit`: **731 passed**, including **507 shared**. Existing workspace
+  tests pass; Notification's pre-existing unit-test gap remains explicit.
+- `npm run test:integration`: **251 passed**: Gateway **15**, Inventory **44**,
+  Order **64**, Cart **2**, Payment **59**, Shipping **7**, shared **60**.
+  Disposable PostgreSQL/RabbitMQ resources removed after suite completion.
+- `npm run test:e2e`: **12 passed**: **6 synchronous**, **4 async success/recovery**,
+  **2 async decline**. Completed-checkout scenarios now replay duplicate DLQ facts
+  through Inventory, Payment and Order, wait for real broker ACKs and verify stable
+  stock, financial effects, Order state and Outbox counts. Disposable E2E resources
+  removed after rebuilt stacks completed.
+- `npm run typecheck`, `npm run lint`, `npm run build`: passed across workspaces.
+- Strict standalone TypeScript check of changed async checkout E2E file: passed.
+- Prisma generation: Order, Inventory, Payment clients regenerated using existing
+  checked-in convention. All eight service schemas validate. Fresh migration
+  deployment and migration/schema drift checks pass through integration setup.
+- Development, test DB and E2E Compose configuration checks: passed.
+- `git diff --check 03b253a`: passed. No new dependencies or queue-type changes.
+- `npm run dlq -- inspect --queue inventory.order-created.dlq --limit 2`: real
+  disposable-broker CLI smoke passed; returned sanitized diagnostic metadata and
+  retained quarantine copy. Inspection/replay lower-level tests use real broker.
+
+Focused recovery coverage:
+
+- Three failure classes align with Phase 11; poison/business failures do not waste
+  retry budget. Operational error messages and bodies are not echoed as diagnostics.
+  Unavailable accounting reports unknown count rather than fabricating a number.
+- Eight concurrent real DB claims admit exactly three attempts. Claim evidence
+  survives business rollback/channel redelivery; remaining budget is resumed.
+- Real transient failures succeed within budget. Exhaustion reaches DLQ with
+  identity, route, classification, attempt limit and sanitized cause metadata.
+- Poison/wrong-handler messages quarantine with no business invocation and cannot
+  be blindly replayed. Native `x-death` queue/reason/count remains verified.
+- Committed Inbox duplicate ACKs even after final durable claim was spent; stock
+  and outgoing intent remain single. Two operator replays retain one business
+  effect and one output intent.
+- Missing DLX/unconfirmed quarantine closes source channel without ACK; source
+  survives and recreated consumer quarantines without resetting exhausted budget.
+- Inspection holds scanned copies unacked, requeues on close, obeys max scan and
+  never emits arbitrary private bodies/headers/error text.
+- Confirmed replay preserves exact bytes/event identity, targets original queue
+  without other-subscriber fanout, then ACKs only selected DLQ copy.
+- Unroutable replay publish retains original. Lost-confirmation and shutdown before
+  DLQ ACK retain original even when replay copy already exists. Replay cap and
+  explicit matching confirmation prevent uncontrolled draining/replay loops.
+- Existing shutdown, Saga compensation, HTTP/domain/provider idempotency, Inbox,
+  Outbox and timeout/backoff recovery regression suites continue passing.
+- Cancellation after durable claim but before handler invocation prevents business
+  work and failure publication; spent claim remains conservative operational evidence.
+
+Lint initially found CLI AbortController/DOMException globals missing from JS lint
+environment; qualified through globalThis and reran successfully. No assertions
+weakened, tests skipped, type suppressions, development data reset or pushes.
+New E2E setup initially exceeded existing auth registration limit. Replay assertions
+were folded into the existing completed-checkout scenario, reusing its fixture;
+all replay assertions and production rate limits were preserved.
+Existing Prisma preview/test-runner shell deprecation warnings remain.
+
+Reliability remains at-least-once delivery with idempotent protected effects.
+Duplicate quarantine/replay copies are expected crash outcomes; no exactly-once
+delivery claim. Retention, authorization infrastructure, broad observability and
+Phase 13 work remain deferred. Existing service coverage gaps remain documented.
