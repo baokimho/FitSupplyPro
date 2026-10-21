@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { ConflictError } from "../errors/httpErrors.js";
 import { deserializeIntegrationEvent, IntegrationEventError } from "../events/boundary.js";
-import { canRetry } from "../resilience/failure.js";
+import { canRetry, DependencyError } from "../resilience/failure.js";
 import type { ConsumeMessage, GetMessage } from "amqplib";
 import { integrationEventEnvelopeSchema } from "../events/envelope.js";
 import { DOMAIN_ROUTING_KEYS } from "./topology.js";
@@ -15,9 +15,9 @@ export type DeliveryMessage = Pick<ConsumeMessage | GetMessage, "content" | "fie
 export class DeliveryPoisonError extends ConflictError {
   constructor(code = "UNEXPECTED_EVENT_TYPE") { super(code === "UNEXPECTED_EVENT_TYPE" ? "Unexpected checkout event type" : "Invalid replay metadata", undefined, code); }
 }
-export class DeliveryBudgetExhausted extends Error {
+export class DeliveryBudgetExhausted extends DependencyError {
   readonly code = "DELIVERY_BUDGET_EXHAUSTED";
-  constructor() { super("Durable delivery budget exhausted"); }
+  constructor() { super("checkout-delivery", "attempt", "transient", false); this.message = "Durable delivery budget exhausted"; }
 }
 
 export function deliveryFailureClass(error: unknown): DeliveryFailureClass {
