@@ -10,6 +10,11 @@ export const MAX_REPLAY_COUNT = 3;
 export const REPLAY_COUNT_HEADER = "x-fitsupply-replay-count";
 export const FAILURE_HEADER = "x-fitsupply-failure";
 export type DeliveryFailureClass = "TRANSIENT" | "PERMANENT" | "POISON";
+export const DELIVERY_FAILURE_MESSAGES = {
+  POISON: "Invalid message contract or consumer route",
+  TRANSIENT: "Transient processing failure; inspect correlated service logs",
+  PERMANENT: "Non-retryable processing failure; inspect correlated service logs",
+};
 export type DeliveryMessage = Pick<ConsumeMessage | GetMessage, "content" | "fields" | "properties">;
 
 export class DeliveryPoisonError extends ConflictError {
@@ -41,7 +46,7 @@ export function deliveryErrorSummary(error: unknown) {
   const errorCode = typeof rawCode === "string" && /^[A-Z0-9_.-]{1,80}$/.test(rawCode) ? rawCode : "UNEXPECTED_ERROR";
   return { failureClass, errorCode,
     errorName: error instanceof IntegrationEventError ? "IntegrationEventError" : error instanceof Error ? error.constructor.name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 80) : "UnknownError",
-    errorMessage: failureClass === "POISON" ? "Invalid message contract or consumer route" : failureClass === "TRANSIENT" ? "Transient processing failure; inspect correlated service logs" : "Non-retryable processing failure; inspect correlated service logs" };
+    errorMessage: DELIVERY_FAILURE_MESSAGES[failureClass] };
 }
 
 /** Validated envelope identity can diagnose a known contract with invalid version/payload. */
@@ -61,10 +66,11 @@ export function deliveryEventIdentity(content: Uint8Array) {
 
 export function deliveryDiagnostic(queue: string, message: DeliveryMessage, error: unknown, attempts: number, maxAttempts: number) {
   const event = deliveryEventIdentity(message.content);
+  const attemptsKnown = attempts > 0 || deliveryFailureClass(error) !== "TRANSIENT";
   const originalRoutingKey: unknown = message.properties.headers?.["x-fitsupply-original-routing-key"] ?? message.fields.routingKey;
   const routingKey = typeof originalRoutingKey === "string" && /^[a-zA-Z0-9_.-]{1,200}$/.test(originalRoutingKey) ? originalRoutingKey : "unknown";
   return { id: quarantineId(queue, message), consumer: queue, service: queue.split(".")[0], queue, routingKey,
-    attempt: attempts, retryCount: Math.max(0, attempts - 1), maxAttempts, ...deliveryErrorSummary(error),
+    attempt: attemptsKnown ? attempts : null, retryCount: attemptsKnown ? Math.max(0, attempts - 1) : null, attemptsKnown, maxAttempts, ...deliveryErrorSummary(error),
     failedAt: new Date().toISOString(),
     ...event };
 }

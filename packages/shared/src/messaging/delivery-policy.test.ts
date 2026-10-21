@@ -22,3 +22,9 @@ it("diagnostics never copy poison bytes, credentials, arbitrary messages or stac
   expect(replayCount(message)).toBe(0);
   expect(() => replayCount({ ...message, properties: { ...message.properties, headers: { "x-fitsupply-replay-count": 99 } } })).toThrow();
 });
+it("does not invent a previous attempt count when durable accounting is unavailable", () => {
+  const message = { content: Buffer.from("{}"), fields: { routingKey: "order.created" }, properties: {} } as ConsumeMessage;
+  expect(deliveryDiagnostic("inventory.order-created", message, new ServiceUnavailableError(), 0, 3)).toMatchObject({
+    failureClass: "TRANSIENT", attempt: null, retryCount: null, attemptsKnown: false, maxAttempts: 3,
+  });
+});

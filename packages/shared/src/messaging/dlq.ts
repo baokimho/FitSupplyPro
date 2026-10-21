@@ -2,7 +2,7 @@ import type { Channel } from "amqplib";
 import type { openRabbitMq } from "./broker.js";
 import { deserializeIntegrationEvent } from "../events/boundary.js";
 import { DOMAIN_QUEUES } from "./topology.js";
-import { deliveryEventIdentity, FAILURE_HEADER, MAX_REPLAY_COUNT, quarantineId, replayCount, REPLAY_COUNT_HEADER, type DeliveryMessage } from "./delivery-policy.js";
+import { DELIVERY_FAILURE_MESSAGES, deliveryEventIdentity, FAILURE_HEADER, MAX_REPLAY_COUNT, quarantineId, replayCount, REPLAY_COUNT_HEADER, type DeliveryMessage, type DeliveryFailureClass } from "./delivery-policy.js";
 
 export const MAX_DLQ_SCAN = 100;
 type RecoveryBroker = Pick<Awaited<ReturnType<typeof openRabbitMq>>, "createChannel" | "createPublisher">;
@@ -48,7 +48,10 @@ export function describeDlqMessage(dlq: string, message: DeliveryMessage) {
     routingKey: typeof diagnostic.routingKey === "string" && (queue.bindings as readonly string[]).includes(diagnostic.routingKey) ? diagnostic.routingKey : event?.eventType ?? null,
     event: event ? { eventId: event.eventId, eventType: event.eventType, eventVersion: event.eventVersion,
       correlationId: event.correlationId, causationId: event.causationId, producer: event.producer } : null,
-    failureClass, errorCode: code, attempt: numeric(diagnostic.attempt), maxAttempts: numeric(diagnostic.maxAttempts),
+    failureClass, errorCode: code, errorName: typeof diagnostic.errorName === "string" && /^[a-zA-Z0-9]{1,80}$/.test(diagnostic.errorName) ? diagnostic.errorName : null,
+    errorMessage: failureClass === "UNKNOWN" ? "Legacy/native dead-letter; correlate service logs" : DELIVERY_FAILURE_MESSAGES[failureClass as DeliveryFailureClass],
+    attempt: numeric(diagnostic.attempt), retryCount: numeric(diagnostic.retryCount), attemptsKnown: typeof diagnostic.attemptsKnown === "boolean" ? diagnostic.attemptsKnown : null,
+    maxAttempts: numeric(diagnostic.maxAttempts),
     failedAt: typeof diagnostic.failedAt === "string" && /^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(diagnostic.failedAt) ? diagnostic.failedAt : null,
     replayCount: count, replayEligible: eligible,
     guidance: eligible ? "Fix root cause; replay requires explicit confirmation" : "Leave quarantined; invalid contract, route or replay limit requires deliberate repair/reconciliation" };

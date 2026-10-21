@@ -1,8 +1,8 @@
 import { parseArgs } from "node:util";
 import { createLogger, inspectDlq, openRabbitMq, readRabbitMqConfig, replayDlq } from "../packages/shared/dist/index.js";
 
-const controller = new AbortController();
-const stop = () => controller.abort(new DOMException("Operator shutdown", "AbortError"));
+const controller = new globalThis.AbortController();
+const stop = () => controller.abort(new globalThis.DOMException("Operator shutdown", "AbortError"));
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 const logger = createLogger({ service: "dlq-operator", environment: "production", level: "warn" }, process.stderr);
