@@ -11,6 +11,8 @@ import { DEAD_LETTER_EXCHANGE, DOMAIN_EXCHANGE, DOMAIN_QUEUES, declareRabbitMqTo
 import { checkoutMessageHandler } from "../messaging/checkout.js";
 import { createIntegrationEvent } from "../events/boundary.js";
 import { ServiceUnavailableError } from "../errors/httpErrors.js";
+import { inspectDlq, replayDlq, replayDlqDelivery } from "../messaging/dlq.js";
+import { serializeIntegrationEvent } from "../events/boundary.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -63,6 +65,68 @@ describe("real RabbitMQ mechanics", () => {
     return message;
   }
 
+  const recoveryQueue = "inventory.order-created";
+  const recoveryDlq = `${recoveryQueue}.dlq`;
+  const recoveryEvent = () => createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: null,
+    data: { orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }] } });
+  it("bounded DLQ inspection holds copies unacknowledged and does not expose payloads", async () => {
+    for (let i = 0; i < 3; i++) await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, Buffer.from(`password=secret-${i}`));
+    const records = await inspectDlq(broker, recoveryDlq, 2);
+    expect(records).toHaveLength(2);
+    expect(JSON.stringify(records)).not.toContain("secret");
+    expect(records.every((record) => !record.replayEligible)).toBe(true);
+    expect((await channel.checkQueue(recoveryDlq)).messageCount).toBe(3);
+    await expect(inspectDlq(broker, recoveryDlq, 101)).rejects.toThrow("1..100");
+  });
+  it("confirmed replay preserves bytes and identity, targets only source queue, then removes DLQ copy", async () => {
+    const event = recoveryEvent(); const bytes = serializeIntegrationEvent(event);
+    await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, bytes);
+    const [record] = await inspectDlq(broker, recoveryDlq);
+    await expect(replayDlq(broker, recoveryDlq, record.id, "wrong")).rejects.toThrow("matching");
+    expect((await channel.checkQueue(recoveryDlq)).messageCount).toBe(1);
+    await replayDlq(broker, recoveryDlq, record.id, record.id);
+    const replayed = await receive(recoveryQueue);
+    expect(replayed.content).toEqual(bytes);
+    expect(replayed.fields.exchange).toBe("");
+    expect(replayed.properties.headers).toMatchObject({ "x-fitsupply-replay-count": 1, "x-trace-id": event.correlationId });
+    channel.ack(replayed);
+    expect((await channel.checkQueue(recoveryDlq)).messageCount).toBe(0);
+    expect((await channel.checkQueue("notification.order-events")).messageCount).toBe(0);
+  });
+  it("mandatory replay publication failure retains original DLQ message", async () => {
+    const bytes = serializeIntegrationEvent(recoveryEvent());
+    await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, bytes);
+    const [record] = await inspectDlq(broker, recoveryDlq);
+    await channel.deleteQueue(recoveryQueue);
+    await expect(replayDlq(broker, recoveryDlq, record.id, record.id)).rejects.toThrow("unroutable");
+    expect((await inspectDlq(broker, recoveryDlq))[0].id).toBe(record.id);
+    await declareRabbitMqTopology(channel);
+  });
+  it.each(["lost-confirmation", "shutdown"])("%s before DLQ ACK retains source even when replay may already exist", async (mode) => {
+    const bytes = serializeIntegrationEvent(recoveryEvent());
+    await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, bytes);
+    const message = await receive(recoveryDlq);
+    const controller = new AbortController();
+    await expect(replayDlqDelivery(channel, recoveryDlq, message, async (...args) => {
+      await publisher.publish(...args);
+      if (mode === "shutdown") controller.abort(new DOMException("Operator shutdown", "AbortError"));
+      else throw new Error("Confirmation response lost");
+    }, controller.signal)).rejects.toThrow();
+    await channel.close(); channel = await broker.createChannel();
+    expect((await inspectDlq(broker, recoveryDlq))).toHaveLength(1);
+    const replayed = await receive(recoveryQueue);
+    expect(replayed.content).toEqual(bytes);
+    channel.ack(replayed);
+  });
+  it("operator replay count cap quarantines repeated failures without automatic draining", async () => {
+    const bytes = serializeIntegrationEvent(recoveryEvent());
+    await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, bytes, { "x-fitsupply-replay-count": 3 });
+    const [record] = await inspectDlq(broker, recoveryDlq);
+    expect(record).toMatchObject({ replayCount: 3, replayEligible: false, event: { eventType: "order.cancelled" } });
+    await expect(replayDlq(broker, recoveryDlq, record.id, record.id)).rejects.toThrow("Replay limit");
+    expect((await channel.checkQueue(recoveryDlq)).messageCount).toBe(1);
+  });
+
   it("connects, declares both exchanges and all queues repeatedly without incompatibility", async () => {
     expect(broker.isReady()).toBe(true);
     await declareRabbitMqTopology(channel);
@@ -88,7 +152,9 @@ describe("real RabbitMQ mechanics", () => {
     const process = checkoutMessageHandler(kind === "unexpected" ? ["payment.failed"] : ["order.created"], handler, async () => undefined, logger);
     const consumer = await broker.subscribe("inventory.order-created", (message) => process(message.content));
     await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from(payload));
-    channel.ack(await receive("inventory.order-created.dlq"));
+    const dead = await receive("inventory.order-created.dlq");
+    expect(dead.properties.headers?.["x-death"]).toEqual(expect.arrayContaining([expect.objectContaining({ queue: "inventory.order-created", reason: "rejected", count: 1 })]));
+    channel.ack(dead);
     expect(handler).not.toHaveBeenCalled();
     await consumer.stop();
   });

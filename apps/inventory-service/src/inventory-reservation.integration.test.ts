@@ -2,7 +2,9 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { createIntegrationEvent, checkoutMessageHandler, serializeIntegrationEvent, createLogger, processCheckoutEvent, openRabbitMq, readRabbitMqConfig, ServiceUnavailableError, fetchDependency, retryOperation } from "@shared/utils";
 import request from "supertest";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { claimDeliveryAttempt, createCheckoutDeliveryHandler, declareRabbitMqTopology, enqueueOutboxEvent, inspectDlq, replayDlq, messageKey, ConflictError, DEAD_LETTER_EXCHANGE } from "@shared/utils";
+import type { Channel, GetMessage } from "amqplib";
 import {
   buildInventory,
   cleanupDatabase,
@@ -299,6 +301,165 @@ describe("resilient Inventory boundaries", () => {
       await prisma.$executeRawUnsafe('DROP FUNCTION resilience_test_failure()');
       await prisma.$executeRawUnsafe('DROP SEQUENCE resilience_test_failure');
     }
+  });
+});
+
+describe("durable delivery budgets and operator recovery", () => {
+  const queue = "inventory.order-created";
+  const dlq = `${queue}.dlq`;
+  let broker: Awaited<ReturnType<typeof openRabbitMq>>;
+  let channel: Channel;
+  let publisher: Awaited<ReturnType<typeof broker.createPublisher>>;
+  let logs: string[];
+  let logger: ReturnType<typeof createLogger>;
+  beforeEach(async () => {
+    const config = readRabbitMqConfig();
+    const url = new URL(config.url);
+    if (url.hostname !== "localhost" || url.port !== "5673" || url.username !== "fitsupply_test") throw new Error("Disposable test broker required");
+    logs = [];
+    logger = createLogger({ service: "delivery-test", environment: "test", level: "debug" }, { write(line: string) { logs.push(line); } });
+    broker = await openRabbitMq(config, logger);
+    channel = await broker.createChannel();
+    await declareRabbitMqTopology(channel);
+    await channel.purgeQueue(queue); await channel.purgeQueue(dlq);
+    publisher = await broker.createPublisher();
+  });
+  afterEach(async () => { await broker?.close(); });
+  async function input() {
+    const productId = randomUUID();
+    await createInventory({ productId, stock: 10 });
+    const event = createIntegrationEvent({ eventType: "order.created", correlationId: randomUUID(), causationId: null,
+      data: { orderId: randomUUID(), userId: "user", items: [{ productId, quantity: 3 }], totalAmount: "10.00", currency: "USD" } });
+    return { productId, event, bytes: serializeIntegrationEvent(event) };
+  }
+  const delivery = (work = handleInventoryCheckout) => createCheckoutDeliveryHandler(queue, ["order.created", "order.cancelled"], work,
+    async (event) => { await prisma.$transaction((tx) => enqueueOutboxEvent(tx, event)); }, logger, prisma);
+  async function subscribe(work = handleInventoryCheckout) {
+    const process = delivery(work);
+    await broker.subscribe(queue, process.handle, 10, (message, error) => process.quarantine(message, error, publisher.publish));
+  }
+  async function receive(name: string): Promise<GetMessage> {
+    let message: GetMessage | false = false;
+    await vi.waitFor(async () => { message = await channel.get(name, { noAck: false }); expect(message).not.toBe(false); });
+    if (!message) throw new Error("Missing delivery");
+    return message;
+  }
+  async function quarantined() {
+    await vi.waitFor(async () => expect((await channel.checkQueue(dlq)).messageCount).toBeGreaterThan(0));
+    return (await inspectDlq(broker, dlq, 1))[0];
+  }
+  it("concurrent durable claims admit only three attempts across workers", async () => {
+    const f = await input();
+    const key = { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 0 };
+    const results = await Promise.allSettled(Array.from({ length: 8 }, () => claimDeliveryAttempt(prisma, key, f.event, 3)));
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(3);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(5);
+    expect(await prisma.consumerDelivery.findUniqueOrThrow({ where: { consumer_messageKey_replayCount: key } })).toMatchObject({ attempts: 3 });
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 0 });
+  });
+  it("transient failure succeeds within one durable three-attempt budget", async () => {
+    const f = await input(); let attempts = 0;
+    await subscribe(async (event) => { if (++attempts < 3) throw new ServiceUnavailableError(); return handleInventoryCheckout(event); });
+    await publisher.publish("", queue, f.bytes);
+    await vi.waitFor(async () => expect(await prisma.checkoutEvent.findUnique({ where: { eventId: f.event.eventId } })).not.toBeNull());
+    expect(attempts).toBe(3);
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 3 });
+    expect((await channel.checkQueue(dlq)).messageCount).toBe(0);
+  });
+  it("exhaustion quarantines diagnostics; two operator replays preserve identity and one business effect", async () => {
+    const f = await input(); let broken = true; let attempts = 0;
+    await subscribe(async (event) => { attempts++; if (broken) throw new ServiceUnavailableError("password=private"); return handleInventoryCheckout(event); });
+    await publisher.publish("", queue, f.bytes);
+    const first = await quarantined();
+    expect(first).toMatchObject({ failureClass: "TRANSIENT", attempt: 3, maxAttempts: 3, replayCount: 0,
+      event: { eventId: f.event.eventId, correlationId: f.event.correlationId }, replayEligible: true });
+    expect(JSON.stringify(first)).not.toContain("private");
+    expect(attempts).toBe(3);
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 0 });
+    // Simulate a duplicate DLQ copy from confirm-before-source-ACK loss.
+    const copy = await receive(dlq);
+    await publisher.publish(DEAD_LETTER_EXCHANGE, queue, copy.content, copy.properties.headers);
+    channel.nack(copy, false, true);
+    broken = false;
+    await replayDlq(broker, dlq, first.id, first.id);
+    await vi.waitFor(async () => expect(await prisma.checkoutEvent.findUnique({ where: { eventId: f.event.eventId } })).not.toBeNull());
+    await replayDlq(broker, dlq, first.id, first.id);
+    await vi.waitFor(async () => expect((await channel.checkQueue(dlq)).messageCount).toBe(0));
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 3 });
+    expect(await prisma.inventoryOperation.count()).toBe(1);
+    const receipt = await prisma.checkoutEvent.findUniqueOrThrow({ where: { eventId: f.event.eventId } });
+    const output = JSON.parse(receipt.result!) as { eventId: string; correlationId: string; causationId: string };
+    expect(output).toMatchObject({ correlationId: f.event.correlationId, causationId: f.event.eventId });
+    expect(await prisma.outboxEvent.count({ where: { eventId: output.eventId } })).toBe(1);
+    const row = await prisma.consumerDelivery.findUniqueOrThrow({ where: { consumer_messageKey_replayCount: { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 1 } } });
+    expect(row.attempts).toBe(1);
+  });
+  it.each(["permanent", "poison", "wrong-handler"])("%s failure quarantines without wasting retry budget", async (kind) => {
+    const f = await input(); let calls = 0;
+    await subscribe(async () => { calls++; throw new ConflictError("deterministic rejection"); });
+    const bytes = kind === "poison" ? Buffer.from("password=private") : kind === "wrong-handler" ? serializeIntegrationEvent(createIntegrationEvent({
+      eventType: "order.confirmed", correlationId: f.event.correlationId, causationId: f.event.eventId, data: { orderId: f.event.data.orderId, userId: "user" },
+    })) : f.bytes;
+    await publisher.publish("", queue, bytes);
+    const record = await quarantined();
+    expect(record.failureClass).toBe(kind === "permanent" ? "PERMANENT" : "POISON");
+    expect(calls).toBe(kind === "permanent" ? 1 : 0);
+    expect(record.attempt).toBe(kind === "permanent" ? 1 : 0);
+    if (kind !== "permanent") {
+      expect(record.replayEligible).toBe(false);
+      await expect(replayDlq(broker, dlq, record.id, record.id)).rejects.toThrow();
+      expect((await inspectDlq(broker, dlq)).length).toBe(1);
+    }
+  });
+  it("channel redelivery resumes persisted attempt budget instead of resetting it", async () => {
+    const f = await input();
+    await publisher.publish("", queue, f.bytes);
+    const unsettled = await receive(queue);
+    await claimDeliveryAttempt(prisma, { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 0 }, f.event, 3);
+    await channel.close(); channel = await broker.createChannel();
+    let calls = 0;
+    const process = delivery(async () => { calls++; throw new ServiceUnavailableError(); });
+    await broker.subscribe(queue, async (message) => { expect(message.fields.redelivered).toBe(true); expect(message.content).toEqual(unsettled.content); await process.handle(message); }, 10,
+      (message, error) => process.quarantine(message, error, publisher.publish));
+    const record = await quarantined();
+    expect(record).toMatchObject({ attempt: 3, failureClass: "TRANSIENT" });
+    expect(calls).toBe(2);
+    await vi.waitFor(async () => expect((await channel.checkQueue(queue)).messageCount).toBe(0));
+  });
+  it("commit-before-ACK duplicate succeeds even after last durable attempt was spent", async () => {
+    const f = await input();
+    await publisher.publish("", queue, f.bytes);
+    await receive(queue);
+    for (let i = 0; i < 3; i++) await claimDeliveryAttempt(prisma, { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 0 }, f.event, 3);
+    const result = await handleInventoryCheckout(f.event);
+    await channel.close(); channel = await broker.createChannel();
+    await subscribe();
+    await vi.waitFor(() => expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(true));
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 3 });
+    expect(await prisma.inventoryOperation.count()).toBe(1);
+    expect(await prisma.outboxEvent.count({ where: { eventId: result!.eventId } })).toBe(1);
+    expect((await channel.checkQueue(dlq)).messageCount).toBe(0);
+  });
+  it("unconfirmed quarantine keeps source available; restarted consumer does not reset exhausted budget", async () => {
+    const f = await input();
+    for (let i = 0; i < 3; i++) await claimDeliveryAttempt(prisma, { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 0 }, f.event, 3);
+    let calls = 0;
+    const process = delivery(async (event) => { calls++; return handleInventoryCheckout(event); });
+    await channel.deleteExchange(DEAD_LETTER_EXCHANGE);
+    await broker.subscribe(queue, process.handle, 10, (message, error) => process.quarantine(message, error, publisher.publish));
+    await publisher.publish("", queue, f.bytes);
+    await vi.waitFor(() => expect(broker.isReady()).toBe(false));
+    expect(calls).toBe(0);
+    await broker.close();
+    broker = await openRabbitMq(readRabbitMqConfig(), logger);
+    channel = await broker.createChannel();
+    expect((await channel.checkQueue(queue)).messageCount).toBe(1);
+    await declareRabbitMqTopology(channel);
+    publisher = await broker.createPublisher();
+    await subscribe(async (event) => { calls++; return handleInventoryCheckout(event); });
+    expect(await quarantined()).toMatchObject({ attempt: 3, failureClass: "TRANSIENT" });
+    expect(calls).toBe(0);
+    expect(await getInventory(f.productId)).toMatchObject({ reservedStock: 0 });
   });
 });
 

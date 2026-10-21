@@ -3,7 +3,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createLogger, deserializeIntegrationEvent, serializeIntegrationEvent, openRabbitMq, readRabbitMqConfig,
-  createIntegrationEvent, DOMAIN_EXCHANGE, DOMAIN_QUEUES, type KnownIntegrationEvent } from "@shared/utils";
+  createIntegrationEvent, DOMAIN_EXCHANGE, DEAD_LETTER_EXCHANGE, DOMAIN_QUEUES, inspectDlq, replayDlq, type KnownIntegrationEvent } from "@shared/utils";
 
 const url = process.env.API_GATEWAY_URL ?? "http://localhost:3500";
 const decline = process.env.TEST_CHECKOUT_PAYMENT_OUTCOME === "FAILED";
@@ -132,6 +132,50 @@ describe("event-driven HTTP checkout", () => {
     expect(saga(order.id).state).toBe(decline ? "COMPENSATED" : "COMPLETED");
     for (const queue of DOMAIN_QUEUES) expect((await channel.checkQueue(`${queue.name}.dlq`)).messageCount).toBe(0);
   }, 40000);
+
+  it("operator replays duplicate DLQ facts through Inventory, Payment and Order without repeated effects", async () => {
+    const { customer, productId, order } = await setup(10);
+    await vi.waitFor(async () => {
+      expect(saga(order.id).state).toBe(decline ? "COMPENSATED" : "COMPLETED");
+      await audit();
+      expect(events.some((event) => event.data.orderId === order.id && event.eventType === (decline ? "inventory.released" : "order.confirmed"))).toBe(true);
+    }, { timeout: 20000, interval: 100 });
+    const targets = [
+      { queue: "inventory.order-created", database: "inventory_test_db", type: "order.created" },
+      { queue: "payment.inventory-reserved", database: "payment_test_db", type: "checkout.payment_requested" },
+      { queue: "order.payment-events", database: "order_test_db", type: decline ? "payment.failed" : "payment.succeeded" },
+    ];
+    const beforeOutbox = new Map<string, { eventId: string; count: number }>();
+    for (const target of targets) {
+      const event = events.find((entry) => entry.data.orderId === order.id && entry.eventType === target.type);
+      if (!event) throw new Error("Required recovery fact missing");
+      const bytes = serializeIntegrationEvent(event);
+      const before = scalar(target.database, `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'causationId'='${event.eventId}'`);
+      beforeOutbox.set(target.queue, { eventId: event.eventId, count: before });
+      for (let i = 0; i < 2; i++) await publisher.publish(DEAD_LETTER_EXCHANGE, target.queue, bytes);
+      const record = (await inspectDlq(broker, `${target.queue}.dlq`)).find((entry) => entry.event?.eventId === event.eventId);
+      if (!record) throw new Error("Selected quarantine fact missing");
+      for (let i = 0; i < 2; i++) await replayDlq(broker, `${target.queue}.dlq`, record.id, record.id);
+      expect(scalar(target.database, `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'causationId'='${event.eventId}'`)).toBe(before);
+    }
+    // Broker messages includes ready + unacknowledged: wait for actual consumer ACKs.
+    await vi.waitFor(() => {
+      const output = execFileSync("docker", ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml", "exec", "-T", "rabbitmq-test",
+        "rabbitmqctl", "-q", "list_queues", "name", "messages"], { encoding: "utf8" });
+      const counts = new Map(output.trim().split(/\r?\n/).map((line) => { const [name, count] = line.trim().split(/\s+/); return [name, count] as const; }));
+      for (const target of targets) expect(counts.get(target.queue)).toBe("0");
+    }, { timeout: 15000, interval: 100 });
+    for (const target of targets) {
+      const before = beforeOutbox.get(target.queue)!;
+      expect(scalar(target.database, `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'causationId'='${before.eventId}'`)).toBe(before.count);
+    }
+    expect(orderSchema.parse(await json("GET", `/order/orders/${order.id}`, customer.accessToken)).status).toBe(decline ? "CANCELLED" : "CONFIRMED");
+    expect(await json("GET", `/inventory/products/${productId}`, admin)).toMatchObject({ reservedStock: decline ? 0 : 3 });
+    expect(scalar("inventory_test_db", `SELECT count(*) FROM "InventoryOperation" WHERE "operationId"='${order.id}:reserve:${productId}'`)).toBe(1);
+    expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}'`)).toBe(1);
+    expect(scalar("payment_test_db", `SELECT count(*) FROM "FakeProviderOperation" f JOIN "Payment" p ON f."idempotencyKey"=p."id"||':settle' WHERE p."orderId"='${order.id}'`)).toBe(1);
+    for (const target of targets) expect((await channel.checkQueue(`${target.queue}.dlq`)).messageCount).toBe(0);
+  }, 45000);
 
   it("insufficient stock cancels without creating Payment; duplicate failure remains harmless", async () => {
     const { customer, productId, order } = await setup(0);
