@@ -15,6 +15,7 @@ import { claimDeliveryAttempt, type DeliveryDatabase } from "./delivery-store.js
 import { DeliveryBudgetExhausted, DeliveryPoisonError, deliveryDiagnostic, deliveryErrorSummary, FAILURE_HEADER, messageKey, replayCount, REPLAY_COUNT_HEADER } from "./delivery-policy.js";
 import { DEAD_LETTER_EXCHANGE } from "./topology.js";
 import type { ConsumeMessage } from "amqplib";
+import { dependencyShutdownSignal } from "../resilience/timeout.js";
 
 export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
   const flag = env.EVENT_DRIVEN_CHECKOUT ?? "false";
@@ -72,6 +73,7 @@ export function checkoutMessageHandler(types: readonly EventType[], handler: Che
       try {
         await retryOperation(async (attempt) => {
           const deliveryAttempt = await options?.beforeAttempt?.(event);
+          (options?.signal ?? dependencyShutdownSignal).throwIfAborted();
           const result = await handler(event);
           if (result) await publish(result);
           logger.info({ ...metadata, attempt, deliveryAttempt }, "checkout event completed; safe to acknowledge");

@@ -56,6 +56,15 @@ describe("checkout processing boundary", () => {
     await expect(checkoutMessageHandler(["order.created"], handler, vi.fn(), logger)(serializeIntegrationEvent(event()))).rejects.toThrow("bug");
     expect(handler).toHaveBeenCalledOnce();
   });
+  it("shutdown after durable claim prevents business work and failure diagnostics", async () => {
+    const controller = new AbortController();
+    const handler = vi.fn(); const publish = vi.fn(); const failure = vi.fn();
+    const process = checkoutMessageHandler(["order.created"], handler, publish, logger, failure, {
+      signal: controller.signal, beforeAttempt: async () => { controller.abort(); return 1; },
+    });
+    await expect(process(serializeIntegrationEvent(event()))).rejects.toMatchObject({ name: "AbortError" });
+    expect(handler).not.toHaveBeenCalled(); expect(publish).not.toHaveBeenCalled(); expect(failure).not.toHaveBeenCalled();
+  });
 });
 
 describe("checkout configuration", () => {
