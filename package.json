@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "lint": "eslint .",
+    "dlq": "npm run build --workspace @shared/utils && node scripts/dlq.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "node scripts/test-matrix.mjs all",
     "test:unit": "node scripts/test-matrix.mjs unit",
