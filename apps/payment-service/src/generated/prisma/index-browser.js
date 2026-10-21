@@ -132,6 +132,15 @@ exports.Prisma.OutboxEventScalarFieldEnum = {
   nextAttemptAt: 'nextAttemptAt'
 };
 
+exports.Prisma.ConsumerDeliveryScalarFieldEnum = {
+  consumer: 'consumer',
+  messageKey: 'messageKey',
+  replayCount: 'replayCount',
+  attempts: 'attempts',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.CheckoutEventScalarFieldEnum = {
   eventId: 'eventId',
   eventType: 'eventType',
@@ -217,6 +226,7 @@ exports.PaymentProvider = exports.$Enums.PaymentProvider = {
 
 exports.Prisma.ModelName = {
   OutboxEvent: 'OutboxEvent',
+  ConsumerDelivery: 'ConsumerDelivery',
   CheckoutEvent: 'CheckoutEvent',
   Payment: 'Payment',
   PaymentIdempotency: 'PaymentIdempotency',

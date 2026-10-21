@@ -6,11 +6,12 @@ import { dependencyShutdownSignal } from "../resilience/timeout.js";
 import { classifyFailure } from "../resilience/failure.js";
 
 export type RabbitMqHandler = (message: ConsumeMessage) => Promise<void>;
+export type RabbitMqFailureHandler = (message: ConsumeMessage, error: unknown) => Promise<void>;
 const CONSUMER_DRAIN_TIMEOUT_MS = 3000;
 
 /** Dedicated channel per subscription; failed processing dead-letters, never poison-requeues. */
 export async function consumeRabbitMq(
-  channel: Channel, queue: string, handler: RabbitMqHandler, logger: Logger, prefetch = 10,
+  channel: Channel, queue: string, handler: RabbitMqHandler, logger: Logger, prefetch = 10, quarantine?: RabbitMqFailureHandler,
 ) {
   if (!Number.isInteger(prefetch) || prefetch < 1 || prefetch > 65535) {
     throw new Error("Consumer prefetch must be an integer from 1 to 65535");
@@ -43,6 +44,16 @@ export async function consumeRabbitMq(
         if (dependencyShutdownSignal.aborted && classifyFailure(err) === "cancelled") {
           if (open) channel.nack(message, false, true);
           logger.info(context, "shutdown cancelled processing; delivery requeued");
+          return;
+        }
+        if (quarantine) {
+          try {
+            await quarantine(message, err);
+            if (open) channel.ack(message);
+          } catch {
+            logger.error(context, "DLQ publication unconfirmed; closing channel with source unacknowledged");
+            if (open) { open = false; await channel.close(); }
+          }
           return;
         }
         logger.error({ ...context, err }, "broker processing failed; rejecting without requeue");

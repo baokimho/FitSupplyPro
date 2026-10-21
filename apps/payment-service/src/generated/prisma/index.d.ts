@@ -19,6 +19,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
  */
 export type OutboxEvent = $Result.DefaultSelection<Prisma.$OutboxEventPayload>
 /**
+ * Model ConsumerDelivery
+ *
+ */
+export type ConsumerDelivery = $Result.DefaultSelection<Prisma.$ConsumerDeliveryPayload>
+/**
  * Model CheckoutEvent
  *
  */
@@ -199,6 +204,16 @@ export class PrismaClient<
     * ```
     */
   get outboxEvent(): Prisma.OutboxEventDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.consumerDelivery`: Exposes CRUD operations for the **ConsumerDelivery** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ConsumerDeliveries
+    * const consumerDeliveries = await prisma.consumerDelivery.findMany()
+    * ```
+    */
+  get consumerDelivery(): Prisma.ConsumerDeliveryDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.checkoutEvent`: Exposes CRUD operations for the **CheckoutEvent** model.
@@ -674,6 +689,7 @@ export namespace Prisma {
 
   export const ModelName: {
     OutboxEvent: 'OutboxEvent',
+    ConsumerDelivery: 'ConsumerDelivery',
     CheckoutEvent: 'CheckoutEvent',
     Payment: 'Payment',
     PaymentIdempotency: 'PaymentIdempotency',
@@ -693,7 +709,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "outboxEvent" | "checkoutEvent" | "payment" | "paymentIdempotency" | "fakeProviderOperation"
+      modelProps: "outboxEvent" | "consumerDelivery" | "checkoutEvent" | "payment" | "paymentIdempotency" | "fakeProviderOperation"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -768,6 +784,80 @@ export namespace Prisma {
           count: {
             args: Prisma.OutboxEventCountArgs<ExtArgs>
             result: $Utils.Optional<OutboxEventCountAggregateOutputType> | number
+          }
+        }
+      }
+      ConsumerDelivery: {
+        payload: Prisma.$ConsumerDeliveryPayload<ExtArgs>
+        fields: Prisma.ConsumerDeliveryFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ConsumerDeliveryFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ConsumerDeliveryFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          findFirst: {
+            args: Prisma.ConsumerDeliveryFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ConsumerDeliveryFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          findMany: {
+            args: Prisma.ConsumerDeliveryFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>[]
+          }
+          create: {
+            args: Prisma.ConsumerDeliveryCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          createMany: {
+            args: Prisma.ConsumerDeliveryCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ConsumerDeliveryCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>[]
+          }
+          delete: {
+            args: Prisma.ConsumerDeliveryDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          update: {
+            args: Prisma.ConsumerDeliveryUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          deleteMany: {
+            args: Prisma.ConsumerDeliveryDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ConsumerDeliveryUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ConsumerDeliveryUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>[]
+          }
+          upsert: {
+            args: Prisma.ConsumerDeliveryUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ConsumerDeliveryPayload>
+          }
+          aggregate: {
+            args: Prisma.ConsumerDeliveryAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateConsumerDelivery>
+          }
+          groupBy: {
+            args: Prisma.ConsumerDeliveryGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ConsumerDeliveryGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ConsumerDeliveryCountArgs<ExtArgs>
+            result: $Utils.Optional<ConsumerDeliveryCountAggregateOutputType> | number
           }
         }
       }
@@ -1176,6 +1266,7 @@ export namespace Prisma {
   }
   export type GlobalOmitConfig = {
     outboxEvent?: OutboxEventOmit
+    consumerDelivery?: ConsumerDeliveryOmit
     checkoutEvent?: CheckoutEventOmit
     payment?: PaymentOmit
     paymentIdempotency?: PaymentIdempotencyOmit
@@ -2343,6 +2434,1057 @@ export namespace Prisma {
      * Omit specific fields from the OutboxEvent
      */
     omit?: OutboxEventOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ConsumerDelivery
+   */
+
+  export type AggregateConsumerDelivery = {
+    _count: ConsumerDeliveryCountAggregateOutputType | null
+    _avg: ConsumerDeliveryAvgAggregateOutputType | null
+    _sum: ConsumerDeliverySumAggregateOutputType | null
+    _min: ConsumerDeliveryMinAggregateOutputType | null
+    _max: ConsumerDeliveryMaxAggregateOutputType | null
+  }
+
+  export type ConsumerDeliveryAvgAggregateOutputType = {
+    replayCount: number | null
+    attempts: number | null
+  }
+
+  export type ConsumerDeliverySumAggregateOutputType = {
+    replayCount: number | null
+    attempts: number | null
+  }
+
+  export type ConsumerDeliveryMinAggregateOutputType = {
+    consumer: string | null
+    messageKey: string | null
+    replayCount: number | null
+    attempts: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ConsumerDeliveryMaxAggregateOutputType = {
+    consumer: string | null
+    messageKey: string | null
+    replayCount: number | null
+    attempts: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ConsumerDeliveryCountAggregateOutputType = {
+    consumer: number
+    messageKey: number
+    replayCount: number
+    attempts: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ConsumerDeliveryAvgAggregateInputType = {
+    replayCount?: true
+    attempts?: true
+  }
+
+  export type ConsumerDeliverySumAggregateInputType = {
+    replayCount?: true
+    attempts?: true
+  }
+
+  export type ConsumerDeliveryMinAggregateInputType = {
+    consumer?: true
+    messageKey?: true
+    replayCount?: true
+    attempts?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ConsumerDeliveryMaxAggregateInputType = {
+    consumer?: true
+    messageKey?: true
+    replayCount?: true
+    attempts?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ConsumerDeliveryCountAggregateInputType = {
+    consumer?: true
+    messageKey?: true
+    replayCount?: true
+    attempts?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ConsumerDeliveryAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ConsumerDelivery to aggregate.
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of ConsumerDeliveries to fetch.
+     */
+    orderBy?: ConsumerDeliveryOrderByWithRelationInput | ConsumerDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the start position
+     */
+    cursor?: ConsumerDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` ConsumerDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` ConsumerDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Count returned ConsumerDeliveries
+    **/
+    _count?: true | ConsumerDeliveryCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to average
+    **/
+    _avg?: ConsumerDeliveryAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to sum
+    **/
+    _sum?: ConsumerDeliverySumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the minimum value
+    **/
+    _min?: ConsumerDeliveryMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the maximum value
+    **/
+    _max?: ConsumerDeliveryMaxAggregateInputType
+  }
+
+  export type GetConsumerDeliveryAggregateType<T extends ConsumerDeliveryAggregateArgs> = {
+        [P in keyof T & keyof AggregateConsumerDelivery]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateConsumerDelivery[P]>
+      : GetScalarType<T[P], AggregateConsumerDelivery[P]>
+  }
+
+
+
+
+  export type ConsumerDeliveryGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ConsumerDeliveryWhereInput
+    orderBy?: ConsumerDeliveryOrderByWithAggregationInput | ConsumerDeliveryOrderByWithAggregationInput[]
+    by: ConsumerDeliveryScalarFieldEnum[] | ConsumerDeliveryScalarFieldEnum
+    having?: ConsumerDeliveryScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ConsumerDeliveryCountAggregateInputType | true
+    _avg?: ConsumerDeliveryAvgAggregateInputType
+    _sum?: ConsumerDeliverySumAggregateInputType
+    _min?: ConsumerDeliveryMinAggregateInputType
+    _max?: ConsumerDeliveryMaxAggregateInputType
+  }
+
+  export type ConsumerDeliveryGroupByOutputType = {
+    consumer: string
+    messageKey: string
+    replayCount: number
+    attempts: number
+    createdAt: Date
+    updatedAt: Date
+    _count: ConsumerDeliveryCountAggregateOutputType | null
+    _avg: ConsumerDeliveryAvgAggregateOutputType | null
+    _sum: ConsumerDeliverySumAggregateOutputType | null
+    _min: ConsumerDeliveryMinAggregateOutputType | null
+    _max: ConsumerDeliveryMaxAggregateOutputType | null
+  }
+
+  type GetConsumerDeliveryGroupByPayload<T extends ConsumerDeliveryGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ConsumerDeliveryGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ConsumerDeliveryGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ConsumerDeliveryGroupByOutputType[P]>
+            : GetScalarType<T[P], ConsumerDeliveryGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ConsumerDeliverySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    consumer?: boolean
+    messageKey?: boolean
+    replayCount?: boolean
+    attempts?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["consumerDelivery"]>
+
+  export type ConsumerDeliverySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    consumer?: boolean
+    messageKey?: boolean
+    replayCount?: boolean
+    attempts?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["consumerDelivery"]>
+
+  export type ConsumerDeliverySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    consumer?: boolean
+    messageKey?: boolean
+    replayCount?: boolean
+    attempts?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["consumerDelivery"]>
+
+  export type ConsumerDeliverySelectScalar = {
+    consumer?: boolean
+    messageKey?: boolean
+    replayCount?: boolean
+    attempts?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ConsumerDeliveryOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"consumer" | "messageKey" | "replayCount" | "attempts" | "createdAt" | "updatedAt", ExtArgs["result"]["consumerDelivery"]>
+
+  export type $ConsumerDeliveryPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ConsumerDelivery"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      consumer: string
+      messageKey: string
+      replayCount: number
+      attempts: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["consumerDelivery"]>
+    composites: {}
+  }
+
+  type ConsumerDeliveryGetPayload<S extends boolean | null | undefined | ConsumerDeliveryDefaultArgs> = $Result.GetResult<Prisma.$ConsumerDeliveryPayload, S>
+
+  type ConsumerDeliveryCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ConsumerDeliveryFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ConsumerDeliveryCountAggregateInputType | true
+    }
+
+  export interface ConsumerDeliveryDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ConsumerDelivery'], meta: { name: 'ConsumerDelivery' } }
+    /**
+     * Find zero or one ConsumerDelivery that matches the filter.
+     * @param {ConsumerDeliveryFindUniqueArgs} args - Arguments to find a ConsumerDelivery
+     * @example
+     * // Get one ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ConsumerDeliveryFindUniqueArgs>(args: SelectSubset<T, ConsumerDeliveryFindUniqueArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ConsumerDelivery that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ConsumerDeliveryFindUniqueOrThrowArgs} args - Arguments to find a ConsumerDelivery
+     * @example
+     * // Get one ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ConsumerDeliveryFindUniqueOrThrowArgs>(args: SelectSubset<T, ConsumerDeliveryFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ConsumerDelivery that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryFindFirstArgs} args - Arguments to find a ConsumerDelivery
+     * @example
+     * // Get one ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ConsumerDeliveryFindFirstArgs>(args?: SelectSubset<T, ConsumerDeliveryFindFirstArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ConsumerDelivery that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryFindFirstOrThrowArgs} args - Arguments to find a ConsumerDelivery
+     * @example
+     * // Get one ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ConsumerDeliveryFindFirstOrThrowArgs>(args?: SelectSubset<T, ConsumerDeliveryFindFirstOrThrowArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ConsumerDeliveries that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ConsumerDeliveries
+     * const consumerDeliveries = await prisma.consumerDelivery.findMany()
+     *
+     * // Get first 10 ConsumerDeliveries
+     * const consumerDeliveries = await prisma.consumerDelivery.findMany({ take: 10 })
+     *
+     * // Only select the `consumer`
+     * const consumerDeliveryWithConsumerOnly = await prisma.consumerDelivery.findMany({ select: { consumer: true } })
+     *
+     */
+    findMany<T extends ConsumerDeliveryFindManyArgs>(args?: SelectSubset<T, ConsumerDeliveryFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ConsumerDelivery.
+     * @param {ConsumerDeliveryCreateArgs} args - Arguments to create a ConsumerDelivery.
+     * @example
+     * // Create one ConsumerDelivery
+     * const ConsumerDelivery = await prisma.consumerDelivery.create({
+     *   data: {
+     *     // ... data to create a ConsumerDelivery
+     *   }
+     * })
+     *
+     */
+    create<T extends ConsumerDeliveryCreateArgs>(args: SelectSubset<T, ConsumerDeliveryCreateArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ConsumerDeliveries.
+     * @param {ConsumerDeliveryCreateManyArgs} args - Arguments to create many ConsumerDeliveries.
+     * @example
+     * // Create many ConsumerDeliveries
+     * const consumerDelivery = await prisma.consumerDelivery.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     */
+    createMany<T extends ConsumerDeliveryCreateManyArgs>(args?: SelectSubset<T, ConsumerDeliveryCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ConsumerDeliveries and returns the data saved in the database.
+     * @param {ConsumerDeliveryCreateManyAndReturnArgs} args - Arguments to create many ConsumerDeliveries.
+     * @example
+     * // Create many ConsumerDeliveries
+     * const consumerDelivery = await prisma.consumerDelivery.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Create many ConsumerDeliveries and only return the `consumer`
+     * const consumerDeliveryWithConsumerOnly = await prisma.consumerDelivery.createManyAndReturn({
+     *   select: { consumer: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    createManyAndReturn<T extends ConsumerDeliveryCreateManyAndReturnArgs>(args?: SelectSubset<T, ConsumerDeliveryCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ConsumerDelivery.
+     * @param {ConsumerDeliveryDeleteArgs} args - Arguments to delete one ConsumerDelivery.
+     * @example
+     * // Delete one ConsumerDelivery
+     * const ConsumerDelivery = await prisma.consumerDelivery.delete({
+     *   where: {
+     *     // ... filter to delete one ConsumerDelivery
+     *   }
+     * })
+     *
+     */
+    delete<T extends ConsumerDeliveryDeleteArgs>(args: SelectSubset<T, ConsumerDeliveryDeleteArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ConsumerDelivery.
+     * @param {ConsumerDeliveryUpdateArgs} args - Arguments to update one ConsumerDelivery.
+     * @example
+     * // Update one ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    update<T extends ConsumerDeliveryUpdateArgs>(args: SelectSubset<T, ConsumerDeliveryUpdateArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ConsumerDeliveries.
+     * @param {ConsumerDeliveryDeleteManyArgs} args - Arguments to filter ConsumerDeliveries to delete.
+     * @example
+     * // Delete a few ConsumerDeliveries
+     * const { count } = await prisma.consumerDelivery.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     *
+     */
+    deleteMany<T extends ConsumerDeliveryDeleteManyArgs>(args?: SelectSubset<T, ConsumerDeliveryDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ConsumerDeliveries.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ConsumerDeliveries
+     * const consumerDelivery = await prisma.consumerDelivery.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    updateMany<T extends ConsumerDeliveryUpdateManyArgs>(args: SelectSubset<T, ConsumerDeliveryUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ConsumerDeliveries and returns the data updated in the database.
+     * @param {ConsumerDeliveryUpdateManyAndReturnArgs} args - Arguments to update many ConsumerDeliveries.
+     * @example
+     * // Update many ConsumerDeliveries
+     * const consumerDelivery = await prisma.consumerDelivery.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Update zero or more ConsumerDeliveries and only return the `consumer`
+     * const consumerDeliveryWithConsumerOnly = await prisma.consumerDelivery.updateManyAndReturn({
+     *   select: { consumer: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    updateManyAndReturn<T extends ConsumerDeliveryUpdateManyAndReturnArgs>(args: SelectSubset<T, ConsumerDeliveryUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ConsumerDelivery.
+     * @param {ConsumerDeliveryUpsertArgs} args - Arguments to update or create a ConsumerDelivery.
+     * @example
+     * // Update or create a ConsumerDelivery
+     * const consumerDelivery = await prisma.consumerDelivery.upsert({
+     *   create: {
+     *     // ... data to create a ConsumerDelivery
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ConsumerDelivery we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ConsumerDeliveryUpsertArgs>(args: SelectSubset<T, ConsumerDeliveryUpsertArgs<ExtArgs>>): Prisma__ConsumerDeliveryClient<$Result.GetResult<Prisma.$ConsumerDeliveryPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ConsumerDeliveries.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryCountArgs} args - Arguments to filter ConsumerDeliveries to count.
+     * @example
+     * // Count the number of ConsumerDeliveries
+     * const count = await prisma.consumerDelivery.count({
+     *   where: {
+     *     // ... the filter for the ConsumerDeliveries we want to count
+     *   }
+     * })
+    **/
+    count<T extends ConsumerDeliveryCountArgs>(
+      args?: Subset<T, ConsumerDeliveryCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ConsumerDeliveryCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ConsumerDelivery.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ConsumerDeliveryAggregateArgs>(args: Subset<T, ConsumerDeliveryAggregateArgs>): Prisma.PrismaPromise<GetConsumerDeliveryAggregateType<T>>
+
+    /**
+     * Group by ConsumerDelivery.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ConsumerDeliveryGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     *
+    **/
+    groupBy<
+      T extends ConsumerDeliveryGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ConsumerDeliveryGroupByArgs['orderBy'] }
+        : { orderBy?: ConsumerDeliveryGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ConsumerDeliveryGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetConsumerDeliveryGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ConsumerDelivery model
+   */
+  readonly fields: ConsumerDeliveryFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ConsumerDelivery.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ConsumerDeliveryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ConsumerDelivery model
+   */
+  interface ConsumerDeliveryFieldRefs {
+    readonly consumer: FieldRef<"ConsumerDelivery", 'String'>
+    readonly messageKey: FieldRef<"ConsumerDelivery", 'String'>
+    readonly replayCount: FieldRef<"ConsumerDelivery", 'Int'>
+    readonly attempts: FieldRef<"ConsumerDelivery", 'Int'>
+    readonly createdAt: FieldRef<"ConsumerDelivery", 'DateTime'>
+    readonly updatedAt: FieldRef<"ConsumerDelivery", 'DateTime'>
+  }
+
+
+  // Custom InputTypes
+  /**
+   * ConsumerDelivery findUnique
+   */
+  export type ConsumerDeliveryFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter, which ConsumerDelivery to fetch.
+     */
+    where: ConsumerDeliveryWhereUniqueInput
+  }
+
+  /**
+   * ConsumerDelivery findUniqueOrThrow
+   */
+  export type ConsumerDeliveryFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter, which ConsumerDelivery to fetch.
+     */
+    where: ConsumerDeliveryWhereUniqueInput
+  }
+
+  /**
+   * ConsumerDelivery findFirst
+   */
+  export type ConsumerDeliveryFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter, which ConsumerDelivery to fetch.
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of ConsumerDeliveries to fetch.
+     */
+    orderBy?: ConsumerDeliveryOrderByWithRelationInput | ConsumerDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for ConsumerDeliveries.
+     */
+    cursor?: ConsumerDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` ConsumerDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` ConsumerDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of ConsumerDeliveries.
+     */
+    distinct?: ConsumerDeliveryScalarFieldEnum | ConsumerDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * ConsumerDelivery findFirstOrThrow
+   */
+  export type ConsumerDeliveryFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter, which ConsumerDelivery to fetch.
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of ConsumerDeliveries to fetch.
+     */
+    orderBy?: ConsumerDeliveryOrderByWithRelationInput | ConsumerDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for ConsumerDeliveries.
+     */
+    cursor?: ConsumerDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` ConsumerDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` ConsumerDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of ConsumerDeliveries.
+     */
+    distinct?: ConsumerDeliveryScalarFieldEnum | ConsumerDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * ConsumerDelivery findMany
+   */
+  export type ConsumerDeliveryFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter, which ConsumerDeliveries to fetch.
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of ConsumerDeliveries to fetch.
+     */
+    orderBy?: ConsumerDeliveryOrderByWithRelationInput | ConsumerDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for listing ConsumerDeliveries.
+     */
+    cursor?: ConsumerDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` ConsumerDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` ConsumerDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of ConsumerDeliveries.
+     */
+    distinct?: ConsumerDeliveryScalarFieldEnum | ConsumerDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * ConsumerDelivery create
+   */
+  export type ConsumerDeliveryCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * The data needed to create a ConsumerDelivery.
+     */
+    data: XOR<ConsumerDeliveryCreateInput, ConsumerDeliveryUncheckedCreateInput>
+  }
+
+  /**
+   * ConsumerDelivery createMany
+   */
+  export type ConsumerDeliveryCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ConsumerDeliveries.
+     */
+    data: ConsumerDeliveryCreateManyInput | ConsumerDeliveryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ConsumerDelivery createManyAndReturn
+   */
+  export type ConsumerDeliveryCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * The data used to create many ConsumerDeliveries.
+     */
+    data: ConsumerDeliveryCreateManyInput | ConsumerDeliveryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ConsumerDelivery update
+   */
+  export type ConsumerDeliveryUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * The data needed to update a ConsumerDelivery.
+     */
+    data: XOR<ConsumerDeliveryUpdateInput, ConsumerDeliveryUncheckedUpdateInput>
+    /**
+     * Choose, which ConsumerDelivery to update.
+     */
+    where: ConsumerDeliveryWhereUniqueInput
+  }
+
+  /**
+   * ConsumerDelivery updateMany
+   */
+  export type ConsumerDeliveryUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ConsumerDeliveries.
+     */
+    data: XOR<ConsumerDeliveryUpdateManyMutationInput, ConsumerDeliveryUncheckedUpdateManyInput>
+    /**
+     * Filter which ConsumerDeliveries to update
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * Limit how many ConsumerDeliveries to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ConsumerDelivery updateManyAndReturn
+   */
+  export type ConsumerDeliveryUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * The data used to update ConsumerDeliveries.
+     */
+    data: XOR<ConsumerDeliveryUpdateManyMutationInput, ConsumerDeliveryUncheckedUpdateManyInput>
+    /**
+     * Filter which ConsumerDeliveries to update
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * Limit how many ConsumerDeliveries to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ConsumerDelivery upsert
+   */
+  export type ConsumerDeliveryUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * The filter to search for the ConsumerDelivery to update in case it exists.
+     */
+    where: ConsumerDeliveryWhereUniqueInput
+    /**
+     * In case the ConsumerDelivery found by the `where` argument doesn't exist, create a new ConsumerDelivery with this data.
+     */
+    create: XOR<ConsumerDeliveryCreateInput, ConsumerDeliveryUncheckedCreateInput>
+    /**
+     * In case the ConsumerDelivery was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ConsumerDeliveryUpdateInput, ConsumerDeliveryUncheckedUpdateInput>
+  }
+
+  /**
+   * ConsumerDelivery delete
+   */
+  export type ConsumerDeliveryDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
+    /**
+     * Filter which ConsumerDelivery to delete.
+     */
+    where: ConsumerDeliveryWhereUniqueInput
+  }
+
+  /**
+   * ConsumerDelivery deleteMany
+   */
+  export type ConsumerDeliveryDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ConsumerDeliveries to delete
+     */
+    where?: ConsumerDeliveryWhereInput
+    /**
+     * Limit how many ConsumerDeliveries to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ConsumerDelivery without action
+   */
+  export type ConsumerDeliveryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ConsumerDelivery
+     */
+    select?: ConsumerDeliverySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ConsumerDelivery
+     */
+    omit?: ConsumerDeliveryOmit<ExtArgs> | null
   }
 
 
@@ -6600,6 +7742,18 @@ export namespace Prisma {
   export type OutboxEventScalarFieldEnum = (typeof OutboxEventScalarFieldEnum)[keyof typeof OutboxEventScalarFieldEnum]
 
 
+  export const ConsumerDeliveryScalarFieldEnum: {
+    consumer: 'consumer',
+    messageKey: 'messageKey',
+    replayCount: 'replayCount',
+    attempts: 'attempts',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ConsumerDeliveryScalarFieldEnum = (typeof ConsumerDeliveryScalarFieldEnum)[keyof typeof ConsumerDeliveryScalarFieldEnum]
+
+
   export const CheckoutEventScalarFieldEnum: {
     eventId: 'eventId',
     eventType: 'eventType',
@@ -6892,6 +8046,66 @@ export namespace Prisma {
     attempts?: IntWithAggregatesFilter<"OutboxEvent"> | number
     lastError?: StringNullableWithAggregatesFilter<"OutboxEvent"> | string | null
     nextAttemptAt?: DateTimeWithAggregatesFilter<"OutboxEvent"> | Date | string
+  }
+
+  export type ConsumerDeliveryWhereInput = {
+    AND?: ConsumerDeliveryWhereInput | ConsumerDeliveryWhereInput[]
+    OR?: ConsumerDeliveryWhereInput[]
+    NOT?: ConsumerDeliveryWhereInput | ConsumerDeliveryWhereInput[]
+    consumer?: StringFilter<"ConsumerDelivery"> | string
+    messageKey?: StringFilter<"ConsumerDelivery"> | string
+    replayCount?: IntFilter<"ConsumerDelivery"> | number
+    attempts?: IntFilter<"ConsumerDelivery"> | number
+    createdAt?: DateTimeFilter<"ConsumerDelivery"> | Date | string
+    updatedAt?: DateTimeFilter<"ConsumerDelivery"> | Date | string
+  }
+
+  export type ConsumerDeliveryOrderByWithRelationInput = {
+    consumer?: SortOrder
+    messageKey?: SortOrder
+    replayCount?: SortOrder
+    attempts?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ConsumerDeliveryWhereUniqueInput = Prisma.AtLeast<{
+    consumer_messageKey_replayCount?: ConsumerDeliveryConsumerMessageKeyReplayCountCompoundUniqueInput
+    AND?: ConsumerDeliveryWhereInput | ConsumerDeliveryWhereInput[]
+    OR?: ConsumerDeliveryWhereInput[]
+    NOT?: ConsumerDeliveryWhereInput | ConsumerDeliveryWhereInput[]
+    consumer?: StringFilter<"ConsumerDelivery"> | string
+    messageKey?: StringFilter<"ConsumerDelivery"> | string
+    replayCount?: IntFilter<"ConsumerDelivery"> | number
+    attempts?: IntFilter<"ConsumerDelivery"> | number
+    createdAt?: DateTimeFilter<"ConsumerDelivery"> | Date | string
+    updatedAt?: DateTimeFilter<"ConsumerDelivery"> | Date | string
+  }, "consumer_messageKey_replayCount">
+
+  export type ConsumerDeliveryOrderByWithAggregationInput = {
+    consumer?: SortOrder
+    messageKey?: SortOrder
+    replayCount?: SortOrder
+    attempts?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ConsumerDeliveryCountOrderByAggregateInput
+    _avg?: ConsumerDeliveryAvgOrderByAggregateInput
+    _max?: ConsumerDeliveryMaxOrderByAggregateInput
+    _min?: ConsumerDeliveryMinOrderByAggregateInput
+    _sum?: ConsumerDeliverySumOrderByAggregateInput
+  }
+
+  export type ConsumerDeliveryScalarWhereWithAggregatesInput = {
+    AND?: ConsumerDeliveryScalarWhereWithAggregatesInput | ConsumerDeliveryScalarWhereWithAggregatesInput[]
+    OR?: ConsumerDeliveryScalarWhereWithAggregatesInput[]
+    NOT?: ConsumerDeliveryScalarWhereWithAggregatesInput | ConsumerDeliveryScalarWhereWithAggregatesInput[]
+    consumer?: StringWithAggregatesFilter<"ConsumerDelivery"> | string
+    messageKey?: StringWithAggregatesFilter<"ConsumerDelivery"> | string
+    replayCount?: IntWithAggregatesFilter<"ConsumerDelivery"> | number
+    attempts?: IntWithAggregatesFilter<"ConsumerDelivery"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"ConsumerDelivery"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ConsumerDelivery"> | Date | string
   }
 
   export type CheckoutEventWhereInput = {
@@ -7262,6 +8476,69 @@ export namespace Prisma {
     attempts?: IntFieldUpdateOperationsInput | number
     lastError?: NullableStringFieldUpdateOperationsInput | string | null
     nextAttemptAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ConsumerDeliveryCreateInput = {
+    consumer: string
+    messageKey: string
+    replayCount?: number
+    attempts?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ConsumerDeliveryUncheckedCreateInput = {
+    consumer: string
+    messageKey: string
+    replayCount?: number
+    attempts?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ConsumerDeliveryUpdateInput = {
+    consumer?: StringFieldUpdateOperationsInput | string
+    messageKey?: StringFieldUpdateOperationsInput | string
+    replayCount?: IntFieldUpdateOperationsInput | number
+    attempts?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ConsumerDeliveryUncheckedUpdateInput = {
+    consumer?: StringFieldUpdateOperationsInput | string
+    messageKey?: StringFieldUpdateOperationsInput | string
+    replayCount?: IntFieldUpdateOperationsInput | number
+    attempts?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ConsumerDeliveryCreateManyInput = {
+    consumer: string
+    messageKey: string
+    replayCount?: number
+    attempts?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ConsumerDeliveryUpdateManyMutationInput = {
+    consumer?: StringFieldUpdateOperationsInput | string
+    messageKey?: StringFieldUpdateOperationsInput | string
+    replayCount?: IntFieldUpdateOperationsInput | number
+    attempts?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ConsumerDeliveryUncheckedUpdateManyInput = {
+    consumer?: StringFieldUpdateOperationsInput | string
+    messageKey?: StringFieldUpdateOperationsInput | string
+    replayCount?: IntFieldUpdateOperationsInput | number
+    attempts?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type CheckoutEventCreateInput = {
@@ -7783,6 +9060,49 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type ConsumerDeliveryConsumerMessageKeyReplayCountCompoundUniqueInput = {
+    consumer: string
+    messageKey: string
+    replayCount: number
+  }
+
+  export type ConsumerDeliveryCountOrderByAggregateInput = {
+    consumer?: SortOrder
+    messageKey?: SortOrder
+    replayCount?: SortOrder
+    attempts?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ConsumerDeliveryAvgOrderByAggregateInput = {
+    replayCount?: SortOrder
+    attempts?: SortOrder
+  }
+
+  export type ConsumerDeliveryMaxOrderByAggregateInput = {
+    consumer?: SortOrder
+    messageKey?: SortOrder
+    replayCount?: SortOrder
+    attempts?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ConsumerDeliveryMinOrderByAggregateInput = {
+    consumer?: SortOrder
+    messageKey?: SortOrder
+    replayCount?: SortOrder
+    attempts?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ConsumerDeliverySumOrderByAggregateInput = {
+    replayCount?: SortOrder
+    attempts?: SortOrder
   }
 
   export type CheckoutEventCountOrderByAggregateInput = {

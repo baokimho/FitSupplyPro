@@ -11,6 +11,10 @@ import { openRabbitMq } from "./broker.js";
 import { readRabbitMqConfig, type RabbitMqConfig } from "./config.js";
 import { declareRabbitMqTopology, DOMAIN_EXCHANGE } from "./topology.js";
 import { enqueueOutboxEvent, startOutboxPublisher, type OutboxDatabase, type OutboxStore } from "./outbox.js";
+import { claimDeliveryAttempt, type DeliveryDatabase } from "./delivery-store.js";
+import { DeliveryBudgetExhausted, DeliveryPoisonError, deliveryDiagnostic, deliveryErrorSummary, FAILURE_HEADER, messageKey, replayCount, REPLAY_COUNT_HEADER } from "./delivery-policy.js";
+import { DEAD_LETTER_EXCHANGE } from "./topology.js";
+import type { ConsumeMessage } from "amqplib";
 
 export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
   const flag = env.EVENT_DRIVEN_CHECKOUT ?? "false";
@@ -58,25 +62,26 @@ export function checkoutEventFingerprint(event: KnownIntegrationEvent) {
   return createHash("sha256").update(serializeIntegrationEvent(event)).digest("hex");
 }
 
-export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger, onFailure?: CheckoutFailureHandler, options?: { policy?: RetryPolicy; signal?: AbortSignal }) {
+export function checkoutMessageHandler(types: readonly EventType[], handler: CheckoutHandler, publish: CheckoutPublisher, logger: Logger, onFailure?: CheckoutFailureHandler, options?: { policy?: RetryPolicy; signal?: AbortSignal; beforeAttempt?: (event: KnownIntegrationEvent) => Promise<number | null> }) {
   return async (content: Uint8Array) => {
     const event = deserializeIntegrationEvent(content);
-    if (!types.includes(event.eventType)) throw new ConflictError("Unexpected checkout event type");
+    if (!types.includes(event.eventType)) throw new DeliveryPoisonError();
     const metadata = { eventId: event.eventId, eventType: event.eventType, eventVersion: event.eventVersion,
       correlationId: event.correlationId, causationId: event.causationId, producer: event.producer, orderId: event.data.orderId };
     return runWithCorrelation({ requestId: randomUUID(), traceId: event.correlationId }, async () => {
       try {
         await retryOperation(async (attempt) => {
+          const deliveryAttempt = await options?.beforeAttempt?.(event);
           const result = await handler(event);
           if (result) await publish(result);
-          logger.info({ ...metadata, attempt }, "checkout event completed; safe to acknowledge");
+          logger.info({ ...metadata, attempt, deliveryAttempt }, "checkout event completed; safe to acknowledge");
         }, { ...(options?.policy ?? readResilienceConfig()), dependency: "checkout-handler", operation: event.eventType,
           safe: true, logger: logger.child(metadata), signal: options?.signal });
       } catch (err) {
         if (classifyFailure(err) === "cancelled") throw err;
-        logger.error({ ...metadata, failureClass: classifyFailure(err), err }, "checkout event processing failed");
+        logger.error({ ...metadata, ...deliveryErrorSummary(err) }, "checkout event processing failed");
         if (onFailure) {
-          const failure = await onFailure(event, err, canRetry(err, true));
+          const failure = await onFailure(event, err, err instanceof DeliveryBudgetExhausted || canRetry(err, true));
           if (failure) await publish(failure);
         }
         throw err;
@@ -85,8 +90,41 @@ export function checkoutMessageHandler(types: readonly EventType[], handler: Che
   };
 }
 
+/** One budget across short retries and broker/process redelivery. */
+export function createCheckoutDeliveryHandler(queue: string, types: readonly EventType[], handler: CheckoutHandler,
+  persist: CheckoutPublisher, logger: Logger, database: DeliveryDatabase, onFailure?: CheckoutFailureHandler) {
+  const policy = readResilienceConfig();
+  const attempts = new WeakMap<ConsumeMessage, number>();
+  return {
+    handle: async (message: ConsumeMessage) => {
+      const epoch = replayCount(message);
+      const process = checkoutMessageHandler(types, handler, persist, logger, onFailure, { policy, beforeAttempt: async (event) => {
+        try {
+          const attempt = await claimDeliveryAttempt(database, { consumer: queue, messageKey: messageKey(message.content), replayCount: epoch }, event, policy.maxAttempts);
+          if (attempt !== null) attempts.set(message, attempt);
+          return attempt;
+        } catch (error) {
+          if (error instanceof DeliveryBudgetExhausted) attempts.set(message, policy.maxAttempts);
+          throw error;
+        }
+      } });
+      await process(message.content);
+    },
+    quarantine: async (message: ConsumeMessage, error: unknown, publish: (exchange: string, key: string, body: Buffer, headers: Record<string, unknown>) => Promise<void>) => {
+      let epoch = 0;
+      try { epoch = replayCount(message); } catch { epoch = 3; }
+      const diagnostic = deliveryDiagnostic(queue, { ...message, properties: { ...message.properties, headers: { ...message.properties.headers, [REPLAY_COUNT_HEADER]: epoch } } }, error, attempts.get(message) ?? 0, policy.maxAttempts);
+      logger.warn(diagnostic, "delivery quarantine pending confirmation");
+      await publish(DEAD_LETTER_EXCHANGE, queue, message.content, {
+        [FAILURE_HEADER]: JSON.stringify(diagnostic), [REPLAY_COUNT_HEADER]: epoch,
+        "x-fitsupply-original-routing-key": diagnostic.routingKey,
+      });
+    },
+  };
+}
+
 /** Settlement waits for validated work and confirmed publication or durable intent. */
-export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, onFailure?: CheckoutFailureHandler, outbox?: OutboxDatabase) {
+export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, onFailure: CheckoutFailureHandler | undefined, outbox: OutboxDatabase & DeliveryDatabase) {
   const broker = await openRabbitMq(config, logger);
   try {
     const topology = await broker.createChannel();
@@ -94,14 +132,14 @@ export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Log
     await topology.close();
     const publisher = await broker.createPublisher();
     const publish: CheckoutPublisher = (event) => publisher.publish(DOMAIN_EXCHANGE, event.eventType, serializeIntegrationEvent(event));
-    const persist: CheckoutPublisher = outbox ? async (event) => {
+    const persist: CheckoutPublisher = async (event) => {
       await outbox.$transaction((tx) => enqueueOutboxEvent(tx, event));
       logger.info({ eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId }, "outbox publication intent persisted");
-    } : publish;
-    const process = checkoutMessageHandler(types, handler, persist, logger, onFailure);
-    await broker.subscribe(queue, (message) => process(message.content));
-    const worker = outbox ? startOutboxPublisher(outbox, publish, logger) : undefined;
-    return { publish, isReady: broker.isReady, stop: () => worker?.stop(), close: async () => { await worker?.close(); await broker.close(); } };
+    };
+    const delivery = createCheckoutDeliveryHandler(queue, types, handler, persist, logger, outbox, onFailure);
+    await broker.subscribe(queue, delivery.handle, 10, (message, error) => delivery.quarantine(message, error, publisher.publish));
+    const worker = startOutboxPublisher(outbox, publish, logger);
+    return { publish, isReady: broker.isReady, stop: worker.stop, close: async () => { await worker.close(); await broker.close(); } };
   } catch (err) {
     await broker.close();
     throw err;
@@ -109,7 +147,7 @@ export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Log
 }
 
 /** Reuse broker primitives; reconnect complete consumer/publisher session after loss. */
-export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, database: OutboxDatabase, onFailure?: CheckoutFailureHandler) {
+export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, database: OutboxDatabase & DeliveryDatabase, onFailure?: CheckoutFailureHandler) {
   const connect = () => startCheckoutMessaging(config, logger, queue, types, handler, onFailure, database);
   let session = await connect();
   let stopped = false;

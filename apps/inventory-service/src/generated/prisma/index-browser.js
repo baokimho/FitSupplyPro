@@ -132,6 +132,15 @@ exports.Prisma.OutboxEventScalarFieldEnum = {
   nextAttemptAt: 'nextAttemptAt'
 };
 
+exports.Prisma.ConsumerDeliveryScalarFieldEnum = {
+  consumer: 'consumer',
+  messageKey: 'messageKey',
+  replayCount: 'replayCount',
+  attempts: 'attempts',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.CheckoutEventScalarFieldEnum = {
   eventId: 'eventId',
   eventType: 'eventType',
@@ -177,6 +186,7 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   OutboxEvent: 'OutboxEvent',
+  ConsumerDelivery: 'ConsumerDelivery',
   CheckoutEvent: 'CheckoutEvent',
   Inventory: 'Inventory',
   InventoryOperation: 'InventoryOperation'

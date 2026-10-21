@@ -25,6 +25,7 @@ export * from "./events/boundary.js";
 export * from "./messaging/checkout.js";
 export * from "./messaging/outbox.js";
 export * from "./messaging/delivery-policy.js";
+export * from "./messaging/delivery-store.js";
 export * from "./resilience/failure.js";
 export * from "./resilience/config.js";
 export * from "./resilience/timeout.js";

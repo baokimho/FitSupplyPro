@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Logger } from "../logging/logger.js";
 import { getCorrelation } from "../http/correlation.js";
 import type { RabbitMqConfig } from "./config.js";
-import { consumeRabbitMq, type RabbitMqHandler } from "./consumer.js";
+import { consumeRabbitMq, type RabbitMqHandler, type RabbitMqFailureHandler } from "./consumer.js";
 
 const CONFIRM_TIMEOUT_MS = 3000;
 
@@ -64,7 +64,7 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
     channel.on("close", () => { criticalChannelsReady = false; });
     let tail: Promise<void> = Promise.resolve();
     // ponytail: one publish in flight per publisher; use multiple publishers for higher throughput.
-    function publish(exchange: string, routingKey: string, content: Buffer): Promise<void> {
+    function publish(exchange: string, routingKey: string, content: Buffer, headers: Record<string, unknown> = {}): Promise<void> {
       const correlation = getCorrelation();
       const result = tail.then(() => {
         assertOpen(true);
@@ -103,7 +103,7 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
             drained = channel.publish(exchange, routingKey, content, {
               persistent: true,
               mandatory: true,
-              headers: correlation ? { "x-request-id": correlation.requestId, "x-trace-id": correlation.traceId } : {},
+              headers: { ...headers, ...(correlation ? { "x-request-id": correlation.requestId, "x-trace-id": correlation.traceId } : {}) },
             }, (err: unknown) => {
               confirmed = true;
               if (err) finish(err);
@@ -120,11 +120,12 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
     return { publish };
   }
 
-  async function subscribe(queue: string, handler: RabbitMqHandler, prefetch = 10) {
+  async function subscribe(queue: string, handler: RabbitMqHandler, prefetch = 10, quarantine?: RabbitMqFailureHandler) {
     const channel = await createChannel();
     channel.on("close", () => { criticalChannelsReady = false; });
     try {
-      const consumer = await consumeRabbitMq(channel, queue, (message) => consumerWork.run(true, () => handler(message)), logger, prefetch);
+      const consumer = await consumeRabbitMq(channel, queue, (message) => consumerWork.run(true, () => handler(message)), logger, prefetch,
+        quarantine ? (message, error) => consumerWork.run(true, () => quarantine(message, error)) : undefined);
       consumers.add(consumer.stop);
       subscriptionReadiness.add(consumer.isReady);
       if (closing) { await consumer.stop(); throw new Error("Broker shutting down"); }
