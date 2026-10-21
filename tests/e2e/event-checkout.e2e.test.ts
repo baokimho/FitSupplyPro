@@ -88,7 +88,8 @@ afterAll(async () => { if (broker) await broker.close(); });
 
 describe("event-driven HTTP checkout", () => {
   it(decline ? "provider decline cancels Order and releases stock once under duplicate delivery" : "confirms Order and charges/reserves once under duplicate delivery", async () => {
-    const { customer, productId, order } = await setup(10);
+    const fixture = await setup(10);
+    const { customer, productId, order } = fixture;
     const terminal = decline ? "CANCELLED" : "CONFIRMED";
     await vi.waitFor(async () => {
       expect(orderSchema.parse(await json("GET", `/order/orders/${order.id}`, customer.accessToken)).status).toBe(terminal);
@@ -131,10 +132,11 @@ describe("event-driven HTTP checkout", () => {
     expect(scalar("payment_test_db", `SELECT count(*) FROM "FakeProviderOperation" f JOIN "Payment" p ON f."idempotencyKey"=p."id"||':settle' WHERE p."orderId"='${order.id}'`)).toBe(1);
     expect(saga(order.id).state).toBe(decline ? "COMPENSATED" : "COMPLETED");
     for (const queue of DOMAIN_QUEUES) expect((await channel.checkQueue(`${queue.name}.dlq`)).messageCount).toBe(0);
+    await verifyOperatorReplay(fixture);
   }, 40000);
 
-  it("operator replays duplicate DLQ facts through Inventory, Payment and Order without repeated effects", async () => {
-    const { customer, productId, order } = await setup(10);
+  async function verifyOperatorReplay(fixture: Awaited<ReturnType<typeof setup>>) {
+    const { customer, productId, order } = fixture;
     await vi.waitFor(async () => {
       expect(saga(order.id).state).toBe(decline ? "COMPENSATED" : "COMPLETED");
       await audit();
@@ -175,7 +177,7 @@ describe("event-driven HTTP checkout", () => {
     expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}'`)).toBe(1);
     expect(scalar("payment_test_db", `SELECT count(*) FROM "FakeProviderOperation" f JOIN "Payment" p ON f."idempotencyKey"=p."id"||':settle' WHERE p."orderId"='${order.id}'`)).toBe(1);
     for (const target of targets) expect((await channel.checkQueue(`${target.queue}.dlq`)).messageCount).toBe(0);
-  }, 45000);
+  }
 
   it("insufficient stock cancels without creating Payment; duplicate failure remains harmless", async () => {
     const { customer, productId, order } = await setup(0);
