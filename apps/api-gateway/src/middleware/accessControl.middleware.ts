@@ -12,7 +12,8 @@ export function requireRole(role: string) {
 }
 
 export function blockInternalRoute(req: Request, _res: Response, _next: NextFunction) {
-  if (req.path === "/internal" || req.path.startsWith("/internal/")) {
+  const path = req.path.toLowerCase();
+  if (path === "/internal" || path.startsWith("/internal/")) {
     throw new ForbiddenError();
   }
 

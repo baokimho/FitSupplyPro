@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { wrapAsync, verifyAuthToken, createPublicKeyLoader } from "@shared/utils";
+import { wrapAsync, verifyAuthToken, createPublicKeyLoader, ServiceUnavailableError } from "@shared/utils";
 import type { AuthSessionUser } from "@shared/utils";
 
 import { config } from "../config/index.js";
@@ -13,13 +13,16 @@ export type GatewayUser = AuthSessionUser;
 export const authMiddleware = wrapAsync(async (req: Request, res: Response, next: NextFunction) => {
 	const authorization = req.headers.authorization;
 	const authHeader = Array.isArray(authorization) ? authorization[0] : authorization;
-	const token = authHeader?.split(" ")[1];
+	const token = authHeader?.match(/^Bearer ([^\s]+)$/i)?.[1];
 
 	if (!token) {
 		return res.status(StatusCodes.UNAUTHORIZED).json({ error: { code: "UNAUTHORIZED", message: "Missing token" } });
 	}
 
-	const payload = await verifyAuthToken(token, await getPublicKey(), "access");
+	let publicKey: Awaited<ReturnType<typeof getPublicKey>>;
+	try { publicKey = await getPublicKey(); }
+	catch { throw new ServiceUnavailableError("Authentication service unavailable"); }
+	const payload = await verifyAuthToken(token, publicKey, "access");
 
 	if (
 		typeof payload.sub !== "string" ||

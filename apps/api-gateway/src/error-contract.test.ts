@@ -49,22 +49,32 @@ describe("gateway direct error envelopes", () => {
     expect(response.body).toEqual({ error: { code: "TOO_MANY_REQUESTS", message: "Too many requests" } });
   });
 
+  it("normalizes unavailable JWKS without exposing loader internals", async () => {
+    mocks.key.mockRejectedValueOnce(new Error("private auth hostname and credentials"));
+    const app = express();
+    app.get("/", authMiddleware);
+    app.use(errorHandler);
+    const response = await request(app).get("/").set("Authorization", "Bearer token").expect(503);
+    expect(response.body).toEqual({ error: { code: "SERVICE_UNAVAILABLE", message: "Authentication service unavailable" } });
+  });
+
   it("keeps all eight proxy-failure responses nested", () => {
     const logged = vi.spyOn(logger, "error").mockImplementation(() => {});
     expect(mocks.configs).toHaveLength(8);
     for (const config of mocks.configs) {
-      expect(config.timeout).toBe(30000);
+      expect(config.timeout).toBeUndefined();
       expect(config.proxyTimeout).toBe(30000);
       const res = { headersSent: false, status: vi.fn(), json: vi.fn() };
       res.status.mockReturnValue(res);
       expect(config.on?.error).toBeTypeOf("function");
       config.on?.error?.(new Error("private proxy failure"), {} as Request, res as unknown as Response);
-      expect(res.status).toHaveBeenCalledWith(503);
-      expect(res.json).toHaveBeenCalledWith({ error: { code: "SERVICE_UNAVAILABLE", message: "Service unavailable" } });
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.json).toHaveBeenCalledWith({ error: { code: "BAD_GATEWAY", message: "Bad gateway" } });
     }
     expect(logged).toHaveBeenCalledTimes(8);
     for (const [context, message] of logged.mock.calls) {
-      expect(context).toMatchObject({ err: expect.any(Error), targetService: expect.stringMatching(/-service$/), operation: "proxy", statusCode: 503, timeoutMs: 30000, failureClass: "ambiguous" });
+      expect(context).toMatchObject({ transportCode: "BAD_RESPONSE", targetService: expect.stringMatching(/-service$/), operation: "proxy", statusCode: 502, timeoutMs: 30000, failureClass: "ambiguous" });
+      expect(context).not.toHaveProperty("err");
       expect(context).not.toHaveProperty("headers");
       expect(message).toBe("proxy request failed");
     }
@@ -74,7 +84,7 @@ describe("gateway direct error envelopes", () => {
     const clock = vi.spyOn(performance, "now").mockReturnValueOnce(100).mockReturnValue(150);
     try {
       const req = { method: "POST" } as Request;
-      attachUserHeaders({ removeHeader: vi.fn(), setHeader: vi.fn() } as unknown as ClientRequest, req);
+      attachUserHeaders({ removeHeader: vi.fn(), setHeader: vi.fn(), getHeaderNames: () => [] } as unknown as ClientRequest, req);
       expect(proxyFailureContext(req)).toEqual({ elapsedMs: 50, timeoutMs: 30000, failureClass: "ambiguous" });
       req.method = "GET";
       expect(proxyFailureContext(req).failureClass).toBe("transient");

@@ -5,7 +5,10 @@ import { requireGatewaySecret, correlationMiddleware, validCorrelationId } from 
 import type { ClientRequest } from "http";
 import type { Request } from "express";
 
-vi.mock("./config/index.js", () => ({ config: { gatewaySecret: "test-gateway-secret" } }));
+vi.mock("./config/index.js", async () => {
+  const { loadConfig } = await import("./config/env.js");
+  return { config: loadConfig({ GATEWAY_SECRET: "test-gateway-secret" }) };
+});
 
 vi.mock("./middleware/auth.middleware.js", () => ({
   authMiddleware: (req: Request, _res: express.Response, next: express.NextFunction) => {
@@ -56,6 +59,8 @@ class HeaderCapture {
   removeHeader(name: string) {
     this.headers.delete(name.toLowerCase());
   }
+
+  getHeaderNames() { return [...this.headers.keys()]; }
 }
 
 describe("api-gateway security boundaries", () => {

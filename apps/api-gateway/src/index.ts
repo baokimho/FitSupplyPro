@@ -1,31 +1,17 @@
-import express from "express";
-import { healthRouter, readiness } from "./health.js";
+import { readiness } from "./health.js";
 import { logger } from "./logger.js";
-import cors from "cors";
 import { config } from "./config/index.js";
-import router from "./routes.js";
-import helmet from "helmet";
-import { installShutdown, shutdownGuard, correlationMiddleware, httpLogger, createErrorHandler } from "@shared/utils";
+import { installShutdown } from "@shared/utils";
+import { createApp } from "./app.js";
 
-
-
-const app = express();
-
-app.use(correlationMiddleware("gateway"));
-app.use(httpLogger(logger));
-
-app.use(helmet());
-app.use(cors({ exposedHeaders: ["x-request-id"] }));
-app.use(healthRouter);
-app.use(shutdownGuard(readiness));
-app.set("trust proxy", 1);
-app.use(router);
-app.use(createErrorHandler(logger));
+const app = createApp();
 
 const PORT = config.port;
 
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT }, "service started");
 });
+server.requestTimeout = config.proxyTimeoutMs;
+server.headersTimeout = Math.min(10_000, config.proxyTimeoutMs);
 
 installShutdown({ server, logger, state: readiness });

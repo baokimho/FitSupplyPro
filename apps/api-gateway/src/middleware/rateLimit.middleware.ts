@@ -1,6 +1,7 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { Request, RequestHandler, Response } from "express";
 import { StatusCodes } from "http-status-codes";
+import { config } from "../config/index.js";
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -37,12 +38,13 @@ function createLimiter(windowMs: number, limit: number, keyGenerator: (req: Requ
   });
 }
 
-export const authLimiter = createLimiter(60_000, 5, clientIpKeyGenerator);
-export const refreshTokenLimiter = createLimiter(60_000, 30, clientIpKeyGenerator);
-export const catalogLimiter = createLimiter(60_000, 300, authenticatedUserKeyGenerator);
-export const inventoryLimiter = createLimiter(60_000, 300, authenticatedUserKeyGenerator);
-export const cartLimiter = createLimiter(60_000, 100, authenticatedUserKeyGenerator);
-export const orderLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
-export const paymentLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
-export const shippingLimiter = createLimiter(60_000, 50, authenticatedUserKeyGenerator);
-export const notificationLimiter = createLimiter(60_000, 100, authenticatedUserKeyGenerator);
+export const generalLimiter = createLimiter(config.rateWindowMs, config.rateLimit, clientIpKeyGenerator);
+export const authLimiter = createLimiter(config.rateWindowMs, config.authRateLimit, clientIpKeyGenerator);
+export const refreshTokenLimiter = createLimiter(config.rateWindowMs, config.refreshRateLimit, clientIpKeyGenerator);
+export const catalogLimiter = createLimiter(config.rateWindowMs, 300, authenticatedUserKeyGenerator);
+export const inventoryLimiter = createLimiter(config.rateWindowMs, 300, authenticatedUserKeyGenerator);
+export const cartLimiter = createLimiter(config.rateWindowMs, 100, authenticatedUserKeyGenerator);
+export const orderLimiter = createLimiter(config.rateWindowMs, 50, authenticatedUserKeyGenerator);
+export const paymentLimiter = createLimiter(config.rateWindowMs, 50, authenticatedUserKeyGenerator);
+export const shippingLimiter = createLimiter(config.rateWindowMs, 50, authenticatedUserKeyGenerator);
+export const notificationLimiter = createLimiter(config.rateWindowMs, 100, authenticatedUserKeyGenerator);
