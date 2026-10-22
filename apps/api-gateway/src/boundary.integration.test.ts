@@ -131,6 +131,15 @@ describe("real Gateway HTTP boundary", () => {
     expect(response.body.headers).not.toHaveProperty("transfer-encoding");
   });
 
+  it("Expect cannot bypass proxy identity, body forwarding or deadline hooks", async () => {
+    const response = await request(app).post("/cart/echo").set("Authorization", `Bearer ${token}`)
+      .set("Expect", "100-continue").set("x-user-id", "attacker").send({ value: 1 }).expect(200);
+    expect(response.body.headers["x-user-id"]).toBe("verified-user");
+    expect(response.body.headers).not.toHaveProperty("expect");
+    expect(response.body.body).toBe('{"value":1}');
+    await request(app).post("/auth/hang").set("Expect", "100-continue").send({ value: 1 }).expect(504);
+  });
+
   it("caps chunked bodies and rejects invalid UTF-8 without forwarding", async () => {
     const count = seen.length;
     const response = await new Promise<{ status: number; body: string }>((resolve, reject) => {
