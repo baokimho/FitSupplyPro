@@ -73,7 +73,7 @@ export function createPublicKeyLoader(authServiceUrl: string, gatewaySecret: str
           redirect: "error",
           headers: { ...correlationHeaders(), "x-internal-secret": typeof gatewaySecret === "function" ? gatewaySecret() : gatewaySecret }
         }, { dependency: "auth-service", operation: "jwks", timeoutMs, safe: true, logger });
-        if (!response.ok || text.length > 65536) throw new Error();
+        if (!response.ok || Buffer.byteLength(text, "utf8") > 65536) throw new Error();
         const data: unknown = JSON.parse(text);
         if (typeof data !== "object" || data === null || !("keys" in data) || !Array.isArray(data.keys) || data.keys.length < 1 || data.keys.length > 8) throw new Error();
         const updated = new Map<string, CryptoKey>();

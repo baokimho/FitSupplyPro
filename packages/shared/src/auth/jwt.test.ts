@@ -94,9 +94,9 @@ describe("bounded JWKS loader", () => {
     vi.setSystemTime(Date.now() + 1001); expect(await get(header)).toBe(first);
     vi.setSystemTime(Date.now() + 2001); await expect(get(header)).rejects.toMatchObject({ status: 503 });
   });
-  it.each(["private", "duplicate", "algorithm", "empty", "malformed"])("rejects invalid JWKS %s safely", async (kind) => {
+  it.each(["private", "duplicate", "algorithm", "empty", "malformed", "oversized"])("rejects invalid JWKS %s safely", async (kind) => {
     const key = kind === "private" ? { ...jwk, d: "private-secret" } : kind === "algorithm" ? { ...jwk, alg: "HS256" } : jwk;
-    vi.stubGlobal("fetch", vi.fn(async () => kind === "malformed" ? new Response("not JSON secret") : Response.json({ keys: kind === "empty" ? [] : kind === "duplicate" ? [key, key] : [key] })));
+    vi.stubGlobal("fetch", vi.fn(async () => kind === "malformed" ? new Response("not JSON secret") : Response.json({ keys: kind === "empty" ? [] : kind === "duplicate" ? [key, key] : [key], padding: kind === "oversized" ? "é".repeat(33000) : undefined })));
     await expect(createPublicKeyLoader("https://auth.test", "secret", policy)(header)).rejects.toMatchObject({ status: 503, message: "Authentication service unavailable" });
   });
 });
