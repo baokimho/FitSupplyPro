@@ -1,11 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { wrapAsync, verifyAuthToken, createPublicKeyLoader, ServiceUnavailableError } from "@shared/utils";
+import { wrapAsync, verifyAuthToken, createPublicKeyLoader } from "@shared/utils";
 import type { AuthSessionUser } from "@shared/utils";
 
 import { config } from "../config/index.js";
 
-const getPublicKey = createPublicKeyLoader(config.jwksAuthServiceUrl, config.gatewaySecret);
+const getPublicKey = createPublicKeyLoader(config.jwksAuthServiceUrl, config.gatewaySecret, config.authPolicy);
 
 export type GatewayUser = AuthSessionUser;
 
@@ -19,16 +19,11 @@ export const authMiddleware = wrapAsync(async (req: Request, res: Response, next
 		return res.status(StatusCodes.UNAUTHORIZED).json({ error: { code: "UNAUTHORIZED", message: "Missing token" } });
 	}
 
-	let publicKey: Awaited<ReturnType<typeof getPublicKey>>;
-	try { publicKey = await getPublicKey(); }
-	catch { throw new ServiceUnavailableError("Authentication service unavailable"); }
-	const payload = await verifyAuthToken(token, publicKey, "access");
+	const payload = await verifyAuthToken(token, getPublicKey, "access", config.authPolicy);
 
 	if (
 		typeof payload.sub !== "string" ||
-		typeof payload.email !== "string" ||
-		typeof payload.name !== "string" ||
-		typeof payload.role !== "string"
+		(payload.role !== "CUSTOMER" && payload.role !== "ADMIN")
 	) {
 		return res.status(StatusCodes.UNAUTHORIZED).json({ error: { code: "UNAUTHORIZED", message: "Invalid token" } });
 	}

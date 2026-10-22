@@ -1,5 +1,7 @@
 import { readProxyTimeout, parseLogLevel, parseNodeEnv, parsePort, requireEnvString, parseUrl, ConfigurationError } from "@shared/utils";
 
+import { readAuthPolicy } from "@shared/utils";
+
 function integer(env: NodeJS.ProcessEnv, name: string, fallback: number, max: number) {
   const value = env[name];
   const result = value === undefined ? fallback : Number(value);
@@ -25,6 +27,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
   const serviceUrl = (name: string, fallback: string) => origin(name,
     nodeEnv === "production" ? requireEnvString(name, env[name]) : env[name] ?? fallback);
   return {
+    authPolicy: readAuthPolicy(env),
     bodyLimitBytes: integer(env, "GATEWAY_BODY_LIMIT_BYTES", 1_048_576, 10_485_760),
     rateWindowMs: integer(env, "GATEWAY_RATE_WINDOW_MS", 60_000, 3_600_000),
     rateLimit: integer(env, "GATEWAY_RATE_LIMIT", 600, 100_000),

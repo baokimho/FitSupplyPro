@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createServer, request as httpRequest, type Server } from "node:http";
 import { connect } from "node:net";
 import { EventEmitter, once } from "node:events";
@@ -45,12 +46,12 @@ describe("real Gateway HTTP boundary", () => {
 
   beforeAll(async () => {
     const keys = await generateKeyPair("RS256");
-    const jwk = await exportJWK(keys.publicKey);
+    const jwk = { ...await exportJWK(keys.publicKey), kid: "gateway-boundary", alg: "RS256", use: "sig" };
     const sign = (role: string, expiration: string) => new SignJWT({ email: "person@test.invalid", name: "Person", role, type: "access" })
-      .setProtectedHeader({ alg: "RS256" }).setSubject("verified-user").setIssuer("fitsupply-auth-service")
+      .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: "gateway-boundary" }).setIssuedAt().setJti(randomUUID()).setSubject("verified-user").setIssuer("fitsupply-auth-service")
       .setAudience("fitsupply-api").setExpirationTime(expiration).sign(keys.privateKey);
     token = await sign("CUSTOMER", "5m");
-    expired = await sign("CUSTOMER", "-1s");
+    expired = await sign("CUSTOMER", "-10s");
     admin = await sign("ADMIN", "5m");
     upstream = createServer(async (req, res) => {
       const chunks: Buffer[] = [];

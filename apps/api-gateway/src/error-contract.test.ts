@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Options } from "http-proxy-middleware";
 import type { ClientRequest } from "node:http";
 import { attachUserHeaders, proxyFailureContext } from "./proxy/userHeaders.proxy.js";
-import { errorHandler } from "@shared/utils";
+import { errorHandler, ServiceUnavailableError } from "@shared/utils";
 import { authMiddleware } from "./middleware/auth.middleware.js";
 import { authLimiter } from "./middleware/rateLimit.middleware.js";
 import { logger } from "./logger.js";
@@ -50,7 +50,8 @@ describe("gateway direct error envelopes", () => {
   });
 
   it("normalizes unavailable JWKS without exposing loader internals", async () => {
-    mocks.key.mockRejectedValueOnce(new Error("private auth hostname and credentials"));
+    mocks.key.mockRejectedValueOnce(new ServiceUnavailableError("Authentication service unavailable"));
+    mocks.verify.mockImplementationOnce(async (_token: string, resolver: () => Promise<unknown>) => resolver());
     const app = express();
     app.get("/", authMiddleware);
     app.use(errorHandler);

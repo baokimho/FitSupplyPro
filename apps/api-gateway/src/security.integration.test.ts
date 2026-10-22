@@ -14,7 +14,7 @@ vi.mock("./middleware/auth.middleware.js", () => ({
   authMiddleware: (req: Request, _res: express.Response, next: express.NextFunction) => {
     req.user = {
       id: req.get("x-test-user-id") ?? "customer-1",
-      role: req.get("x-test-user-role") ?? "CUSTOMER",
+      role: req.get("x-test-user-role") === "ADMIN" ? "ADMIN" : "CUSTOMER",
     };
     next();
   },
