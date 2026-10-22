@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT, type CryptoKey } from "jose";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { BadRequestError, errorHandler, ServiceUnavailableError } from "@shared/utils";
+import { BadRequestError, errorHandler } from "@shared/utils";
 import { Prisma, PrismaClient } from "../generated/prisma/index.js";
 import { saveRefreshToken } from "./auth.service.js";
 import express from "express";
@@ -14,8 +15,8 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: "pos
 let privateKey: CryptoKey;
 
 async function makeToken(type = "refresh", expires = true) {
-  const token = new SignJWT({ sub: "test-user", type })
-    .setProtectedHeader({ alg: "RS256" })
+  const token = new SignJWT({ sub: "test-user", type, role: "CUSTOMER" })
+    .setProtectedHeader({ alg: "RS256", typ: "JWT", kid: "unit-key" }).setIssuedAt().setJti(randomUUID())
     .setIssuer("fitsupply-auth-service")
     .setAudience("fitsupply-api");
   if (expires) token.setExpirationTime("5m");
@@ -26,7 +27,8 @@ describe("refresh-token error translation", () => {
   beforeAll(async () => {
     const keys = await generateKeyPair("RS256", { extractable: true });
     privateKey = keys.privateKey;
-    config.jwtPublicKeyBase64 = Buffer.from(JSON.stringify(await exportJWK(keys.publicKey))).toString("base64");
+    config.jwtPublicKeyBase64 = Buffer.from(JSON.stringify({ ...await exportJWK(keys.publicKey), kid: "unit-key" })).toString("base64");
+    config.jwtPrivateKeyBase64 = Buffer.from(JSON.stringify({ ...await exportJWK(keys.privateKey), kid: "unit-key" })).toString("base64");
   });
 
   afterEach(() => {
@@ -52,8 +54,10 @@ describe("refresh-token error translation", () => {
     const priorKey = config.jwtPublicKeyBase64;
     config.jwtPublicKeyBase64 = "not-json";
     try {
-      const error = await saveRefreshToken(prisma, "test-user", token).catch((error: unknown) => error);
-      expect(error).toBeInstanceOf(ServiceUnavailableError);
+      vi.resetModules();
+      const isolated = await import("./auth.service.js");
+      const error = await isolated.saveRefreshToken(prisma, "test-user", token).catch((error: unknown) => error);
+      expect(error).toBeInstanceOf((await import("@shared/utils")).ServiceUnavailableError);
       expect(error).toMatchObject({ status: 503, code: "SERVICE_UNAVAILABLE" });
     } finally {
       config.jwtPublicKeyBase64 = priorKey;

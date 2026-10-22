@@ -1,11 +1,12 @@
 import { createHealthRouter } from "@shared/utils";
 import { logger } from "./logger.js";
 import prisma from "./config/db.js";
+import { initializeAuthKeys } from "./services/auth.service.js";
 
 export const readiness = { stopping: false };
 export const healthRouter = createHealthRouter({
   service: "auth-service",
   logger,
   isReady: () => !readiness.stopping,
-  checkReady: () => prisma.$queryRaw`SELECT 1`,
+  checkReady: async () => { await initializeAuthKeys(); await prisma.$queryRaw`SELECT 1`; },
 });

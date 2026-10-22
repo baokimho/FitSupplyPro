@@ -8,7 +8,7 @@ import {
   getPublic,
 } from "./controllers/auth.controller.js";
 import { validateRequest, wrapAsync } from "@shared/utils";
-import { loginSchema, registerSchema } from "./validations/auth.schema.js"
+import { loginSchema, registerSchema, refreshSchema, logoutSchema } from "./validations/auth.schema.js"
 
 const router = Router();
 
@@ -16,7 +16,7 @@ router.get("/jwks", wrapAsync(getPublic));
 router.get("/me", wrapAsync(getMe));
 router.post("/register", validateRequest("body", registerSchema), wrapAsync(register));
 router.post("/login", validateRequest("body", loginSchema), wrapAsync(login));
-router.post("/refresh-token", wrapAsync(refreshToken));
-router.post("/logout", wrapAsync(logout));
+router.post("/refresh-token", validateRequest("body", refreshSchema), wrapAsync(refreshToken));
+router.post("/logout", validateRequest("body", logoutSchema), wrapAsync(logout));
 
 export default router;

@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { correlationMiddleware } from "@shared/utils";
 import { healthRouter, readiness } from "./health.js";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), warn: vi.fn() }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), warn: vi.fn(), keys: vi.fn() }));
+vi.mock("./services/auth.service.js", () => ({ initializeAuthKeys: mocks.keys }));
 vi.mock("./logger.js", () => ({ logger: { warn: mocks.warn } }));
 vi.mock("./config/db.js", () => ({ default: { $queryRaw: mocks.query } }));
 
@@ -17,11 +18,19 @@ function app() {
 describe("auth-service probes", () => {
   beforeEach(() => { readiness.stopping = false; vi.clearAllMocks(); mocks.query.mockResolvedValue([{ value: 1 }]); });
 
-  it("health is dependency-free; ready checks database only", async () => {
+  it("health is dependency-free; ready checks signing keys and database", async () => {
     await request(app()).get("/health").expect(200, { status: "ok", service: "auth-service" });
     expect(mocks.query).not.toHaveBeenCalled();
     await request(app()).get("/ready").expect(200, { status: "ready", service: "auth-service" });
     expect(mocks.query).toHaveBeenCalledExactlyOnceWith(["SELECT 1"]);
+    expect(mocks.keys).toHaveBeenCalledOnce();
+  });
+
+  it("invalid signing keys make readiness fail closed", async () => {
+    mocks.keys.mockRejectedValueOnce(new Error("Signing keys unavailable"));
+    await request(app()).get("/ready").expect(503);
+    expect(mocks.query).not.toHaveBeenCalled();
+    await request(app()).get("/health").expect(200);
   });
 
   it("stopping makes ready 503 but health stays 200", async () => {

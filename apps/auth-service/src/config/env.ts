@@ -1,7 +1,11 @@
 import { parseLogLevel, parseNodeEnv, parsePort, requireEnvString, optionalEnvString } from "@shared/utils";
 
+import { readAuthPolicy } from "@shared/utils";
+
 export function loadConfig(env: NodeJS.ProcessEnv) {
   return {
+    authPolicy: readAuthPolicy(env),
+    jwtKeyringFile: optionalEnvString("JWT_KEYRING_FILE", env.JWT_KEYRING_FILE),
     logLevel: parseLogLevel("LOG_LEVEL", env.LOG_LEVEL),
     nodeEnv: parseNodeEnv("NODE_ENV", env.NODE_ENV, "development"),
     port: parsePort("PORT", env.PORT, 3001),

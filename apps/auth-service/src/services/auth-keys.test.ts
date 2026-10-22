@@ -27,6 +27,18 @@ afterEach(() => {
 });
 
 describe("auth startup key validation", () => {
+  it("rejects mismatched signing/verification keys", async () => {
+    const other = await generateKeyPair("RS256", { extractable: true });
+    mocks.config.jwtPublicKeyBase64 = Buffer.from(JSON.stringify(await exportJWK(other.publicKey))).toString("base64");
+    const { initializeAuthKeys } = await import("./auth.service.js");
+    await expect(initializeAuthKeys()).rejects.toThrow("Signing keys unavailable");
+  });
+
+  it("rejects private material in the published-key input", async () => {
+    mocks.config.jwtPublicKeyBase64 = Buffer.from(privateJson).toString("base64");
+    const { initializeAuthKeys } = await import("./auth.service.js");
+    await expect(initializeAuthKeys()).rejects.toThrow("Signing keys unavailable");
+  });
   it("loads matching mounted Docker test fixtures and verifies signed tokens", async () => {
     const { readFileSync } = await vi.importActual<typeof import("node:fs")>("node:fs");
     mocks.config.jwtPrivateKeyBase64 = undefined;
@@ -69,6 +81,6 @@ describe("auth startup key validation", () => {
     mocks.config.jwtPrivateKeyBase64 = undefined;
     mocks.readFileSync.mockImplementation(() => { throw new Error("ENOENT"); });
     const { initializeAuthKeys } = await import("./auth.service.js");
-    await expect(initializeAuthKeys()).rejects.toThrow("JWT_PRIVATE_KEY_BASE64 or keys/private.json is required");
+    await expect(initializeAuthKeys()).rejects.toThrow("Signing keys unavailable");
   });
 });

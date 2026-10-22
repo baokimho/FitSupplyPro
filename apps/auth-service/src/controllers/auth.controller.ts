@@ -4,7 +4,6 @@ import prisma from "../config/db.js";
 import {
   comparePassword,
   createAuthToken,
-  findActiveRefreshToken,
   hashPassword,
   rotateRefreshToken,
   revokeRefreshToken,
@@ -71,17 +70,19 @@ export async function register(
     throw new ConflictError("Email already exists");
   }
 
-  const user = await prisma.user.create({
-    data: {
-      email: normalizedEmail,
-      name: name.trim(),
-      passwordHash: hashPassword(password),
-      role: Role.CUSTOMER,
-    },
+  const passwordHash = await hashPassword(password);
+  const { user, tokens } = await prisma.$transaction(async (tx) => {
+    let user;
+    try {
+      user = await tx.user.create({ data: { email: normalizedEmail, name: name.trim(), passwordHash, role: Role.CUSTOMER } });
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "P2002") throw new ConflictError("Email already exists");
+      throw error;
+    }
+    const tokens = await getAuthTokens(user);
+    await saveRefreshToken(tx, user.id, tokens.refreshToken);
+    return { user, tokens };
   });
-
-  const tokens = await getAuthTokens(user);
-  await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
   return res.status(StatusCodes.CREATED).json({
     message: "User registered successfully",
@@ -102,10 +103,14 @@ export async function login(
     where: { email: normalizedEmail },
   });
 
-  if (!user || !comparePassword(password, user.passwordHash)) {
+  const matches = await comparePassword(password, user?.passwordHash);
+  if (!user || !matches) {
     throw new UnauthorizedError("Invalid email or password");
   }
 
+  if (!user.passwordHash.startsWith("scrypt:")) {
+    await prisma.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { passwordHash: await hashPassword(password) } });
+  }
   const tokens = await getAuthTokens(user);
   await saveRefreshToken(prisma, user.id, tokens.refreshToken);
 
@@ -126,17 +131,7 @@ export async function refreshToken(req: Request, res: Response) {
     throw new BadRequestError("refreshToken is required");
   }
 
-  const payload = await verifyAuthToken(token, await getPublicKey(), "refresh");
-  const activeToken = await findActiveRefreshToken(prisma, token);
-
-  if (!activeToken) {
-    throw new UnauthorizedError("Invalid or revoked refresh token");
-  }
-
-  if (activeToken.userId !== payload.sub) {
-    throw new UnauthorizedError("Invalid or revoked refresh token");
-  }
-
+  const payload = await verifyAuthToken(token, getPublicKey, "refresh");
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
   });
@@ -163,11 +158,7 @@ export async function logout(req: Request, res: Response) {
 
   const token = getTrimmedString(refreshToken);
   if (token) {
-    try {
-      await revokeRefreshToken(prisma, token);
-    } catch {
-      // Keep logout idempotent even if the token was already missing.
-    }
+    await revokeRefreshToken(prisma, token);
   }
 
   return res.status(StatusCodes.OK).json({
