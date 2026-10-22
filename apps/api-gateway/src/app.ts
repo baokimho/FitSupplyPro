@@ -18,7 +18,7 @@ export function createApp() {
   app.use(helmet());
   app.use(validateRequestTarget);
   app.use(cors({
-    origin: (origin, done) => done(origin === undefined || config.corsOrigins.includes(origin) ? null : new ForbiddenError("Origin not allowed"), origin !== undefined),
+    origin: (origin, done) => done(origin === undefined || config.corsOrigins.includes(origin) ? null : new ForbiddenError("Origin not allowed"), true),
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["authorization", "content-type", "accept", "if-none-match", "if-match", "idempotency-key", "x-request-id"],
     exposedHeaders: ["x-request-id", "ratelimit-limit", "ratelimit-remaining", "ratelimit-reset", "retry-after"],
