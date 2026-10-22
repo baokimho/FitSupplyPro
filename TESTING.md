@@ -538,3 +538,51 @@ Reliability remains at-least-once delivery with idempotent protected effects.
 Duplicate quarantine/replay copies are expected crash outcomes; no exactly-once
 delivery claim. Retention, authorization infrastructure, broad observability and
 Phase 13 work remain deferred. Existing service coverage gaps remain documented.
+
+## Phase 13 verification
+
+Verified 2026-10-22. See [API Gateway hardening](docs/phase13-api-gateway-hardening.md)
+for baseline audit, forwarding rules, configuration, failure semantics and limits.
+
+- `npm run test:unit`: **742 passed**, including Gateway **35** and shared **507**.
+- `npm run test:integration`: **283 passed**: Gateway **47**, Inventory **44**,
+  Order **64**, Cart **2**, Payment **59**, Shipping **7**, shared **60**.
+  Real disposable PostgreSQL/RabbitMQ, fresh migrations and drift checks pass;
+  test containers, volume and network are removed by the runner.
+- `npm run test:e2e`: **12 passed**: synchronous **6**, async success/recovery **4**,
+  async decline **2**. Existing JWT/JWKS, purchase lifecycle, broker outage,
+  Inbox/Outbox, financial idempotency and targeted DLQ replay assertions remain.
+- `npm run typecheck`, `npm run lint`, `npm run build`: pass across workspaces.
+- Development, test DB and E2E Compose configuration checks pass.
+- `git diff --check ad7453b`: passes. No new dependencies or schema changes.
+
+Gateway integration includes **32** new real-HTTP boundary cases, alongside the
+existing **15** security integration cases. Tests use actual RS256 signatures,
+HTTP JWKS loading/cache, Express app factory, proxy library and local upstreams.
+Coverage includes identity spoofing, Authorization parsing/expiry, exact JSON
+bytes, chunked oversize, invalid UTF-8/JSON, content type/encoding, CORS, security
+headers, malformed/absolute URLs, encoded route authorization, internal-path
+casing, unknown routes, refused connections, DNS, reset, malformed HTTP response,
+hang, trickling response deadline, native conflicting-framing rejection,
+socket-IP limiter spoof resistance, probes and accepted-request SIGTERM drain.
+An Expect: 100-continue regression verifies the installed proxy library cannot
+skip sanitization, buffered body forwarding or deadline hooks. Safe operational
+logs and correlation headers are asserted without matching formatted log lines.
+Existing eight-proxy unit contracts now check shared 502 normalization and safe
+diagnostics; configuration tests cover budgets and explicit production origins.
+
+Issues found during verification were corrected without weakening assertions:
+incoming socket timeout raced JSON 504; no-Origin clients lost existing response
+header exposure; Supertest serialized an invalid-byte Buffer rather than sending
+raw bytes; shutdown fixture reused a keep-alive connection. Raw HTTP fixtures and
+explicit connection close now exercise the intended behaviors. A narrow process
+signal test-double cast matches the existing shutdown test pattern; no any or
+TypeScript suppression was added. Installed http-proxy's util._extend and existing
+Prisma/test-runner deprecation warnings remain. Final shell invocations capture
+native npm exit codes explicitly, avoiding Windows PowerShell treating ordinary
+Docker/Prisma stderr progress as command failure.
+
+Pre-existing coverage gaps remain: Notification has no unit suite; Auth, Catalog
+and Notification have no dedicated integration suites. Real Auth/Gateway behavior
+also runs through checkout E2E. This phase adds no Auth redesign, tracing,
+distributed limiter, deployment infrastructure, or push.

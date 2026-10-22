@@ -688,3 +688,9 @@ operator inspection/replay with immutable event identity. See
 [DLQ recovery and replay](docs/phase12-dlq-recovery.md) for failure policy,
 `npm run dlq` commands, crash-window guarantees, repair semantics and limitations.
 No automatic DLQ draining; synchronous checkout remains default.
+
+Phase 13 hardens the existing Gateway trust boundary: explicit header forwarding,
+request limits, configured CORS, socket-IP rate limits and bounded proxy responses.
+See [API Gateway hardening](docs/phase13-api-gateway-hardening.md) for the audit,
+configuration, failure semantics and deployment limitations. Auth and checkout
+contracts remain covered; Phase 14 Auth improvements are not started.
