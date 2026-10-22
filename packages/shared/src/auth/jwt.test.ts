@@ -42,7 +42,10 @@ describe("strict access-token contract", () => {
     const valid = await token();
     await expect(verifyAuthToken(valid, wrongKey, "access")).rejects.toThrow();
     const parts = valid.split("."); parts[1] = Buffer.from(JSON.stringify({ sub: "attacker" })).toString("base64url");
-    await expect(verifyAuthToken(parts.join("."), publicKey, "access")).rejects.toThrow();
+    await expect(verifyAuthToken(parts.join("."), publicKey, "access")).rejects.toMatchObject({ code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" });
+    const modifiedSignature = valid.split(".");
+    modifiedSignature[2] = (modifiedSignature[2][0] === "A" ? "B" : "A") + modifiedSignature[2].slice(1);
+    await expect(verifyAuthToken(modifiedSignature.join("."), publicKey, "access")).rejects.toMatchObject({ code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" });
     const hs = await new SignJWT({ sub: "attacker" }).setProtectedHeader({ alg: "HS256", kid: "K1", typ: "JWT" }).sign(new Uint8Array(32));
     await expect(verifyAuthToken(hs, publicKey, "access")).rejects.toThrow();
   });
