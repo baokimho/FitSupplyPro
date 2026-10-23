@@ -151,6 +151,18 @@ describe("real Auth credentials, refresh state and key rotation", () => {
     } finally { await prisma.$executeRawUnsafe(`DROP TRIGGER auth_test_reject_logout ON "RefreshToken"`); await prisma.$executeRawUnsafe(`DROP FUNCTION auth_test_reject_logout()`); }
   });
 
+  it("expired logout credentials cannot revoke newer active refresh sessions", async () => {
+    const login = () => request(app).post("/login").set("x-internal-secret", secret).send({ email: "person@test.invalid", password }).expect(200);
+    const old = await login();
+    const current = await login();
+    const { hashRefreshToken } = await import("./services/auth.service.js");
+    await prisma.refreshToken.update({ where: { tokenHash: hashRefreshToken(old.body.refreshToken) }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    const before = await prisma.refreshToken.count({ where: { userId, revokedAt: null } });
+    await request(app).post("/logout").set("x-internal-secret", secret).send({ refreshToken: old.body.refreshToken }).expect(200);
+    expect(await prisma.refreshToken.count({ where: { userId, revokedAt: null } })).toBe(before);
+    await request(app).post("/refresh-token").set("x-internal-secret", secret).send({ refreshToken: current.body.refreshToken }).expect(200);
+  });
+
   it("rolls registration back if refresh persistence fails and reports DB failures safely", async () => {
     await prisma.$executeRawUnsafe(`CREATE FUNCTION auth_test_reject_refresh() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected private persistence failure'; END; $$`);
     await prisma.$executeRawUnsafe(`CREATE TRIGGER auth_test_reject_refresh BEFORE INSERT ON "RefreshToken" FOR EACH ROW EXECUTE FUNCTION auth_test_reject_refresh()`);

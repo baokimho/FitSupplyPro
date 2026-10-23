@@ -693,7 +693,7 @@ Phase 13 hardens the existing Gateway trust boundary: explicit header forwarding
 request limits, configured CORS, socket-IP rate limits and bounded proxy responses.
 See [API Gateway hardening](docs/phase13-api-gateway-hardening.md) for the audit,
 configuration, failure semantics and deployment limitations. Auth and checkout
-contracts remain covered; Phase 14 Auth improvements are not started.
+contracts remain covered.
 
 Phase 14 strengthens scrypt credentials, strict JWT claims, Auth-only signing-key
 rotation, bounded Gateway JWKS refresh and existing refresh-token state. See

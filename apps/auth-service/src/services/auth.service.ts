@@ -101,6 +101,7 @@ export async function revokeRefreshToken(prisma: PrismaClientOrTx, token: string
     const current = await tx.refreshToken.findUnique({ where: { tokenHash: hashRefreshToken(token) } });
     if (!current) return;
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${current.userId} FOR UPDATE`;
+    if (current.expiresAt <= new Date()) return;
     await revokeAllActiveRefreshTokens(current.userId, tx);
   });
 }

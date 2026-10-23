@@ -222,7 +222,8 @@ Logout now takes the same user lock and revokes all active refresh credentials
 for the token's user, including a successor created by a concurrent refresh.
 This deliberately logs out all refresh sessions for that account, matching the
 existing account-wide reuse-response model; there is no new session-family schema.
-Missing/unknown tokens remain idempotent successes. Database failure returns a
+Missing/unknown/expired tokens remain idempotent successes; expiry is rechecked
+under the user lock so expired credentials cannot revoke newer sessions. Database failure returns a
 safe error instead of claiming successful revocation. Cleanup retains even revoked
 records until fourteen days after original expiry so live-token reuse evidence
 does not disappear prematurely. Refresh/logout bodies are shape/length validated.

@@ -595,7 +595,7 @@ for baseline audit, credential/token contracts, rotation and coordinated rollout
 - `npm run test:unit`: **791 passed**: Gateway **35**, Auth **44**, Catalog **14**,
   Inventory **15**, Order **99**, Cart **11**, Payment **25**, Shipping **2**,
   shared **546**. Notification's existing unit gap remains.
-- `npm run test:integration`: **298 passed**: Gateway **48**, Auth **14**,
+- `npm run test:integration`: **299 passed**: Gateway **48**, Auth **15**,
   Inventory **44**, Order **64**, Cart **2**, Payment **59**, Shipping **7**,
   shared **60**. New Auth suite uses actual PostgreSQL and HTTP JWKS; existing
   broker/Inbox/Outbox/Saga integration remains. Fresh migrations and schema-drift
@@ -621,6 +621,7 @@ the signer/loader processes. Credential tests cover salted current/legacy scrypt
 password policy, role injection, generic failures, normalized identifiers,
 duplicate DB races, registration rollback, concurrent refresh reuse, logout races,
 persisted logout failure, reuse-evidence retention and stateless role freshness.
+Expired logout credentials cannot revoke a newer active refresh session.
 
 During implementation, shared regression tests caught an overly broad JOSE-error
 classifier: retained infrastructure errors' previous semantics instead of mapping
