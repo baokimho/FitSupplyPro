@@ -694,3 +694,9 @@ request limits, configured CORS, socket-IP rate limits and bounded proxy respons
 See [API Gateway hardening](docs/phase13-api-gateway-hardening.md) for the audit,
 configuration, failure semantics and deployment limitations. Auth and checkout
 contracts remain covered; Phase 14 Auth improvements are not started.
+
+Phase 14 strengthens scrypt credentials, strict JWT claims, Auth-only signing-key
+rotation, bounded Gateway JWKS refresh and existing refresh-token state. See
+[Auth improvements](docs/phase14-auth-improvements.md) for token contracts,
+coordinated rollout, rotation/retirement, revocation and remaining limits.
+Phase 15 metrics/tracing and Phase 16 testing-strategy work remain deferred.

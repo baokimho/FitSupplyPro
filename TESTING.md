@@ -586,3 +586,52 @@ Pre-existing coverage gaps remain: Notification has no unit suite; Auth, Catalog
 and Notification have no dedicated integration suites. Real Auth/Gateway behavior
 also runs through checkout E2E. This phase adds no Auth redesign, tracing,
 distributed limiter, deployment infrastructure, or push.
+
+## Phase 14 verification
+
+Verified 2026-10-23. See [Auth improvements](docs/phase14-auth-improvements.md)
+for baseline audit, credential/token contracts, rotation and coordinated rollout.
+
+- `npm run test:unit`: **791 passed**: Gateway **35**, Auth **44**, Catalog **14**,
+  Inventory **15**, Order **99**, Cart **11**, Payment **25**, Shipping **2**,
+  shared **546**. Notification's existing unit gap remains.
+- `npm run test:integration`: **298 passed**: Gateway **48**, Auth **14**,
+  Inventory **44**, Order **64**, Cart **2**, Payment **59**, Shipping **7**,
+  shared **60**. New Auth suite uses actual PostgreSQL and HTTP JWKS; existing
+  broker/Inbox/Outbox/Saga integration remains. Fresh migrations and schema-drift
+  checks pass through isolated DB setup; no schema migration was needed here.
+- `npm run test:e2e`: **12 passed**: synchronous **6**, async success/recovery **4**,
+  async decline **2**. Real Auth issuance/JWKS/Gateway, checkout, correlation,
+  broker outage and DLQ replay regression assertions remain intact.
+- `npm run typecheck`, `npm run lint`, `npm run build`: passed across workspaces.
+- Development, integration DB and E2E Compose configuration checks pass.
+- `git diff --check 498fbce`: passes. No dependencies or generated schema changes.
+- Disposable test DB/broker/E2E containers, volumes and networks are removed;
+  temporary test keyring files are deleted by Auth test teardown.
+
+Security coverage includes strict typed/required claims and lifetimes, expiry,
+issuer/audience/algorithm, malformed/missing/unknown kid, wrong key, changed payload
+and signature, ignored attacker jku/embedded keys, UTF-8 byte-size JWKS budget,
+public-only keys, pair matching, cache single-flight/cooldown and bounded stale
+fallback. Gateway HTTP lifecycle tests prove K1/K2 overlap, spoofed identity
+replacement, unknown-kid refresh bounds, outage 503 and retired-key rejection.
+Auth HTTP/DB tests rotate a live atomic keyring file, resolve actual kid through
+HTTP JWKS, advance beyond K1's refresh lifetime, and retire K1 without replacing
+the signer/loader processes. Credential tests cover salted current/legacy scrypt,
+password policy, role injection, generic failures, normalized identifiers,
+duplicate DB races, registration rollback, concurrent refresh reuse, logout races,
+persisted logout failure, reuse-evidence retention and stateless role freshness.
+
+During implementation, shared regression tests caught an overly broad JOSE-error
+classifier: retained infrastructure errors' previous semantics instead of mapping
+every JOSE failure to 401. Test module resets required checking the matching
+ServiceUnavailableError constructor; strict token fixtures now include kid, jti,
+iat, role and type. A typed mock assertion fixed the compiler's empty-call-tuple
+error without suppression. Logout-failure fixture creates an active token before
+installing its DB trigger, so a real update fails. No assertions were weakened,
+skipped or deleted. Native npm exit codes are captured explicitly on Windows.
+Existing Prisma/http-proxy/test-runner deprecation warnings remain.
+
+Coverage gaps remain explicit for Catalog and Notification dedicated integration
+and Notification unit tests. No Phase 15 observability or Phase 16 testing-strategy
+project was started. No development data was reset; nothing was pushed.
