@@ -1,4 +1,6 @@
-import { DependencyError } from "./failure.js";
+import { DependencyError, classifyFailure } from "./failure.js";
+import { count, observe, dependencyLabels, traced, SpanKind, traceHeaders, telemetryContext, spanError } from "../observability/telemetry.js";
+import { trace } from "@opentelemetry/api";
 import type { Logger } from "../logging/logger.js";
 
 const shutdown = new AbortController();
@@ -13,6 +15,24 @@ export type DependencyOptions = {
 
 /** Bound whole operation, including response body; adapters must honor cancellation. */
 export async function withDependencyTimeout<T>(work: (signal: AbortSignal) => Promise<T>, options: DependencyOptions): Promise<T> {
+  const labels = dependencyLabels(options.dependency, options.operation);
+  const started = performance.now();
+  return traced("dependency request", SpanKind.CLIENT, { "peer.service": labels.dependency, operation: labels.operation }, async () => {
+    let result = "success";
+    try {
+      const value = await runDependencyTimeout(work, options);
+      if (typeof value === "object" && value !== null && "response" in value && value.response instanceof Response && value.response.status >= 400) {
+        result = "http_error";
+        count("service_client_errors_total", { ...labels, error_class: "http_error" });
+        const span = trace.getSpan(telemetryContext.active()); if (span) spanError(span, "http_error");
+      }
+      return value;
+    } catch (error) { result = "error"; count("service_client_errors_total", { ...labels, error_class: classifyFailure(error) }); throw error; }
+    finally { count("service_client_requests_total", { ...labels, result }); observe("service_client_request_duration_seconds", (performance.now() - started) / 1000, { ...labels, result }); }
+  });
+}
+
+async function runDependencyTimeout<T>(work: (signal: AbortSignal) => Promise<T>, options: DependencyOptions): Promise<T> {
   const parent = options.signal ?? dependencyShutdownSignal;
   parent.throwIfAborted();
   const controller = new AbortController();
@@ -49,7 +69,11 @@ export async function fetchDependency(url: string | URL, init: RequestInit | und
   const failureClass = (init?.method ?? "GET") === "GET" ? "transient" : "ambiguous";
   return withDependencyTimeout(async (signal) => {
     let response: Response;
-    try { response = await fetch(url, { ...init, signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal }); }
+    try {
+      const headers = { ...Object.fromEntries(new Headers(init?.headers)), ...traceHeaders() };
+      response = await fetch(url, { ...init, headers, signal: init?.signal ? AbortSignal.any([signal, init.signal]) : signal });
+      trace.getSpan(telemetryContext.active())?.setAttribute("http.response.status_code", response.status);
+    }
     catch (cause) {
       if (signal.aborted || init?.signal?.aborted) throw cause;
       throw new DependencyError(options.dependency, options.operation, failureClass, options.safe, options.timeoutMs, cause);

@@ -2,6 +2,7 @@ import type { Server } from "node:http";
 import type { RequestHandler } from "express";
 import type { Logger } from "../logging/logger.js";
 import { stopDependencyWork } from "../resilience/timeout.js";
+import { shutdownTelemetry } from "../observability/telemetry.js";
 
 export const SHUTDOWN_TIMEOUT_MS = 8000;
 type ReadinessState = { stopping: boolean };
@@ -68,6 +69,7 @@ export function installShutdown(options: {
         await cleanup();
         if (finished) return;
       }
+      await shutdownTelemetry();
       options.logger.info({ signal }, "resources closed");
       finish(0);
     })().catch((err: unknown) => {

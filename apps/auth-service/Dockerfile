@@ -34,6 +34,7 @@ COPY --from=build /app/apps/auth-service/src/generated/prisma ./apps/auth-servic
 COPY --from=build /app/apps/auth-service/prisma.config.ts ./apps/auth-service/prisma.config.ts
 COPY --from=build /app/apps/auth-service/prisma ./apps/auth-service/prisma
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 EXPOSE 3001
 CMD ["node", "apps/auth-service/dist/index.js"]

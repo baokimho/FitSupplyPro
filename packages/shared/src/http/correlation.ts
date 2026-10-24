@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { RequestHandler } from "express";
+import { traceHeaders } from "../observability/telemetry.js";
 
 export type CorrelationContext = Readonly<{ requestId: string; traceId: string }>;
 
@@ -45,5 +46,5 @@ export function correlationMiddleware(boundary: "gateway" | "service"): RequestH
 
 /** A new request ID per outgoing hop; one trace across the synchronous workflow. */
 export function correlationHeaders(correlation = getCorrelation()): Record<string, string> {
-  return correlation ? { "x-request-id": randomUUID(), "x-trace-id": correlation.traceId } : {};
+  return { ...traceHeaders(), ...(correlation ? { "x-request-id": randomUUID(), "x-trace-id": correlation.traceId } : {}) };
 }

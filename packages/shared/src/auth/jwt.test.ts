@@ -55,7 +55,7 @@ describe("strict access-token contract", () => {
       jku: "https://attacker.invalid/keys", jwk: await exportJWK(wrongKey) }).sign(wrongPrivateKey);
     await expect(verifyAuthToken(forged, createPublicKeyLoader("https://auth.test", "secret"), "access")).rejects.toMatchObject({ code: "ERR_JWS_SIGNATURE_VERIFICATION_FAILED" });
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(new URL("https://auth.test/jwks"), expect.objectContaining({ redirect: "error", headers: { "x-internal-secret": "secret" } }));
+    expect(fetch).toHaveBeenCalledWith(new URL("https://auth.test/jwks"), expect.objectContaining({ redirect: "error", headers: { "x-internal-secret": "secret", traceparent: expect.stringMatching(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/) } }));
   });
 });
 
@@ -67,7 +67,7 @@ describe("bounded JWKS loader", () => {
     const get = createPublicKeyLoader("https://auth.test/base", "configured-secret", policy);
     const [first, second] = await Promise.all([get(header), get(header)]);
     expect(first).toBe(second); expect(await get(header)).toBe(first); expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(new URL("https://auth.test/jwks"), { redirect: "error", headers: { "x-internal-secret": "configured-secret" }, signal: expect.any(AbortSignal) });
+    expect(fetch).toHaveBeenCalledWith(new URL("https://auth.test/jwks"), { redirect: "error", headers: { "x-internal-secret": "configured-secret", traceparent: expect.stringMatching(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/) }, signal: expect.any(AbortSignal) });
   });
   it("bounds failed-load retries and keeps loader caches isolated", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });

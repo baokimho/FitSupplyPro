@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { createLogger, inspectDlq, openRabbitMq, readRabbitMqConfig, replayDlq } from "../packages/shared/dist/index.js";
+import { createLogger, inspectDlq, openRabbitMq, readRabbitMqConfig, replayDlq, shutdownTelemetry } from "../packages/shared/dist/index.js";
 
 const controller = new globalThis.AbortController();
 const stop = () => controller.abort(new globalThis.DOMException("Operator shutdown", "AbortError"));
@@ -30,6 +30,7 @@ try {
     try { await broker.close(); }
     catch { process.stderr.write("DLQ connection close failed; inspect source/DLQ before retry.\n"); process.exitCode = 1; }
   }
+  await shutdownTelemetry();
   process.off("SIGINT", stop);
   process.off("SIGTERM", stop);
 }

@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { Logger } from "../logging/logger.js";
 import { canRetry, classifyFailure } from "./failure.js";
 import { dependencyShutdownSignal } from "./timeout.js";
+import { count, dependencyLabels, traced, SpanKind } from "../observability/telemetry.js";
 
 export type RetryPolicy = { maxAttempts: number; baseDelayMs: number; maxDelayMs: number };
 export function retryDelay(attempt: number, policy: Pick<RetryPolicy, "baseDelayMs" | "maxDelayMs">, random = Math.random) {
@@ -21,17 +22,19 @@ export async function retryOperation<T>(work: (attempt: number) => Promise<T>, o
   const signal = options.signal ?? dependencyShutdownSignal;
   for (let attempt = 1; ; attempt++) {
     signal.throwIfAborted();
-    try { return await work(attempt); }
+    try { return await traced("operation attempt", SpanKind.INTERNAL, { operation: dependencyLabels(options.dependency, options.operation).operation, attempt }, () => work(attempt)); }
     catch (error) {
       signal.throwIfAborted();
       const retryable = canRetry(error, options.safe);
       const context = { dependency: options.dependency, operation: options.operation,
         failureClass: classifyFailure(error), attempt, maxAttempts: options.maxAttempts, timeoutMs: options.timeoutMs };
       if (!retryable || attempt === options.maxAttempts) {
+        if (retryable) count("retry_exhausted_total", { ...dependencyLabels(options.dependency, options.operation), error_class: classifyFailure(error) });
         options.logger.warn({ ...context, exhausted: retryable && attempt === options.maxAttempts }, "dependency attempts ended");
         throw error;
       }
       const retryDelayMs = retryDelay(attempt, options, options.random);
+      count("retry_attempts_total", { ...dependencyLabels(options.dependency, options.operation), error_class: classifyFailure(error) });
       options.logger.warn({ ...context, retryDelayMs, exhausted: false }, "dependency retry scheduled");
       await delay(retryDelayMs, undefined, { signal });
     }

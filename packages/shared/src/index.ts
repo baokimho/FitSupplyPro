@@ -32,3 +32,5 @@ export * from "./resilience/failure.js";
 export * from "./resilience/config.js";
 export * from "./resilience/timeout.js";
 export * from "./resilience/retry.js";
+export * from "./observability/telemetry.js";
+export * from "./observability/persistence.js";
