@@ -135,6 +135,19 @@ describe("real Gateway HTTP boundary", () => {
     expect(response.headers["x-request-id"]).toBeTruthy();
   });
 
+  it("propagates W3C context independently of verified identity and blocks service metrics", async () => {
+    const traceparent = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01";
+    const response = await request(app).get("/cart/echo").set("Authorization", `Bearer ${token}`)
+      .set("traceparent", traceparent).set("baggage", "email=private@example.com").set("x-user-id", "attacker").expect(200);
+    expect(response.body.headers.traceparent).toMatch(/^00-0123456789abcdef0123456789abcdef-[0-9a-f]{16}-01$/);
+    expect(response.body.headers.traceparent).not.toBe(traceparent);
+    expect(response.body.headers).not.toHaveProperty("baggage");
+    expect(response.body.headers["x-user-id"]).toBe("verified-user");
+    const count = seen.length;
+    await request(app).get("/auth/metrics").expect(403);
+    await request(app).get("/cart/metrics").set("Authorization", `Bearer ${token}`).expect(403);
+    expect(seen).toHaveLength(count);
+  });
   it("public Auth does not receive spoofed identity; exact JSON bytes reach upstream", async () => {
     const body = '{ "hello": "world", "items": [1,2] }';
     const response = await request(app).post("/auth/echo").set("Content-Type", "application/json").set("x-user-id", "attacker").send(body).expect(200);

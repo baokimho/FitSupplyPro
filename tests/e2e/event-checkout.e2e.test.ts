@@ -15,6 +15,7 @@ let channel: Awaited<ReturnType<typeof broker.createChannel>>;
 let publisher: Awaited<ReturnType<typeof broker.createPublisher>>;
 let auditQueue: string;
 const events: KnownIntegrationEvent[] = [];
+const transportTraces = new Map<string, string>();
 
 async function json(method: string, path: string, token?: string, body?: unknown, key?: string): Promise<unknown> {
   const response = await fetch(`${url}${path}`, { method,
@@ -39,7 +40,10 @@ async function audit() {
   for (let i = 0; i < 500; i++) {
     const message = await channel.get(auditQueue, { noAck: true });
     if (!message) break;
-    events.push(deserializeIntegrationEvent(message.content));
+    const event = deserializeIntegrationEvent(message.content);
+    events.push(event);
+    const traceparent: unknown = message.properties.headers?.traceparent;
+    if (typeof traceparent === "string") transportTraces.set(event.eventId, traceparent);
   }
 }
 
@@ -87,6 +91,19 @@ beforeAll(async () => {
 afterAll(async () => { if (broker) await broker.close(); });
 
 describe("event-driven HTTP checkout", () => {
+  it("all nine deployed services expose authorized metrics with their own service identity", () => {
+    const targets = ["api-gateway", "auth-service", "catalog-service", "order-service", "inventory-service", "cart-service", "payment-service", "shipping-service", "notification-service"];
+    for (const [offset, service] of targets.entries()) {
+      const output = execFileSync("docker", ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml", "exec", "-T", service,
+        "node", "--input-type=module", "-e", `const url = 'http://localhost:${3000 + offset}/metrics';
+          const denied = await fetch(url); if (denied.status !== 403) throw new Error('Metrics must be internal');
+          const response = await fetch(url, { headers: { 'x-internal-secret': process.env.GATEWAY_SECRET } });
+          if (response.status !== 200) throw new Error('Metrics scrape failed'); process.stdout.write(await response.text());`], { encoding: "utf8" });
+      expect(output).toContain(`service="${service}"`);
+      expect(output).toContain("process_cpu_user_seconds_total");
+      expect(output).not.toContain("fitsupply_test_internal_secret");
+    }
+  }, 20000);
   it(decline ? "provider decline cancels Order and releases stock once under duplicate delivery" : "confirms Order and charges/reserves once under duplicate delivery", async () => {
     const fixture = await setup(10);
     const { customer, productId, order } = fixture;
@@ -104,6 +121,13 @@ describe("event-driven HTTP checkout", () => {
       ["order.created", "inventory.reserved", "checkout.payment_requested", "payment.succeeded", "order.confirmed"];
     expect(flow.map((event) => event.eventType).sort()).toEqual([...names].sort());
     expect(root.causationId).toBeNull();
+    // Persisted metadata survives every Outbox hop without changing canonical bytes.
+    for (const event of flow) {
+      expect(transportTraces.get(event.eventId)).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+      const database = event.producer.service === "inventory-service" ? "inventory_test_db" : event.producer.service === "payment-service" ? "payment_test_db" : "order_test_db";
+      expect(sql(database, `SELECT "traceparent" FROM "OutboxEvent" WHERE "eventId"='${event.eventId}'`)).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+      expect(event).not.toHaveProperty("traceparent");
+    }
     for (let i = 1; i < names.length; i++) {
       const current = flow.find((event) => event.eventType === names[i]);
       const parent = flow.find((event) => event.eventType === names[i - 1]);

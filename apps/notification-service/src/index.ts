@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { errorHandler, requireGatewaySecret } from "@shared/utils";
+import { errorHandler, requireGatewaySecret, createLogger, parseNodeEnv, httpLogger, correlationMiddleware, installShutdown, shutdownGuard } from "@shared/utils";
+import { closeDb } from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { attachNotificationUser } from "./middleware/user-context.middleware.js";
 import notificationRoutes from "./routes/notification.route.js";
@@ -13,6 +14,9 @@ if (!process.env.GATEWAY_SECRET) {
 }
 
 const app = express();
+const logger = createLogger({ service: "notification-service", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
+const readiness = { stopping: false };
+app.use(correlationMiddleware("service"), httpLogger(logger), shutdownGuard(readiness));
 
 app.use(cors());
 app.use(express.json());
@@ -22,15 +26,6 @@ app.get("/health", (_req, res) => {
     service: "notification-service",
     status: "ok",
   });
-});
-app.use((req, _res, next) => {
-  console.info("[NOTIFICATION SERVICE]", {
-    method: req.method,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    hasUserIdHeader: Boolean(req.get("x-user-id")),
-  });
-  next();
 });
 app.use(attachNotificationUser);
 app.use(notificationRoutes);
@@ -49,9 +44,10 @@ async function bootstrap() {
   try {
     await connectDb();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Notification service running on port ${PORT}`);
     });
+    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
   } catch (err) {
     console.error("Failed to start notification service:", err);
     process.exitCode = 1;

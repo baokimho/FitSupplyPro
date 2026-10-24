@@ -29,3 +29,4 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export default prisma;
+export async function closeDb() { try { await prisma.$disconnect(); } finally { await pool.end(); } }

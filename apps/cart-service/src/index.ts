@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { errorHandler, requireGatewaySecret } from "@shared/utils";
+import { errorHandler, requireGatewaySecret, createLogger, parseNodeEnv, httpLogger, correlationMiddleware, installShutdown, shutdownGuard } from "@shared/utils";
+import { closeDb } from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { attachCartUser } from "./middleware/user-context.middleware.js";
 import cartRoutes from "./routes/cart.route.js";
@@ -13,6 +14,9 @@ if (!process.env.GATEWAY_SECRET) {
 }
 
 const app = express();
+const logger = createLogger({ service: "cart-service", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
+const readiness = { stopping: false };
+app.use(correlationMiddleware("service"), httpLogger(logger), shutdownGuard(readiness));
 
 app.use(cors());
 app.use(express.json());
@@ -22,15 +26,6 @@ app.get("/health", (_req, res) => {
     service: "cart-service",
     status: "ok",
   });
-});
-app.use((req, _res, next) => {
-  console.info("[CART SERVICE]", {
-    method: req.method,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    hasUserIdHeader: Boolean(req.get("x-user-id")),
-  });
-  next();
 });
 app.use(attachCartUser);
 app.use(cartRoutes);
@@ -49,9 +44,10 @@ async function bootstrap() {
   try {
     await connectDb();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Cart service running on port ${PORT}`);
     });
+    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
   } catch (err) {
     console.error("Failed to start cart service:", err);
     process.exitCode = 1;

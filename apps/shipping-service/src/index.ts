@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { errorHandler, requireGatewaySecret } from "@shared/utils";
+import { errorHandler, requireGatewaySecret, createLogger, parseNodeEnv, httpLogger, correlationMiddleware, installShutdown, shutdownGuard } from "@shared/utils";
+import { closeDb } from "./config/db.js";
 import { connectDb } from "./config/connect-db.js";
 import { attachShippingUser } from "./middleware/user-context.middleware.js";
 import shippingRoutes from "./routes/shipping.route.js";
@@ -13,6 +14,9 @@ if (!process.env.GATEWAY_SECRET) {
 }
 
 const app = express();
+const logger = createLogger({ service: "shipping-service", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
+const readiness = { stopping: false };
+app.use(correlationMiddleware("service"), httpLogger(logger), shutdownGuard(readiness));
 
 app.use(cors());
 app.use(express.json());
@@ -22,15 +26,6 @@ app.get("/health", (_req, res) => {
     service: "shipping-service",
     status: "ok",
   });
-});
-app.use((req, _res, next) => {
-  console.info("[SHIPPING SERVICE]", {
-    method: req.method,
-    url: req.url,
-    originalUrl: req.originalUrl,
-    hasUserIdHeader: Boolean(req.get("x-user-id")),
-  });
-  next();
 });
 app.use(attachShippingUser);
 app.use(shippingRoutes);
@@ -49,9 +44,10 @@ async function bootstrap() {
   try {
     await connectDb();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Shipping service running on port ${PORT}`);
     });
+    installShutdown({ server, logger, state: readiness, cleanup: [closeDb] });
   } catch (err) {
     console.error("Failed to start shipping service:", err);
     process.exitCode = 1;
