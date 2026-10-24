@@ -636,3 +636,44 @@ Existing Prisma/http-proxy/test-runner deprecation warnings remain.
 Coverage gaps remain explicit for Catalog and Notification dedicated integration
 and Notification unit tests. No Phase 15 observability or Phase 16 testing-strategy
 project was started. No development data was reset; nothing was pushed.
+
+## Phase 14 revised ownership/boundary verification
+
+Verified 2026-10-24 from existing Phase 14 baseline `8fddc1c`. Revised
+P14.1–P14.20 audit preserved production code and added missing proof, rather than
+reimplementing credential, JWT/JWKS or refresh/logout behavior.
+
+- `npm run test:unit`: **791 passed**; Auth **44**, Gateway **35**, shared **546**.
+- `npm run test:integration`: **306 passed**: Gateway **55**, Auth **15**,
+  Inventory **44**, Order **64**, Cart **2**, Payment **59**, Shipping **7**,
+  shared **60**. Fresh test migrations/drift checks and broker regressions pass.
+- `npm run test:e2e`: **13 passed**: sync **7**, async success/recovery **4**,
+  async decline **2**. All existing lifecycle, Saga, Inbox/Outbox, retry budget,
+  DLQ, correlation and idempotency assertions remain.
+- `npm run typecheck`, `npm run lint`, `npm run build`: passed.
+- Strict standalone check of changed E2E source passed with explicit Node types:
+  `npm exec -- tsc --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --esModuleInterop --types node tests/e2e/purchase-lifecycle.e2e.test.ts`.
+- `git diff --check 8fddc1c`: passed. No production code, dependency, schema,
+  service, Docker/CI/deployment or observability changes.
+
+Gateway boundary file now has **39** real-HTTP cases. Seven added parameter cases
+use actual signed tokens with wrong issuer/audience, forged signature, unexpected
+algorithm, invalid subject type, missing kid, and refresh type on an access route.
+Every case returns 401 with shared envelope/correlation and leaves upstream request
+count unchanged. Existing valid identity propagation, expired/malformed/missing
+tokens, spoof stripping, JWKS rotation/outage and shutdown tests are retained.
+
+Running-stack ownership proof reuses existing Auth customer fixtures and actual
+resource IDs. Anonymous spoofed headers cannot read an Order; a foreign JWT plus
+owner/admin spoofing cannot cancel it; owner read still succeeds with PENDING
+state intact. Foreign Payment reads/creation/confirmation and Shipment reads/
+updates are denied, with original state intact and foreign lists excluding those
+resources. Foreign Notification mark-read cannot change unread state, while owner
+mark-read succeeds. Cart update/delete returns 404 for a foreign item and leaves
+quantity unchanged; spoofed Cart GET remains scoped to requester; owner update/
+delete succeeds. No fake demonstration routes or new user fixtures were needed.
+
+Existing authorization rules held; no runtime IDOR defect was demonstrated. Test
+and documentation changes only. Disposable DB/broker/E2E resources are torn down
+by existing runners; no development data reset. Existing deprecation warnings
+remain. Phases 15 and later work remain deferred; nothing was pushed.

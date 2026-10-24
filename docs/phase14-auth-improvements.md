@@ -1,5 +1,49 @@
 # Phase 14 — Auth improvements
 
+## 2026-10-24 follow-up audit
+
+The revised P14.1–P14.20 request starts from completed hardening at `8fddc1c`,
+not the earlier Phase 13-only baseline. Credential/JWT/JWKS/configuration,
+refresh/logout and logging work below is preserved rather than rebuilt.
+
+The additional authorization audit traced verified Gateway claims through secret-
+protected service middleware to resource queries/mutations. Order reads/cancels,
+Payment reads/creation, Shipment reads, Notification read-state mutations and
+Cart item mutations already enforce ownership. Lists scope to trusted user ID.
+Admin financial/lifecycle operations intentionally authorize by verified ADMIN
+role; owner-only reads do not gain an implicit admin override. Internal routes
+remain blocked at the public Gateway. No new runtime IDOR defect was found.
+
+Concrete coverage gaps: actual Gateway HTTP tests lacked wrong issuer/audience,
+forged-signature, unexpected-algorithm and some structural-token cases, although
+shared verifier tests covered them. Existing E2E covered cross-user Order denial
+but not anonymous/spoofed access to a real Order, Payment/Shipment read isolation,
+Notification mutation ownership or Cart item update/delete isolation. Follow-up
+changes close those proof gaps using existing endpoints and fixtures, without
+changing production authorization semantics or adding services.
+
+Follow-up ownership policy and verification:
+
+| Existing public resource | Authorization retained | Regression evidence |
+| --- | --- | --- |
+| Order by ID / cancellation | Owner required; foreign owner gets 403 | Owner GET succeeds, anonymous spoofed headers get 401, foreign JWT plus spoofed owner/admin headers cannot read/cancel or alter PENDING state |
+| Payment by ID / creation | Read owner and payable Order owner required; financial mutations require ADMIN | Foreign read/create/confirm denied; owner payment stays PENDING until real admin confirmation; foreign list excludes payment |
+| Shipment by ID | Read owner required; public shipment mutations require ADMIN | Foreign read/update denied; owner sees unchanged PROCESSING shipment; foreign list excludes shipment |
+| Notification read state | Stored user ID must match trusted requester | Foreign mark-read denied without changing unread state; owner mark-read succeeds; foreign list excludes notification |
+| Cart item update/delete | Item query scoped to requester's Cart | Foreign item IDs return 404, owner quantity stays unchanged, owner update/delete succeeds, spoofed GET still returns requester's own Cart |
+
+403 denotes an authenticated identity lacking permission. Cart intentionally
+returns 404 for an item outside the caller's Cart; no generic Gateway ownership
+or 405 table is introduced. Ownership is enforced by owning services after the
+Gateway verifies/reconstructs identity. Possession of a shared internal secret is
+still privileged internal-service authority, not protection against a compromised
+internal service. Existing private-network/shared-secret assumptions remain.
+
+This pass changes only regression tests and documentation. Auth configuration,
+credential handling, token/session contracts and production routes remain as
+previously implemented. P14.1–P14.20 of the revised request are covered by the
+retained implementation plus these additional ownership/boundary checks.
+
 ## Pre-change audit
 
 Baseline `498fbce`. Auth owns registration/login, RS256 signing, public JWKS,
