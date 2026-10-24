@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 4 Payment domain complete. Phase 5 not started. Frontend and fitness/nutrition product areas are not implemented yet. See [Payment domain](docs/phase4-payment-domain.md) for provider, lifecycle, idempotency and recovery contracts, and [Order domain](docs/phase3-order-domain.md) for Order ownership and inventory policy.
+Status: Phase 15 observability implemented; existing checkout, recovery and security behavior preserved. Frontend and fitness/nutrition product areas are not implemented yet. See [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
 
 ## Services
 
@@ -700,3 +700,8 @@ rotation, bounded Gateway JWKS refresh and existing refresh-token state. See
 [Auth improvements](docs/phase14-auth-improvements.md) for token contracts,
 coordinated rollout, rotation/retirement, revocation and remaining limits.
 Phase 15 metrics/tracing and Phase 16 testing-strategy work remain deferred.
+## Phase 15 observability
+
+All services expose internal, secret-protected `GET /metrics` with Prometheus HTTP/dependency/messaging metrics and Node runtime measurements. OpenTelemetry spans propagate W3C context through HTTP and RabbitMQ; persisted Outbox context links later dispatches across restarts. Existing UUID correlation and checkout behavior remain unchanged.
+
+See [observability architecture and operating semantics](docs/phase15-observability.md) for metric ownership/cardinality, exporter configuration, Outbox migrations, failure isolation and shutdown. Configure optional `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` per service; no tracing backend is required for readiness.

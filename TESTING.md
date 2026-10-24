@@ -677,3 +677,21 @@ Existing authorization rules held; no runtime IDOR defect was demonstrated. Test
 and documentation changes only. Disposable DB/broker/E2E resources are torn down
 by existing runners; no development data reset. Existing deprecation warnings
 remain. Phases 15 and later work remain deferred; nothing was pushed.
+## Phase 15 observability verification (2026-10-24)
+
+Phase 15 adds behavior tests for route cardinality/statuses, runtime metrics/internal access, module reload, log correlation, HTTP parent-child spans, actual RabbitMQ transport propagation, persisted Outbox context/links and commit failure, durable backlog age, duplicate/rollback accounting, retry/DLQ/replay metrics, real OTLP HTTP export/backend outage, and bounded telemetry shutdown.
+
+Final regression matrix:
+
+| Check | Result |
+| --- | --- |
+| `npm run test:unit` | 803 passed: Gateway 35, Auth 44, Catalog 14, Inventory 15, Order 99, Cart 11, Payment 25, Shipping 2, shared 558 |
+| `npm run test:integration` | 311 passed: Gateway 56, Auth 15, Inventory 44, Order 65, Cart 2, Payment 59, Shipping 7, shared 63 |
+| `npm run test:e2e` | 15 passed: sync 7, async success/recovery 5, async decline 3 |
+| `npm run typecheck`, `npm run lint`, `npm run build` | Passed |
+| Strict standalone TypeScript check of new shared telemetry tests and async E2E | Passed (ES2023, NodeNext, node types) |
+| `git diff --check` | Passed |
+
+Async E2E asserts internal authorization and exact service identity for metrics on all nine deployed services, plus nonempty persisted and transported W3C context through every committed event in success/compensation flows, alongside unchanged identity, deduplication and recovery checks. Real OTLP test receives JSON spans, checks sanitized error events, closes collector and proves application work remains healthy. Disposable PostgreSQL/RabbitMQ resources are removed by existing runners. No development databases or volumes are reset.
+
+Initial Docker BuildKit lease failure was transient. Subsequent runtime check found Auth multi-stage image omitted nested shared dependencies; image now includes these dependencies. Final matrix uses corrected runtime packaging. Existing suite gaps remain: Notification has no standalone unit suite; Catalog/Notification have no dedicated integration suite, but Docker E2E exercises them.
