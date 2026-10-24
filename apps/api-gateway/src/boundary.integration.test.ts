@@ -39,6 +39,7 @@ describe("real Gateway HTTP boundary", () => {
   let token: string;
   let expired: string;
   let admin: string;
+  const invalidTokens = new Map<string, string>();
   let readiness: { stopping: boolean };
   let delayedEntered: (() => void) | undefined;
   let releaseDelayed: (() => void) | undefined;
@@ -53,6 +54,17 @@ describe("real Gateway HTTP boundary", () => {
     token = await sign("CUSTOMER", "5m");
     expired = await sign("CUSTOMER", "-10s");
     admin = await sign("ADMIN", "5m");
+    const now = Math.floor(Date.now() / 1000);
+    const claims = { sub: "verified-user", role: "CUSTOMER", type: "access", iss: "fitsupply-auth-service", aud: "fitsupply-api", iat: now, exp: now + 300, jti: randomUUID() };
+    const header = { alg: "RS256", typ: "JWT", kid: "gateway-boundary" };
+    invalidTokens.set("wrong-issuer", await new SignJWT({ ...claims, iss: "untrusted-issuer" }).setProtectedHeader(header).sign(keys.privateKey));
+    invalidTokens.set("wrong-audience", await new SignJWT({ ...claims, aud: "another-api" }).setProtectedHeader(header).sign(keys.privateKey));
+    invalidTokens.set("forged", await new SignJWT(claims).setProtectedHeader(header).sign((await generateKeyPair("RS256")).privateKey));
+    invalidTokens.set("unsupported-algorithm", await new SignJWT(claims).setProtectedHeader({ ...header, alg: "HS256" }).sign(new Uint8Array(32)));
+    const invalidClaims: Record<string, unknown> = { ...claims, sub: 42 };
+    invalidTokens.set("invalid-claims", await new SignJWT(invalidClaims).setProtectedHeader(header).sign(keys.privateKey));
+    invalidTokens.set("missing-kid", await new SignJWT(claims).setProtectedHeader({ alg: "RS256", typ: "JWT" }).sign(keys.privateKey));
+    invalidTokens.set("refresh", await new SignJWT({ ...claims, type: "refresh" }).setProtectedHeader(header).sign(keys.privateKey));
     upstream = createServer(async (req, res) => {
       const chunks: Buffer[] = [];
       for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -113,10 +125,10 @@ describe("real Gateway HTTP boundary", () => {
     expect(seen.find((entry) => entry.url === "/jwks")?.headers["x-internal-secret"]).toBe("gateway-test-secret");
   });
 
-  it.each(["invalid", "expired", "wrong-scheme", "missing"])("rejects %s JWT without proxying", async (kind) => {
+  it.each(["invalid", "expired", "wrong-scheme", "missing", "wrong-issuer", "wrong-audience", "forged", "unsupported-algorithm", "invalid-claims", "missing-kid", "refresh"])("rejects %s JWT without proxying", async (kind) => {
     const count = seen.length;
     const call = request(app).get("/cart/echo");
-    if (kind !== "missing") call.set("Authorization", kind === "wrong-scheme" ? `Basic ${token}` : `Bearer ${kind === "expired" ? expired : "invalid.token.value"}`);
+    if (kind !== "missing") call.set("Authorization", kind === "wrong-scheme" ? `Basic ${token}` : `Bearer ${kind === "expired" ? expired : invalidTokens.get(kind) ?? "invalid.token.value"}`);
     const response = await call.expect(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
     expect(seen).toHaveLength(count);
