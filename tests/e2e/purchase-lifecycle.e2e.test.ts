@@ -182,6 +182,11 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     expect(order.items[0].quantity).toBe(3);
     await expectStatus("GET", `/order/orders/${order.id}`, 403, other.accessToken);
     await expectStatus("PATCH", `/order/orders/${order.id}/cancel`, 403, other.accessToken);
+    const spoofedIdentity = { "x-user-id": customer.user.id, "x-user-role": "ADMIN", "x-internal-secret": "fitsupply_test_internal_secret" };
+    const anonymous = await requestJson("GET", `/order/orders/${order.id}`, { headers: spoofedIdentity, expected: 401 });
+    expect(anonymous).toEqual({ error: { code: "UNAUTHORIZED", message: "Missing token" } });
+    await expectStatus("PATCH", `/order/orders/${order.id}/cancel`, 403, other.accessToken, undefined, spoofedIdentity);
+    expect(await requestJson("GET", `/order/orders/${order.id}`, { token: customer.accessToken })).toMatchObject({ userId: customer.user.id, status: "PENDING" });
     for (const command of ["confirm", "process", "ship", "deliver"]) {
       await expectStatus("PATCH", `/order/orders/${order.id}/${command}`, 403, customer.accessToken, undefined, { "x-user-role": "ADMIN" });
     }
@@ -245,6 +250,13 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
       body: { orderId: order.id },
     });
     expect(paymentRetry.id).toBe(payment.id);
+    const spoofedOwner = { "x-user-id": customer.user.id, "x-user-role": "ADMIN" };
+    await expectStatus("GET", `/payment/payments/${payment.id}`, 403, otherSession.accessToken, undefined, spoofedOwner);
+    await expectStatus("POST", "/payment/payments", 403, otherSession.accessToken, { orderId: order.id }, { ...spoofedOwner, "Idempotency-Key": `foreign-payment-${suffix}` });
+    await expectStatus("PATCH", `/payment/payments/${payment.id}/confirm`, 403, otherSession.accessToken, undefined, spoofedOwner);
+    expect(await requestJson("GET", `/payment/payments/${payment.id}`, { token: customer.accessToken })).toMatchObject({ id: payment.id, status: "PENDING" });
+    const foreignPayments = await requestJson<{ items: Array<{ id: string }> }>("GET", "/payment/payments/me", { token: otherSession.accessToken });
+    expect(foreignPayments.items.some((item) => item.id === payment.id)).toBe(false);
 
     const paid = await requestJson<{ status: string }>("PATCH", `/payment/payments/${payment.id}/confirm`, {
       token: admin.accessToken,
@@ -297,6 +309,11 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
       body: { orderId: order.id },
     });
     expect(shipmentRetry.id).toBe(shipment.id);
+    await expectStatus("GET", `/shipping/shipments/${shipment.id}`, 403, otherSession.accessToken, undefined, spoofedOwner);
+    await expectStatus("PATCH", `/shipping/shipments/${shipment.id}/status`, 403, otherSession.accessToken, { status: "SHIPPED", trackingNumber: "FORGED" }, spoofedOwner);
+    expect(await requestJson("GET", `/shipping/shipments/${shipment.id}`, { token: customer.accessToken })).toMatchObject({ id: shipment.id, status: "PROCESSING" });
+    const foreignShipments = await requestJson<{ items: Array<{ id: string }> }>("GET", "/shipping/shipments/me", { token: otherSession.accessToken });
+    expect(foreignShipments.items.some((item) => item.id === shipment.id)).toBe(false);
 
     await requestJson("PATCH", `/order/orders/${order.id}/process`, { token: admin.accessToken });
     const consumed = await requestJson<{ stock: number; reservedStock: number }>("GET", `/inventory/products/${productId}`, { token: admin.accessToken });
@@ -322,13 +339,22 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     const delivered = await requestJson<{ status: string }>("PATCH", `/order/orders/${order.id}/deliver`, { token: admin.accessToken });
     expect(delivered.status).toBe("DELIVERED");
 
-    const notifications = await requestJson<{ items: Array<{ type: string }> }>("GET", "/notification/notifications/me", {
+    const notifications = await requestJson<{ items: Array<{ id: string; type: string; isRead: boolean }> }>("GET", "/notification/notifications/me", {
       token: customer.accessToken,
       expected: 200,
     });
     const types = notifications.items.map((item) => item.type);
     expect(types).toContain("ORDER_SHIPPED");
     expect(types).toContain("ORDER_DELIVERED");
+    const notification = notifications.items.find((item) => item.type === "ORDER_SHIPPED");
+    if (!notification) throw new Error("Missing shipped notification");
+    expect(notification.isRead).toBe(false);
+    await expectStatus("PATCH", `/notification/notifications/${notification.id}/read`, 403, otherSession.accessToken, undefined, spoofedOwner);
+    const ownerNotifications = await requestJson<typeof notifications>("GET", "/notification/notifications/me", { token: customer.accessToken });
+    expect(ownerNotifications.items.find((item) => item.id === notification.id)?.isRead).toBe(false);
+    const foreignNotifications = await requestJson<typeof notifications>("GET", "/notification/notifications/me", { token: otherSession.accessToken });
+    expect(foreignNotifications.items.some((item) => item.id === notification.id)).toBe(false);
+    expect(await requestJson("PATCH", `/notification/notifications/${notification.id}/read`, { token: customer.accessToken })).toMatchObject({ id: notification.id, isRead: true });
   });
 
   it("payment failure preserves pending Order until explicit customer cancellation", async () => {
@@ -435,5 +461,25 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
       title: "spoof",
       message: "spoof",
     }, spoofHeaders);
+  });
+
+  it("keeps cart item mutations scoped to verified owner", async () => {
+    const productId = await createCatalog(adminSession.accessToken, `cart-owner-${Date.now()}`);
+    type Cart = { userId: string; items: Array<{ id: string; productId: string; quantity: number }> };
+    const cart = await requestJson<Cart>("POST", "/cart/items", { token: customerSession.accessToken, body: { productId, quantity: 1 } });
+    const item = cart.items.find((entry) => entry.productId === productId);
+    if (!item) throw new Error("Missing owner cart item");
+    const spoofedOwner = { "x-user-id": customerSession.user.id, "x-user-role": "ADMIN" };
+    await expectStatus("PATCH", `/cart/items/${item.id}`, 404, otherSession.accessToken, { quantity: 2 }, spoofedOwner);
+    await expectStatus("DELETE", `/cart/items/${item.id}`, 404, otherSession.accessToken, undefined, spoofedOwner);
+    const unchanged = await requestJson<Cart>("GET", "/cart", { token: customerSession.accessToken });
+    expect(unchanged.items.find((entry) => entry.id === item.id)?.quantity).toBe(1);
+    const foreign = await requestJson<Cart>("GET", "/cart", { token: otherSession.accessToken, headers: spoofedOwner });
+    expect(foreign.userId).toBe(otherSession.user.id);
+    expect(foreign.items.some((entry) => entry.id === item.id)).toBe(false);
+    const updated = await requestJson<Cart>("PATCH", `/cart/items/${item.id}`, { token: customerSession.accessToken, body: { quantity: 2 } });
+    expect(updated.items.find((entry) => entry.id === item.id)?.quantity).toBe(2);
+    const removed = await requestJson<Cart>("DELETE", `/cart/items/${item.id}`, { token: customerSession.accessToken });
+    expect(removed.items.some((entry) => entry.id === item.id)).toBe(false);
   });
 });
