@@ -13,6 +13,7 @@ import { createIntegrationEvent } from "../events/boundary.js";
 import { ServiceUnavailableError } from "../errors/httpErrors.js";
 import { inspectDlq, replayDlq, replayDlqDelivery } from "../messaging/dlq.js";
 import { serializeIntegrationEvent } from "../events/boundary.js";
+import { traced, SpanKind, traceHeaders, activeTraceFields, telemetryMetrics } from "../observability/telemetry.js";
 
 function deferred() {
   let resolve!: () => void;
@@ -69,6 +70,22 @@ describe("real RabbitMQ mechanics", () => {
   const recoveryDlq = `${recoveryQueue}.dlq`;
   const recoveryEvent = () => createIntegrationEvent({ eventType: "order.cancelled", correlationId: randomUUID(), causationId: null,
     data: { orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }] } });
+  it("real confirmed publish carries W3C producer context into consumer span", async () => {
+    let origin: ReturnType<typeof activeTraceFields> = {};
+    let received: ReturnType<typeof activeTraceFields> | undefined;
+    let headers: Record<string, unknown> | undefined;
+    await broker.subscribe(recoveryQueue, async (message) => { received = activeTraceFields(); headers = message.properties.headers; });
+    await traced("real producer request", SpanKind.INTERNAL, {}, async () => {
+      origin = activeTraceFields();
+      expect(traceHeaders().traceparent).toContain(origin.otelTraceId);
+      await publisher.publish(DOMAIN_EXCHANGE, "order.cancelled", serializeIntegrationEvent(recoveryEvent()));
+    });
+    await vi.waitFor(() => expect(received).toBeDefined());
+    expect(received?.otelTraceId).toBe(origin.otelTraceId);
+    expect(received?.spanId).not.toBe(origin.spanId);
+    expect(headers?.traceparent).toContain(origin.otelTraceId);
+    expect(await telemetryMetrics()).toContain('messages_published_total{event_type="order.cancelled",result="confirmed"');
+  });
   it("bounded DLQ inspection holds copies unacknowledged and does not expose payloads", async () => {
     for (let i = 0; i < 3; i++) await publisher.publish(DEAD_LETTER_EXCHANGE, recoveryQueue, Buffer.from(`password=secret-${i}`));
     const records = await inspectDlq(broker, recoveryDlq, 2);

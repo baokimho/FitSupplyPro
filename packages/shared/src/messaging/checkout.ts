@@ -16,6 +16,7 @@ import { DeliveryBudgetExhausted, DeliveryPoisonError, deliveryDiagnostic, deliv
 import { DEAD_LETTER_EXCHANGE } from "./topology.js";
 import type { ConsumeMessage } from "amqplib";
 import { dependencyShutdownSignal } from "../resilience/timeout.js";
+import { count, traceHeaders, dependencyLabels } from "../observability/telemetry.js";
 
 export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
   const flag = env.EVENT_DRIVEN_CHECKOUT ?? "false";
@@ -103,10 +104,14 @@ export function createCheckoutDeliveryHandler(queue: string, types: readonly Eve
       const process = checkoutMessageHandler(types, handler, persist, logger, onFailure, { policy, beforeAttempt: async (event) => {
         try {
           const attempt = await claimDeliveryAttempt(database, { consumer: queue, messageKey: messageKey(message.content), replayCount: epoch }, event, policy.maxAttempts);
+          if (attempt === null) count("inbox_duplicate_total", { event_type: event.eventType });
           if (attempt !== null) attempts.set(message, attempt);
           return attempt;
         } catch (error) {
-          if (error instanceof DeliveryBudgetExhausted) attempts.set(message, policy.maxAttempts);
+          if (error instanceof DeliveryBudgetExhausted) {
+            attempts.set(message, policy.maxAttempts);
+            count("retry_exhausted_total", { ...dependencyLabels("checkout-handler", event.eventType), error_class: "transient" });
+          }
           throw error;
         }
       } });
@@ -118,9 +123,11 @@ export function createCheckoutDeliveryHandler(queue: string, types: readonly Eve
       const diagnostic = deliveryDiagnostic(queue, { ...message, properties: { ...message.properties, headers: { ...message.properties.headers, [REPLAY_COUNT_HEADER]: epoch } } }, error, attempts.get(message) ?? 0, policy.maxAttempts);
       logger.warn(diagnostic, "delivery quarantine pending confirmation");
       await publish(DEAD_LETTER_EXCHANGE, queue, message.content, {
+        ...traceHeaders(),
         [FAILURE_HEADER]: JSON.stringify(diagnostic), [REPLAY_COUNT_HEADER]: epoch,
         "x-fitsupply-original-routing-key": diagnostic.routingKey,
       });
+      count("dlq_messages_total", { queue, error_class: diagnostic.failureClass });
     },
   };
 }

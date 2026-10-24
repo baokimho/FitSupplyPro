@@ -1285,6 +1285,7 @@ export namespace Prisma {
     eventId: string | null
     deduplicationKey: string | null
     payload: string | null
+    traceparent: string | null
     createdAt: Date | null
     publishedAt: Date | null
     attempts: number | null
@@ -1297,6 +1298,7 @@ export namespace Prisma {
     eventId: string | null
     deduplicationKey: string | null
     payload: string | null
+    traceparent: string | null
     createdAt: Date | null
     publishedAt: Date | null
     attempts: number | null
@@ -1309,6 +1311,7 @@ export namespace Prisma {
     eventId: number
     deduplicationKey: number
     payload: number
+    traceparent: number
     createdAt: number
     publishedAt: number
     attempts: number
@@ -1331,6 +1334,7 @@ export namespace Prisma {
     eventId?: true
     deduplicationKey?: true
     payload?: true
+    traceparent?: true
     createdAt?: true
     publishedAt?: true
     attempts?: true
@@ -1343,6 +1347,7 @@ export namespace Prisma {
     eventId?: true
     deduplicationKey?: true
     payload?: true
+    traceparent?: true
     createdAt?: true
     publishedAt?: true
     attempts?: true
@@ -1355,6 +1360,7 @@ export namespace Prisma {
     eventId?: true
     deduplicationKey?: true
     payload?: true
+    traceparent?: true
     createdAt?: true
     publishedAt?: true
     attempts?: true
@@ -1454,6 +1460,7 @@ export namespace Prisma {
     eventId: string
     deduplicationKey: string
     payload: string
+    traceparent: string | null
     createdAt: Date
     publishedAt: Date | null
     attempts: number
@@ -1485,6 +1492,7 @@ export namespace Prisma {
     eventId?: boolean
     deduplicationKey?: boolean
     payload?: boolean
+    traceparent?: boolean
     createdAt?: boolean
     publishedAt?: boolean
     attempts?: boolean
@@ -1497,6 +1505,7 @@ export namespace Prisma {
     eventId?: boolean
     deduplicationKey?: boolean
     payload?: boolean
+    traceparent?: boolean
     createdAt?: boolean
     publishedAt?: boolean
     attempts?: boolean
@@ -1509,6 +1518,7 @@ export namespace Prisma {
     eventId?: boolean
     deduplicationKey?: boolean
     payload?: boolean
+    traceparent?: boolean
     createdAt?: boolean
     publishedAt?: boolean
     attempts?: boolean
@@ -1521,6 +1531,7 @@ export namespace Prisma {
     eventId?: boolean
     deduplicationKey?: boolean
     payload?: boolean
+    traceparent?: boolean
     createdAt?: boolean
     publishedAt?: boolean
     attempts?: boolean
@@ -1528,7 +1539,7 @@ export namespace Prisma {
     nextAttemptAt?: boolean
   }
 
-  export type OutboxEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "eventId" | "deduplicationKey" | "payload" | "createdAt" | "publishedAt" | "attempts" | "lastError" | "nextAttemptAt", ExtArgs["result"]["outboxEvent"]>
+  export type OutboxEventOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "eventId" | "deduplicationKey" | "payload" | "traceparent" | "createdAt" | "publishedAt" | "attempts" | "lastError" | "nextAttemptAt", ExtArgs["result"]["outboxEvent"]>
 
   export type $OutboxEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "OutboxEvent"
@@ -1538,6 +1549,7 @@ export namespace Prisma {
       eventId: string
       deduplicationKey: string
       payload: string
+      traceparent: string | null
       createdAt: Date
       publishedAt: Date | null
       attempts: number
@@ -1970,6 +1982,7 @@ export namespace Prisma {
     readonly eventId: FieldRef<"OutboxEvent", 'String'>
     readonly deduplicationKey: FieldRef<"OutboxEvent", 'String'>
     readonly payload: FieldRef<"OutboxEvent", 'String'>
+    readonly traceparent: FieldRef<"OutboxEvent", 'String'>
     readonly createdAt: FieldRef<"OutboxEvent", 'DateTime'>
     readonly publishedAt: FieldRef<"OutboxEvent", 'DateTime'>
     readonly attempts: FieldRef<"OutboxEvent", 'Int'>
@@ -6669,6 +6682,7 @@ export namespace Prisma {
     eventId: 'eventId',
     deduplicationKey: 'deduplicationKey',
     payload: 'payload',
+    traceparent: 'traceparent',
     createdAt: 'createdAt',
     publishedAt: 'publishedAt',
     attempts: 'attempts',
@@ -6823,6 +6837,7 @@ export namespace Prisma {
     eventId?: StringFilter<"OutboxEvent"> | string
     deduplicationKey?: StringFilter<"OutboxEvent"> | string
     payload?: StringFilter<"OutboxEvent"> | string
+    traceparent?: StringNullableFilter<"OutboxEvent"> | string | null
     createdAt?: DateTimeFilter<"OutboxEvent"> | Date | string
     publishedAt?: DateTimeNullableFilter<"OutboxEvent"> | Date | string | null
     attempts?: IntFilter<"OutboxEvent"> | number
@@ -6835,6 +6850,7 @@ export namespace Prisma {
     eventId?: SortOrder
     deduplicationKey?: SortOrder
     payload?: SortOrder
+    traceparent?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     publishedAt?: SortOrderInput | SortOrder
     attempts?: SortOrder
@@ -6850,6 +6866,7 @@ export namespace Prisma {
     OR?: OutboxEventWhereInput[]
     NOT?: OutboxEventWhereInput | OutboxEventWhereInput[]
     payload?: StringFilter<"OutboxEvent"> | string
+    traceparent?: StringNullableFilter<"OutboxEvent"> | string | null
     createdAt?: DateTimeFilter<"OutboxEvent"> | Date | string
     publishedAt?: DateTimeNullableFilter<"OutboxEvent"> | Date | string | null
     attempts?: IntFilter<"OutboxEvent"> | number
@@ -6862,6 +6879,7 @@ export namespace Prisma {
     eventId?: SortOrder
     deduplicationKey?: SortOrder
     payload?: SortOrder
+    traceparent?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     publishedAt?: SortOrderInput | SortOrder
     attempts?: SortOrder
@@ -6882,6 +6900,7 @@ export namespace Prisma {
     eventId?: StringWithAggregatesFilter<"OutboxEvent"> | string
     deduplicationKey?: StringWithAggregatesFilter<"OutboxEvent"> | string
     payload?: StringWithAggregatesFilter<"OutboxEvent"> | string
+    traceparent?: StringNullableWithAggregatesFilter<"OutboxEvent"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"OutboxEvent"> | Date | string
     publishedAt?: DateTimeNullableWithAggregatesFilter<"OutboxEvent"> | Date | string | null
     attempts?: IntWithAggregatesFilter<"OutboxEvent"> | number
@@ -7135,6 +7154,7 @@ export namespace Prisma {
     eventId: string
     deduplicationKey: string
     payload: string
+    traceparent?: string | null
     createdAt?: Date | string
     publishedAt?: Date | string | null
     attempts?: number
@@ -7147,6 +7167,7 @@ export namespace Prisma {
     eventId: string
     deduplicationKey: string
     payload: string
+    traceparent?: string | null
     createdAt?: Date | string
     publishedAt?: Date | string | null
     attempts?: number
@@ -7159,6 +7180,7 @@ export namespace Prisma {
     eventId?: StringFieldUpdateOperationsInput | string
     deduplicationKey?: StringFieldUpdateOperationsInput | string
     payload?: StringFieldUpdateOperationsInput | string
+    traceparent?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     attempts?: IntFieldUpdateOperationsInput | number
@@ -7171,6 +7193,7 @@ export namespace Prisma {
     eventId?: StringFieldUpdateOperationsInput | string
     deduplicationKey?: StringFieldUpdateOperationsInput | string
     payload?: StringFieldUpdateOperationsInput | string
+    traceparent?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     attempts?: IntFieldUpdateOperationsInput | number
@@ -7183,6 +7206,7 @@ export namespace Prisma {
     eventId: string
     deduplicationKey: string
     payload: string
+    traceparent?: string | null
     createdAt?: Date | string
     publishedAt?: Date | string | null
     attempts?: number
@@ -7195,6 +7219,7 @@ export namespace Prisma {
     eventId?: StringFieldUpdateOperationsInput | string
     deduplicationKey?: StringFieldUpdateOperationsInput | string
     payload?: StringFieldUpdateOperationsInput | string
+    traceparent?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     attempts?: IntFieldUpdateOperationsInput | number
@@ -7207,6 +7232,7 @@ export namespace Prisma {
     eventId?: StringFieldUpdateOperationsInput | string
     deduplicationKey?: StringFieldUpdateOperationsInput | string
     payload?: StringFieldUpdateOperationsInput | string
+    traceparent?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     attempts?: IntFieldUpdateOperationsInput | number
@@ -7484,6 +7510,21 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -7517,21 +7558,6 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -7542,6 +7568,7 @@ export namespace Prisma {
     eventId?: SortOrder
     deduplicationKey?: SortOrder
     payload?: SortOrder
+    traceparent?: SortOrder
     createdAt?: SortOrder
     publishedAt?: SortOrder
     attempts?: SortOrder
@@ -7558,6 +7585,7 @@ export namespace Prisma {
     eventId?: SortOrder
     deduplicationKey?: SortOrder
     payload?: SortOrder
+    traceparent?: SortOrder
     createdAt?: SortOrder
     publishedAt?: SortOrder
     attempts?: SortOrder
@@ -7570,6 +7598,7 @@ export namespace Prisma {
     eventId?: SortOrder
     deduplicationKey?: SortOrder
     payload?: SortOrder
+    traceparent?: SortOrder
     createdAt?: SortOrder
     publishedAt?: SortOrder
     attempts?: SortOrder
@@ -7597,6 +7626,24 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -7641,24 +7688,6 @@ export namespace Prisma {
     _sum?: NestedIntFilter<$PrismaModel>
     _min?: NestedIntFilter<$PrismaModel>
     _max?: NestedIntFilter<$PrismaModel>
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type ConsumerDeliveryConsumerMessageKeyReplayCountCompoundUniqueInput = {
@@ -7824,6 +7853,10 @@ export namespace Prisma {
     set?: string
   }
 
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -7838,10 +7871,6 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
-  }
-
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
   }
 
   export type InventoryOperationCreateNestedManyWithoutInventoryInput = {
@@ -7914,6 +7943,20 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedDateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -7947,20 +7990,6 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -7976,6 +8005,34 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -8006,17 +8063,6 @@ export namespace Prisma {
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -8042,23 +8088,6 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type InventoryOperationCreateWithoutInventoryInput = {

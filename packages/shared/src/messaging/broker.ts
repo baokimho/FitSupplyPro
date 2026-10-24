@@ -4,6 +4,8 @@ import type { Logger } from "../logging/logger.js";
 import { getCorrelation } from "../http/correlation.js";
 import type { RabbitMqConfig } from "./config.js";
 import { consumeRabbitMq, type RabbitMqHandler, type RabbitMqFailureHandler } from "./consumer.js";
+import { traced, SpanKind, traceHeaders, count } from "../observability/telemetry.js";
+import { deliveryEventIdentity } from "./delivery-policy.js";
 
 const CONFIRM_TIMEOUT_MS = 3000;
 
@@ -65,6 +67,13 @@ export async function openRabbitMq(config: RabbitMqConfig, logger: Logger) {
     let tail: Promise<void> = Promise.resolve();
     // ponytail: one publish in flight per publisher; use multiple publishers for higher throughput.
     function publish(exchange: string, routingKey: string, content: Buffer, headers: Record<string, unknown> = {}): Promise<void> {
+      const eventType = deliveryEventIdentity(content)?.eventType ?? "unknown";
+      return traced("rabbitmq publish", SpanKind.PRODUCER, { "messaging.system": "rabbitmq", "event.type": eventType }, async () => {
+        try { await publishRaw(exchange, routingKey, content, { ...headers, ...traceHeaders() }); count("messages_published_total", { event_type: eventType, result: "confirmed" }); }
+        catch (error) { count("messages_published_total", { event_type: eventType, result: "failure" }); throw error; }
+      });
+    }
+    function publishRaw(exchange: string, routingKey: string, content: Buffer, headers: Record<string, unknown>): Promise<void> {
       const correlation = getCorrelation();
       const result = tail.then(() => {
         assertOpen(true);

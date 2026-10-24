@@ -125,6 +125,7 @@ exports.Prisma.OutboxEventScalarFieldEnum = {
   eventId: 'eventId',
   deduplicationKey: 'deduplicationKey',
   payload: 'payload',
+  traceparent: 'traceparent',
   createdAt: 'createdAt',
   publishedAt: 'publishedAt',
   attempts: 'attempts',

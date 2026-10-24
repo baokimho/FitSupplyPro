@@ -2,6 +2,7 @@ import type { Channel } from "amqplib";
 import type { openRabbitMq } from "./broker.js";
 import { deserializeIntegrationEvent } from "../events/boundary.js";
 import { DOMAIN_QUEUES } from "./topology.js";
+import { count, traced, SpanKind, extractTrace } from "../observability/telemetry.js";
 import { DELIVERY_FAILURE_MESSAGES, deliveryEventIdentity, FAILURE_HEADER, MAX_REPLAY_COUNT, quarantineId, replayCount, REPLAY_COUNT_HEADER, type DeliveryMessage, type DeliveryFailureClass } from "./delivery-policy.js";
 
 export const MAX_DLQ_SCAN = 100;
@@ -77,15 +78,16 @@ export async function replayDlqDelivery(channel: Pick<Channel, "ack">, dlq: stri
   signal?.throwIfAborted();
   const event = replayEvent(dlq, message);
   const queue = sourceQueue(dlq);
-  await publish("", queue.name, message.content, {
+  await traced("dlq replay", SpanKind.PRODUCER, { "messaging.destination.name": queue.name }, () => publish("", queue.name, message.content, {
     [REPLAY_COUNT_HEADER]: replayCount(message) + 1,
     "x-fitsupply-replayed-at": new Date().toISOString(),
     "x-fitsupply-original-routing-key": event.eventType,
     "x-trace-id": event.correlationId,
-  });
+  }), extractTrace(message.properties.headers));
   signal?.throwIfAborted();
   // amqplib ACK only needs the original fields/deliveryTag; keep original delivery object.
   channel.ack(message);
+  count("dlq_replays_total", { queue: queue.name });
 }
 
 export async function replayDlq(broker: RecoveryBroker, dlq: string, id: string, confirmation: string, limit = MAX_DLQ_SCAN, signal?: AbortSignal) {

@@ -6,6 +6,7 @@ import { createIntegrationEvent, runWithCorrelation, dispatchOutboxOnce, startOu
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
+import { enqueueOutboxEvent, registerCheckoutMetrics, telemetryMetrics, traced, SpanKind, activeTraceFields } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
 import type { cancelOrderService as cancelOrderServiceType, checkoutOrderService as checkoutOrderServiceType, confirmOrderService as confirmOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
 import type { advanceOrderService as advanceOrderServiceType } from "./services/order.service.js";
@@ -304,6 +305,29 @@ describe("bounded synchronous dependency recovery", () => {
 });
 
 describe("durable checkout Saga", () => {
+  it("scrapes committed Outbox state, excludes rollback and preserves tracing across dispatch", async () => {
+    registerCheckoutMetrics(prisma, "order-service");
+    const input = createIntegrationEvent({ eventType: "order.confirmed", correlationId: randomUUID(), causationId: null, data: { orderId: randomUUID(), userId: "private-user" } });
+    let origin: ReturnType<typeof activeTraceFields> = {};
+    await traced("persistent request", SpanKind.INTERNAL, {}, async () => {
+      origin = activeTraceFields();
+      await prisma.$transaction((tx) => enqueueOutboxEvent(tx, input));
+    });
+    await prisma.$transaction((tx) => enqueueOutboxEvent(tx, input));
+    await expect(prisma.$transaction(async (tx) => { await enqueueOutboxEvent(tx, { ...input, eventId: randomUUID() }); throw new Error("rollback"); })).rejects.toThrow("rollback");
+    const stored = await prisma.outboxEvent.findUniqueOrThrow({ where: { eventId: input.eventId } });
+    expect(stored.traceparent).toContain(origin.otelTraceId);
+    await prisma.outboxEvent.update({ where: { id: stored.id }, data: { createdAt: new Date(Date.now() - 120000), nextAttemptAt: new Date(Date.now() + 60000) } });
+    const metrics = await telemetryMetrics();
+    expect(metrics).toMatch(/outbox_pending_total\{[^}]*\} 1/);
+    const age = Number(metrics.match(/outbox_oldest_pending_age_seconds\{[^}]*\} ([\d.]+)/)?.[1]);
+    expect(age).toBeGreaterThanOrEqual(119);
+    expect(metrics).toMatch(/business_events_committed_total\{event_type="order.confirmed",[^}]*\} 1/);
+    expect(metrics).not.toContain("private-user");
+    await prisma.outboxEvent.update({ where: { id: stored.id }, data: { nextAttemptAt: new Date(0) } });
+    await dispatchOutboxOnce(prisma, async () => { expect(activeTraceFields().otelTraceId).toBeTruthy(); }, createLogger({ service: "order-service", environment: "test", level: "silent" }));
+    expect(await telemetryMetrics()).toMatch(/outbox_pending_total\{[^}]*\} 0/);
+  });
   async function fixture() {
     const productId = randomUUID();
     const correlationId = randomUUID();

@@ -13,6 +13,7 @@ model OutboxEvent {
   eventId          String @unique
   deduplicationKey String @unique
   payload          String
+  traceparent      String?
   createdAt        DateTime @default(now())
   publishedAt      DateTime?
   attempts         Int @default(0)

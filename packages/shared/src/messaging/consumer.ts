@@ -4,6 +4,9 @@ import type { Logger } from "../logging/logger.js";
 import { runWithCorrelation, validCorrelationId } from "../http/correlation.js";
 import { dependencyShutdownSignal } from "../resilience/timeout.js";
 import { classifyFailure } from "../resilience/failure.js";
+import { beginSpan, telemetryContext, extractTrace, SpanKind, spanError, count, observe } from "../observability/telemetry.js";
+import { deliveryEventIdentity, deliveryFailureClass, MAX_REPLAY_COUNT } from "./delivery-policy.js";
+import { DOMAIN_QUEUES } from "./topology.js";
 
 export type RabbitMqHandler = (message: ConsumeMessage) => Promise<void>;
 export type RabbitMqFailureHandler = (message: ConsumeMessage, error: unknown) => Promise<void>;
@@ -31,26 +34,40 @@ export async function consumeRabbitMq(
     }
     if (stopping) { if (open) channel.nack(message, false, true); return; }
     const headers = message.properties.headers ?? {};
+    const queueLabel = DOMAIN_QUEUES.some((entry) => entry.name === queue) ? queue : "other";
+    const replayEpoch: unknown = headers["x-fitsupply-replay-count"];
+    if (typeof replayEpoch === "number" && Number.isInteger(replayEpoch) && replayEpoch >= 1 && replayEpoch <= MAX_REPLAY_COUNT) count("dlq_replay_deliveries_total", { queue: queueLabel });
+    const eventType = deliveryEventIdentity(message.content)?.eventType ?? "unknown";
+    const current = beginSpan("rabbitmq consume", SpanKind.CONSUMER, { "messaging.system": "rabbitmq", "messaging.destination.name": queueLabel, "event.type": eventType }, extractTrace(headers));
+    const started = performance.now();
+    let result = "success";
     const correlation = {
       requestId: validCorrelationId(headers["x-request-id"]) ? headers["x-request-id"] : randomUUID(),
       traceId: validCorrelationId(headers["x-trace-id"]) ? headers["x-trace-id"] : randomUUID(),
     };
-    const work = runWithCorrelation(correlation, async () => {
+    const work = telemetryContext.with(current.context, () => runWithCorrelation(correlation, async () => {
       const context = { queue, routingKey: message.fields.routingKey, redelivered: message.fields.redelivered };
       try {
         await handler(message);
         if (open) { channel.ack(message); logger.debug(context, "broker message acknowledged"); }
       } catch (err) {
         if (dependencyShutdownSignal.aborted && classifyFailure(err) === "cancelled") {
+          result = "cancelled";
           if (open) channel.nack(message, false, true);
           logger.info(context, "shutdown cancelled processing; delivery requeued");
           return;
         }
+        result = "failure";
+        const error_class = deliveryFailureClass(err);
+        spanError(current.span, error_class);
+        count("message_processing_failures_total", { event_type: eventType, queue: queueLabel, error_class });
         if (quarantine) {
           try {
             await quarantine(message, err);
+            result = "quarantined";
             if (open) channel.ack(message);
           } catch {
+            result = "quarantine_failed";
             logger.error(context, "DLQ publication unconfirmed; closing channel with source unacknowledged");
             if (open) { open = false; await channel.close(); }
           }
@@ -58,8 +75,13 @@ export async function consumeRabbitMq(
         }
         logger.error({ ...context, err }, "broker processing failed; rejecting without requeue");
         if (open) channel.nack(message, false, false);
+      } finally {
+        const labels = { event_type: eventType, queue: queueLabel, result };
+        count("messages_consumed_total", labels);
+        observe("message_processing_duration_seconds", (performance.now() - started) / 1000, labels);
+        current.span.setAttribute("processing.result", result); current.span.end();
       }
-    }).catch((err: unknown) => logger.error({ ...correlation, queue, err }, "broker settlement failed"));
+    })).catch((err: unknown) => logger.error({ ...correlation, queue, err }, "broker settlement failed"));
     inFlight.add(work);
     void work.finally(() => { inFlight.delete(work); });
   }, { noAck: false });

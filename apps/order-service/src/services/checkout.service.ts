@@ -2,6 +2,7 @@ import { ConflictError, NotFoundError, checkoutEventFingerprint, createIntegrati
 import prisma from "../config/db.js";
 import type { Prisma, PrismaClient } from "../generated/prisma/index.js";
 import { logger } from "../logger.js";
+import { traced, SpanKind, recordSagaState } from "@shared/utils";
 import { classifySagaEvent } from "../domain/checkout-saga.js";
 import { completeOrderTransition } from "./order.service.js";
 
@@ -59,6 +60,7 @@ async function stagePaymentSuccess(event: KnownIntegrationEvent, database: Prism
       state: unsafe ? "FAILED" : refund ? "REFUNDING" : "CONFIRMING",
       ...(unsafe ? { failureCode: moneyConflict ? "PAYMENT_DATA_CONFLICT" : "ORDER_COMMAND_CONFLICT", failedStep: "CONFIRMATION", compensationRetryable: false } : refund ? { failureCode: "ORDER_CONFIRMATION_INVALID" } : {}),
     } });
+    recordSagaState(next.state);
     logger.info({ sagaId: saga.id, orderId: order.id, previousState: saga.state, nextState: next.state,
       eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId, causationId: event.causationId,
       paymentOutcome: next.paymentOutcome, failureCode: next.failureCode }, "checkout Saga recorded payment acknowledgement");
@@ -68,6 +70,9 @@ async function stagePaymentSuccess(event: KnownIntegrationEvent, database: Prism
 }
 
 export async function handleOrderCheckout(event: KnownIntegrationEvent, database: PrismaClient = prisma) {
+  return traced("checkout saga", SpanKind.INTERNAL, { "event.type": event.eventType }, () => handleSagaEvent(event, database));
+}
+async function handleSagaEvent(event: KnownIntegrationEvent, database: PrismaClient) {
   if (!sagaEventTypes.includes(event.eventType)) throw new ConflictError("Unexpected Order checkout event");
   await stagePaymentSuccess(event, database);
   if (event.eventType !== "payment.succeeded") {
@@ -88,6 +93,7 @@ export async function handleOrderCheckout(event: KnownIntegrationEvent, database
     if (classification !== "transition") return null;
     const update = async (data: Prisma.CheckoutSagaUpdateInput) => {
       const next = await tx.checkoutSaga.update({ where: { id: saga.id }, data: { ...data, lastEventId: event.eventId } });
+      recordSagaState(next.state);
       logger.info({ sagaId: saga.id, orderId: order.id, previousState: saga.state, nextState: next.state,
         eventId: event.eventId, eventType: event.eventType, ...metadata, causationId: event.causationId, compensationStatus: next.compensationError }, "checkout Saga progressed");
     };

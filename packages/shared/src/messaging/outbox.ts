@@ -5,12 +5,13 @@ import type { KnownIntegrationEvent } from "../events/registry.js";
 import { runWithCorrelation } from "../http/correlation.js";
 import type { Logger } from "../logging/logger.js";
 import { retryDelay } from "../resilience/retry.js";
+import { traceHeaders, beginSpan, telemetryContext, spanError, SpanKind, ROOT_CONTEXT, extractTrace, count, observe, activeSpanError, recordSagaState } from "../observability/telemetry.js";
 
 type OutboxUpdate = { attempts?: { increment: number }; publishedAt?: Date; lastError?: string | null; nextAttemptAt?: Date };
 export interface OutboxStore {
   outboxEvent: {
     findUnique(args: { where: { eventId: string } }): Promise<{ payload: string } | null>;
-    upsert(args: { where: { deduplicationKey: string }; create: { eventId: string; deduplicationKey: string; payload: string }; update: Record<string, never> }): Promise<{ payload: string }>;
+    upsert(args: { where: { deduplicationKey: string }; create: { eventId: string; deduplicationKey: string; payload: string; traceparent?: string }; update: Record<string, never> }): Promise<{ payload: string }>;
     update(args: { where: { id: string }; data: OutboxUpdate }): Promise<unknown>;
   };
 }
@@ -24,12 +25,13 @@ export interface OutboxDatabase {
 /** Caller owns business transaction. Key also recovers Payment result before receipt commit. */
 export async function enqueueOutboxEvent(tx: OutboxStore, event: KnownIntegrationEvent, deduplicationKey = event.eventId): Promise<KnownIntegrationEvent> {
   const payload = serializeIntegrationEvent(event).toString("utf8");
+  if (event.eventType === "order.created") recordSagaState("RESERVING");
   const existing = await tx.outboxEvent.findUnique({ where: { eventId: event.eventId } });
   if (existing) {
     if (existing.payload !== payload) throw new ConflictError("Outbox event ID reused with different content");
     return deserializeIntegrationEvent(existing.payload);
   }
-  const row = await tx.outboxEvent.upsert({ where: { deduplicationKey }, create: { eventId: event.eventId, deduplicationKey, payload }, update: {} });
+  const row = await tx.outboxEvent.upsert({ where: { deduplicationKey }, create: { eventId: event.eventId, deduplicationKey, payload, ...traceHeaders() }, update: {} });
   const stored = deserializeIntegrationEvent(row.payload);
   // Replayed application work may construct fresh metadata; retain first logical event.
   const identity = ({ eventId: _id, occurredAt: _time, ...rest }: KnownIntegrationEvent) => rest;
@@ -41,33 +43,46 @@ export async function enqueueOutboxEvent(tx: OutboxStore, event: KnownIntegratio
 
 /** Dispatch transaction holds only an Outbox row, never the original domain transaction. */
 export async function dispatchOutboxOnce(database: OutboxDatabase, publish: (event: KnownIntegrationEvent) => Promise<void>, logger: Logger): Promise<boolean> {
-  return database.$transaction(async (tx) => {
-    // Narrow raw SQL: Prisma has no SKIP LOCKED API. Separate workers claim distinct rows.
-    const rows = await tx.$queryRaw<Array<{ id: string; payload: string; attempts: number }>>`
-      SELECT "id", "payload", "attempts" FROM "OutboxEvent"
-      WHERE "publishedAt" IS NULL AND "nextAttemptAt" <= NOW()
-      ORDER BY "createdAt", "id" LIMIT 1 FOR UPDATE SKIP LOCKED`;
-    const row = rows[0];
-    if (!row) return false;
-    const event = deserializeIntegrationEvent(row.payload);
-    const metadata = { outboxId: row.id, eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId, attempt: row.attempts + 1 };
-    await tx.outboxEvent.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
-    await runWithCorrelation({ requestId: randomUUID(), traceId: event.correlationId }, async () => {
-      logger.info(metadata, "outbox dispatch attempt");
-      try { await publish(event); }
-      catch (err) {
-        const retryDelayMs = retryDelay(row.attempts + 1, { baseDelayMs: 500, maxDelayMs: 30000 });
-        await tx.outboxEvent.update({ where: { id: row.id }, data: { lastError: "Publication failed; inspect correlated dispatch log",
-          nextAttemptAt: new Date(Date.now() + retryDelayMs) } });
-        logger.warn({ ...metadata, retryDelayMs, dependency: "rabbitmq", operation: "publish", failureClass: "ambiguous", err }, "outbox dispatch failed; retry scheduled");
-        return;
-      }
-      // If this write/commit fails, row remains pending and same envelope republishes.
-      await tx.outboxEvent.update({ where: { id: row.id }, data: { publishedAt: new Date(), lastError: null } });
-      logger.info(metadata, "outbox dispatch confirmed; published marker staged");
-    });
-    return true;
-  }, { maxWait: 1000, timeout: 5000 });
+  const started = performance.now();
+  let result = "success";
+  let dispatch: ReturnType<typeof beginSpan> | undefined;
+  try {
+    return await database.$transaction(async (tx) => {
+      // Narrow raw SQL: Prisma has no SKIP LOCKED API. Separate workers claim distinct rows.
+      const rows = await tx.$queryRaw<Array<{ id: string; payload: string; attempts: number; traceparent?: string | null }>>`
+        SELECT "id", "payload", "attempts", "traceparent" FROM "OutboxEvent"
+        WHERE "publishedAt" IS NULL AND "nextAttemptAt" <= NOW()
+        ORDER BY "createdAt", "id" LIMIT 1 FOR UPDATE SKIP LOCKED`;
+      const row = rows[0];
+      if (!row) return false;
+      const event = deserializeIntegrationEvent(row.payload);
+      const metadata = { outboxId: row.id, eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId, attempt: row.attempts + 1 };
+      await tx.outboxEvent.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
+      dispatch = beginSpan("outbox dispatch", SpanKind.PRODUCER, { "event.type": event.eventType }, ROOT_CONTEXT, extractTrace({ traceparent: row.traceparent }));
+      await telemetryContext.with(dispatch.context, () => runWithCorrelation({ requestId: randomUUID(), traceId: event.correlationId }, async () => {
+        logger.info(metadata, "outbox dispatch attempt");
+        try { await publish(event); count("outbox_publish_total", { event_type: event.eventType }); }
+        catch (err) {
+          activeSpanError("publish_failure");
+          result = "publish_failure";
+          count("outbox_publish_failures_total", { event_type: event.eventType });
+          const retryDelayMs = retryDelay(row.attempts + 1, { baseDelayMs: 500, maxDelayMs: 30000 });
+          await tx.outboxEvent.update({ where: { id: row.id }, data: { lastError: "Publication failed; inspect correlated dispatch log",
+            nextAttemptAt: new Date(Date.now() + retryDelayMs) } });
+          logger.warn({ ...metadata, retryDelayMs, dependency: "rabbitmq", operation: "publish", failureClass: "ambiguous", err }, "outbox dispatch failed; retry scheduled");
+          return;
+        }
+        // If this write/commit fails, row remains pending and same envelope republishes.
+        await tx.outboxEvent.update({ where: { id: row.id }, data: { publishedAt: new Date(), lastError: null } });
+        logger.info(metadata, "outbox dispatch confirmed; published marker staged");
+      }));
+      return true;
+    }, { maxWait: 1000, timeout: 5000 });
+  } catch (error) { result = "transaction_failure"; if (dispatch) spanError(dispatch.span, result); throw error; }
+  finally {
+    dispatch?.span.setAttribute("dispatch.result", result); dispatch?.span.end();
+    observe("outbox_dispatch_duration_seconds", (performance.now() - started) / 1000, { result });
+  }
 }
 
 export function startOutboxPublisher(database: OutboxDatabase, publish: (event: KnownIntegrationEvent) => Promise<void>, logger: Logger) {
