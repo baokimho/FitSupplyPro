@@ -66,7 +66,9 @@ describe("test data factories", () => {
 describe("database cleanup", () => {
   it("uses foreign-key-safe cleanup ordering", () => {
     expect(getCleanupTables("auth_test_db")).toEqual(["RefreshToken", "User"]);
-    expect(getCleanupTables("order_test_db")).toEqual(["OrderItem", "Order"]);
+    expect(getCleanupTables("order_test_db")).toEqual(["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "CheckoutSaga", "CheckoutIdempotency", "OrderItem", "Order"]);
+    expect(getCleanupTables("inventory_test_db")).toContain("InventoryOperation");
+    expect(getCleanupTables("payment_test_db")).toContain("FakeProviderOperation");
     expect(getCleanupTables("cart_test_db")).toEqual(["CartItem", "Cart"]);
     expect(getCleanupTables("catalog_test_db")).toEqual(["Product", "Category", "Brand"]);
   });
@@ -82,7 +84,7 @@ describe("database cleanup", () => {
       "postgresql://fitsupply_test:fitsupply_test@localhost:55433/order_test_db",
       {
         async execute(sql) {
-          expect(sql).toBe('TRUNCATE TABLE "OrderItem", "Order" RESTART IDENTITY CASCADE;');
+          expect(sql).toBe('TRUNCATE TABLE "OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "CheckoutSaga", "CheckoutIdempotency", "OrderItem", "Order" RESTART IDENTITY CASCADE;');
           rows.get("OrderItem")?.splice(0);
           rows.get("Order")?.splice(0);
         },

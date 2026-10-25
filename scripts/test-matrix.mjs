@@ -1,11 +1,22 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
-const root = process.cwd();
-const phase = process.argv[2] ?? "unit";
-const filterIndex = process.argv.indexOf("--workspace");
-const workspaceFilter = filterIndex === -1 ? undefined : process.argv[filterIndex + 1];
+const root = fileURLToPath(new URL("..", import.meta.url));
+const { values, positionals } = parseArgs({ allowPositionals: true, options: {
+  workspace: { type: "string" }, seed: { type: "string" }, list: { type: "boolean" },
+} });
+const phase = positionals[0] ?? "unit";
+const workspaceFilter = values.workspace;
+const seed = values.seed;
+const listOnly = values.list;
+if (positionals.length > 1 || workspaceFilter !== undefined && !workspaceFilter.trim() || seed !== undefined && !/^\d{1,9}$/.test(seed) ||
+    !["unit", "integration", "all", "coverage"].includes(phase)) {
+  console.error("Usage: test-matrix.mjs <unit|integration|all|coverage> [--workspace name] [--seed integer] [--list]");
+  process.exit(1);
+}
 const workspaceDirs = [
   "apps/api-gateway",
   "apps/auth-service",
@@ -55,10 +66,10 @@ function testsFor(dir, kind) {
   return files.filter((file) => {
     const normalized = file.replace(/\\/g, "/");
     const isTest = /\.(test|spec)\.tsx?$/.test(normalized);
-    if (!isTest) return false;
+    if (!isTest || normalized.includes(".e2e.")) return false;
     const isIntegration = normalized.includes(".integration.test.") || normalized.includes(".integration.spec.");
     return kind === "integration" ? isIntegration : !isIntegration;
-  });
+  }).sort();
 }
 
 function hasProductionSource(dir) {
@@ -107,7 +118,7 @@ function runWorkspaceTests(kind, options = {}) {
     const prod = hasProductionSource(dir);
 
     if (files.length === 0) {
-      summary.push({ workspace: pkg.name, status: prod ? "gap: no tests" : "skip: no production source", count: 0 });
+      summary.push({ workspace: pkg.name, status: prod ? "no tests in this layer" : "skip: no production source", count: 0 });
       continue;
     }
 
@@ -115,6 +126,7 @@ function runWorkspaceTests(kind, options = {}) {
     const status = run("npm", [
       "exec", "--workspace", pkg.name, "--", "vitest", "run",
       ...files.map((file) => path.relative(path.join(root, dir), file)),
+      ...(seed ? ["--sequence.shuffle", "--sequence.seed", seed] : []),
     ], { env: options.env });
     if (status !== 0) failed = status;
     summary.push({ workspace: pkg.name, status: status === 0 ? "passed" : `failed (${status})`, count: files.length });
@@ -187,7 +199,7 @@ function coverageArgs(dir) {
     "--coverage.reporter=text", "--coverage.reporter=json", "--coverage.reporter=json-summary",
     "--coverage.reporter=html", "--coverage.reporter=lcov",
     "--coverage.reportsDirectory", out,
-    "--coverage.all=true",
+    ...(seed ? ["--sequence.shuffle", "--sequence.seed", seed] : []),
     "--coverage.include=src/**/*.ts",
     "--coverage.exclude=src/generated/**",
     "--coverage.exclude=src/testing/**",
@@ -230,7 +242,21 @@ function runCoverage() {
   return failed;
 }
 
-let status;
+if (listOnly) {
+  console.log(JSON.stringify(selectedWorkspaceDirs().map((dir) => ({ workspace: readPackageJson(dir).name,
+    unit: testsFor(dir, "unit").map((file) => path.relative(root, file).replaceAll("\\", "/")),
+    integration: testsFor(dir, "integration").map((file) => path.relative(root, file).replaceAll("\\", "/")),
+  })), null, 2));
+  process.exit(0);
+}
+// Resolve workspace before any infrastructure setup; invalid filters cannot reset test resources.
+selectedWorkspaceDirs();
+let status = run("npm", ["run", "build", "--workspace", "@shared/utils"]);
+if (status !== 0) process.exit(status);
+if (phase === "unit" || phase === "all") {
+  status = run("node", ["--test", "scripts/test-matrix.test.mjs"]);
+  if (status !== 0) process.exit(status);
+}
 if (phase === "unit") status = runWorkspaceTests("unit");
 else if (phase === "integration") status = runIntegrationWorkflow();
 else if (phase === "all") status = runAll();

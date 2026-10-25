@@ -13,10 +13,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests --exclude src/testing",
-    "test:integration": "vitest run src/testing",
-    "test:e2e": "vitest run --passWithNoTests",
+    "test": "node ../../scripts/test-matrix.mjs all --workspace @shared/utils",
+    "test:unit": "node ../../scripts/test-matrix.mjs unit --workspace @shared/utils",
+    "test:integration": "node ../../scripts/test-matrix.mjs integration --workspace @shared/utils",
+    "test:e2e": "node ../../scripts/e2e.mjs",
     "watch": "tsc --watch"
   },
   "dependencies": {

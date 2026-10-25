@@ -5,7 +5,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { createIntegrationEvent, runWithCorrelation, dispatchOutboxOnce, startOutboxPublisher, processCheckoutEvent, createLogger } from "@shared/utils";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { errorHandler, requireTestDatabaseUrl } from "@shared/utils";
+import { cleanupDatabase, getCleanupTables, errorHandler, requireTestDatabaseUrl } from "@shared/utils";
 import { enqueueOutboxEvent, registerCheckoutMetrics, telemetryMetrics, traced, SpanKind, activeTraceFields } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
 import type { cancelOrderService as cancelOrderServiceType, checkoutOrderService as checkoutOrderServiceType, confirmOrderService as confirmOrderServiceType, createOrderService as createOrderServiceType } from "./services/order.service.js";
@@ -90,7 +90,7 @@ async function countOrders() {
 }
 
 async function truncateOrderDb() {
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "CheckoutIdempotency", "OrderItem", "Order" RESTART IDENTITY CASCADE;');
+  await cleanupDatabase("order_test_db", databaseUrl, { execute: async (sql) => { await prisma.$executeRawUnsafe(sql); } });
 }
 
 function installFetchDouble() {
@@ -229,7 +229,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await truncateOrderDb();
-  await prisma.outboxEvent.deleteMany();
   products.clear();
   inventory.clear();
   reserveCalls = [];
@@ -305,6 +304,17 @@ describe("bounded synchronous dependency recovery", () => {
 });
 
 describe("durable checkout Saga", () => {
+  it("guarded cleanup removes independent receipts, budgets and pending intents as well as domain rows", async () => {
+    const f = await fixture();
+    await f.handleOrderCheckout(f.reserved);
+    await prisma.consumerDelivery.create({ data: { consumer: "order.payment-events", messageKey: "cleanup-test", replayCount: 0, attempts: 1 } });
+    await truncateOrderDb();
+    for (const table of getCleanupTables("order_test_db")) {
+      // Table names come only from guarded helper's fixed schema allowlist.
+      const rows = await prisma.$queryRawUnsafe<Array<{ total: bigint }>>(`SELECT COUNT(*) AS total FROM "${table}"`);
+      expect(Number(rows[0].total), table).toBe(0);
+    }
+  });
   it("scrapes committed Outbox state, excludes rollback and preserves tracing across dispatch", async () => {
     registerCheckoutMetrics(prisma, "order-service");
     const input = createIntegrationEvent({ eventType: "order.confirmed", correlationId: randomUUID(), causationId: null, data: { orderId: randomUUID(), userId: "private-user" } });

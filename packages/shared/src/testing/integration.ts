@@ -1,3 +1,5 @@
+import { setTimeout as delay } from "node:timers/promises";
+
 export type TestDatabaseName =
   | "auth_test_db"
   | "catalog_test_db"
@@ -154,24 +156,34 @@ export async function waitForHttpOk(options: WaitForHttpOptions): Promise<void> 
   const timeoutMs = options.timeoutMs ?? 30_000;
   const intervalMs = options.intervalMs ?? 250;
   const fetchImpl = options.fetchImpl ?? fetch;
-  const deadline = Date.now() + timeoutMs;
+  const controller = new AbortController();
   let lastError: unknown;
-
-  while (Date.now() <= deadline) {
-    try {
-      const response = await fetchImpl(options.url, { headers: options.headers });
-      if (response.ok) {
-        return;
+  const expired = () => new Error(`Timed out waiting for ${options.url}: ${String(lastError)}`);
+  const timer = setTimeout(() => controller.abort(expired()), timeoutMs);
+  const timeout = new Promise<never>((_resolve, reject) => {
+    controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
+  });
+  const poll = async () => {
+    while (!controller.signal.aborted) {
+      try {
+        const response = await fetchImpl(options.url, { headers: options.headers, signal: controller.signal });
+        await response.body?.cancel();
+        controller.signal.throwIfAborted();
+        if (response.ok) {
+          return;
+        }
+        lastError = new Error(`${options.url} returned ${response.status}`);
+      } catch (error) {
+        controller.signal.throwIfAborted();
+        lastError = error;
       }
-      lastError = new Error(`${options.url} returned ${response.status}`);
-    } catch (error) {
-      lastError = error;
+
+      await delay(intervalMs, undefined, { signal: controller.signal });
     }
-
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-
-  throw new Error(`Timed out waiting for ${options.url}: ${String(lastError)}`);
+    throw controller.signal.reason;
+  };
+  try { await Promise.race([poll(), timeout]); }
+  finally { clearTimeout(timer); controller.abort(); }
 }
 
 export async function usingTestResource<T>(

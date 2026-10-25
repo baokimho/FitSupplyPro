@@ -1,5 +1,11 @@
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
+const { values } = parseArgs({ options: { seed: { type: "string" } } });
+if (values.seed !== undefined && !/^\d{1,9}$/.test(values.seed)) throw new Error("E2E seed must be an integer");
 
 const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
 const adminEmail = "admin.e2e@fitsupply.test";
@@ -74,12 +80,14 @@ function seedAdmin() {
 let failure = 0;
 
 try {
+  runOrThrow("shared test build", "npm", ["run", "build", "--workspace", "@shared/utils"]);
   for (const mode of ["sync", "async-success", "async-failure"]) {
     const env = { EVENT_DRIVEN_CHECKOUT: mode === "sync" ? "false" : "true", TEST_CHECKOUT_PAYMENT_OUTCOME: mode === "async-failure" ? "FAILED" : "SUCCEEDED" };
     runOrThrow("stack teardown", "docker", [...compose, "down", "-v", "--remove-orphans"]);
     runOrThrow("stack startup", "docker", [...compose, "up", "-d", "--build", "--wait", "--wait-timeout", "180"], { env });
     seedAdmin();
-    failure = run("npm", ["exec", "--", "vitest", "run", mode === "sync" ? "tests/e2e/purchase-lifecycle.e2e.test.ts" : "tests/e2e/event-checkout.e2e.test.ts"], {
+    failure = run("npm", ["exec", "--", "vitest", "run", mode === "sync" ? "tests/e2e/purchase-lifecycle.e2e.test.ts" : "tests/e2e/event-checkout.e2e.test.ts",
+      ...(values.seed ? ["--sequence.shuffle", "--sequence.seed", values.seed] : [])], {
       env: {
         ...env,
         RABBITMQ_URL: "amqp://fitsupply_test:fitsupply_test@localhost:5674",

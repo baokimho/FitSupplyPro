@@ -9,10 +9,10 @@ export interface SqlExecutor {
 const cleanupTables: Record<CleanupDatabaseName, readonly string[]> = {
   auth_test_db: ["RefreshToken", "User"],
   catalog_test_db: ["Product", "Category", "Brand"],
-  inventory_test_db: ["Inventory"],
-  order_test_db: ["OrderItem", "Order"],
+  inventory_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "InventoryOperation", "Inventory"],
+  order_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "CheckoutSaga", "CheckoutIdempotency", "OrderItem", "Order"],
   cart_test_db: ["CartItem", "Cart"],
-  payment_test_db: ["Payment"],
+  payment_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "PaymentIdempotency", "FakeProviderOperation", "Payment"],
   shipping_test_db: ["Shipment"],
   notification_test_db: ["Notification"],
 };

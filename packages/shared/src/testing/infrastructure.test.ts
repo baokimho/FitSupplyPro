@@ -69,4 +69,23 @@ describe("integration test infrastructure", () => {
 
     expect(cleaned).toEqual(["resource-id"]);
   });
+  it("bounds stalled readiness fetch even when fake transport ignores AbortSignal", async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      const fetchImpl = vi.fn<typeof fetch>((_url, init) => { signal = init?.signal ?? undefined; return new Promise<Response>(() => {}); });
+      const waiting = waitForHttpOk({ url: "http://service.test/ready", timeoutMs: 100, fetchImpl });
+      const assertion = expect(waiting).rejects.toThrow("Timed out waiting for");
+      await vi.advanceTimersByTimeAsync(100);
+      await assertion;
+      expect(signal?.aborted).toBe(true);
+      expect(fetchImpl).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+  it("cleans resources when tested operation throws", async () => {
+    const cleanup = vi.fn(async () => {});
+    await expect(usingTestResource(async () => "fixture", cleanup, async () => { throw new Error("operation failed"); })).rejects.toThrow("operation failed");
+    expect(cleanup).toHaveBeenCalledWith("fixture");
+  });
 });
