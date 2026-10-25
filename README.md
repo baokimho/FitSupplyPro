@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 15 observability implemented; existing checkout, recovery and security behavior preserved. Frontend and fitness/nutrition product areas are not implemented yet. See [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
+Status: Phase 16 testing strategy implemented; existing checkout, recovery, security and observability behavior preserved. Frontend and fitness/nutrition product areas are not implemented yet. See [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
 
 ## Services
 
@@ -705,3 +705,8 @@ Phase 15 metrics/tracing and Phase 16 testing-strategy work remain deferred.
 All services expose internal, secret-protected `GET /metrics` with Prometheus HTTP/dependency/messaging metrics and Node runtime measurements. OpenTelemetry spans propagate W3C context through HTTP and RabbitMQ; persisted Outbox context links later dispatches across restarts. Existing UUID correlation and checkout behavior remain unchanged.
 
 See [observability architecture and operating semantics](docs/phase15-observability.md) for metric ownership/cardinality, exporter configuration, Outbox migrations, failure isolation and shutdown. Configure optional `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` per service; no tracing backend is required for readiness.
+## Phase 16 testing strategy
+
+Testing follows four ownership layers: pure unit, service/API component, real database/broker infrastructure, and critical checkout E2E. Root and workspace commands share one runner; use `npm test -- --seed 16016` or `npm run test:e2e -- --seed 16016` for reproducible order checks. `node scripts/test-matrix.mjs all --list` inventories suites without starting infrastructure.
+
+See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee matrix, transaction/idempotency evidence, process-crash recovery, fixtures and intentional limits. [TESTING.md](TESTING.md) records executed verification. No business/runtime contracts changed.

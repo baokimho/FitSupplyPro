@@ -1,6 +1,6 @@
 # Testing
 
-Root test commands are source of truth for this repo. Workspace `test:*` scripts may still contain `--passWithNoTests` during migration, so root matrix invokes Vitest directly with discovered test files.
+Root and workspace test commands use the same discovery matrix. Shared package builds first; fast unit/local-HTTP tests run without PostgreSQL/RabbitMQ, infrastructure tests use disposable resources, and E2E runs separately. See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee ownership and intentional limits.
 
 ## Commands
 
@@ -11,6 +11,10 @@ npm run test
 npm run coverage
 npm run test:workspace -- @shared/utils
 npm run test:workspace -- packages/shared
+npm run test:e2e
+npm test -- --seed 16016
+npm run test:e2e -- --seed 16016
+node scripts/test-matrix.mjs all --list
 ```
 
 `npm run test` runs unit phase first, then integration phase. `npm run test:workspace -- <name-or-path>` runs unit tests for one workspace. For integration or coverage targeting, call the matrix directly:
@@ -78,16 +82,16 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 
 | Workspace | Unit | Integration | Coverage |
 | --- | --- | --- | --- |
-| `api-gateway` | 4 files: config, logger, error contract, probes | 1 file: security/correlation boundaries | available |
-| `auth-service` | 7 files: config, logger, keys, auth errors, cleanup, probes, DB cleanup | gap: no integration tests | available |
-| `catalog-service` | 4 files: config, logger, probes, DB cleanup | gap: no integration tests | available |
+| `api-gateway` | 4 files: config, logger, error contract, probes | 3 files: real boundary, security and JWKS | available |
+| `auth-service` | 8 files: config, logger, keys, credentials/errors, cleanup, probes | 1 file: actual credentials/refresh/key rotation | available |
+| `catalog-service` | 4 files: config, logger, probes, DB cleanup | 1 file: real API/persistence/constraints | available |
 | `inventory-service` | 4 files: config, logger, probes, DB cleanup | 1 file: inventory reservations | available |
-| `order-service` | 9 files: config, logger, downstream errors, probes, DB cleanup, lifecycle, creation, payment snapshot | 1 file: checkout idempotency/lifecycle | available |
+| `order-service` | 10 files: config, logging, errors, lifecycle, creation, snapshot and Saga policy | 2 files: checkout/Saga/Outbox and migrations | available |
 | `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
 | `payment-service` | 4 files: config, lifecycle matrix, probes, downstream errors | 3 files: commands/recovery/races, fake provider, legacy migrations | available |
 | `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
-| `notification-service` | gap: no unit tests | gap: no integration tests | gap: no tests |
-| `@shared/utils` | 11 files: JWT, config, logging, middleware/errors, correlation, probes, shutdown, broker config/consumer validation | 3 files: test infrastructure/factories, real RabbitMQ mechanics | available |
+| `notification-service` | intentionally no separate pure-policy suite | 1 file: existing API/read persistence isolation | available |
+| `@shared/utils` | 25 files: security/events/middleware, correlation/logs, resilience/telemetry and test helpers | 3 files: actual HTTP contracts, RabbitMQ and OTLP | available |
 
 Phase 1 closeout: 278 unit tests, 92 integration tests, and 3 Docker-backed E2E
 tests passed. Existing gaps above remain explicit; the E2E suite exercises all
@@ -695,3 +699,26 @@ Final regression matrix:
 Async E2E asserts internal authorization and exact service identity for metrics on all nine deployed services, plus nonempty persisted and transported W3C context through every committed event in success/compensation flows, alongside unchanged identity, deduplication and recovery checks. Real OTLP test receives JSON spans, checks sanitized error events, closes collector and proves application work remains healthy. Disposable PostgreSQL/RabbitMQ resources are removed by existing runners. No development databases or volumes are reset.
 
 Initial Docker BuildKit lease failure was transient. Subsequent runtime check found Auth multi-stage image omitted nested shared dependencies; image now includes these dependencies. Final matrix uses corrected runtime packaging. Existing suite gaps remain: Notification has no standalone unit suite; Catalog/Notification have no dedicated integration suite, but Docker E2E exercises them.
+## Phase 16 verification (2026-10-25)
+
+Guarantee ownership, audit findings, fixture contracts and intentional limits are in [Phase 16 strategy](docs/phase16-testing-strategy.md). Counts below describe executed behavior checks, not a coverage target.
+
+| Executed command | Result |
+| --- | --- |
+| `npm run test:unit` | 816 Vitest cases + 9 native Node runner checks passed |
+| `npm run test:integration` | 307 cases passed against migrated disposable PostgreSQL/RabbitMQ |
+| `npm test -- --seed 16016` | All 1123 Vitest fast/integration cases passed with files and cases shuffled |
+| `npm run test:unit --workspace @shared/utils` | 571 shared cases passed; workspace-cwd delegation verified |
+| `npm run test:integration --workspace auth-service -- --seed 16016` | 15 cases passed independently with isolated account/key/cache/HTTP/pool fixtures |
+| `npm run coverage` | All 1123 Vitest cases passed together; descriptive reports for all ten workspaces in `coverage/summary.json` |
+| `npm run test:e2e -- --seed 16016` | 16 passed: sync 8, async success/recovery 5, async decline 3 |
+| `npm run typecheck`, `npm run lint`, `npm run build` | Passed |
+| Standalone strict TypeScript check | New/changed shared helper/telemetry suites and both E2E files passed with ES2023/NodeNext/node types |
+| `node --test scripts/test-matrix.test.mjs` | 9 passed; no infrastructure needed |
+| `git diff --check` | Passed |
+
+Fast workspace cases: Gateway 35, Auth 44, Catalog 14, Inventory 15, Order 99, Cart 11, Payment 25, Shipping 2, shared 571. Notification intentionally has no separate pure-policy suite. Infrastructure cases: Gateway 56, Auth 15, Catalog 4, Inventory 44, Order 66, Cart 2, Payment 59, Shipping 7, Notification 2, shared 52. Pure factory/environment suites moved from infrastructure to fast phase; no tests were dropped.
+
+Shuffle exposed and fixed preceding-test assumptions in metrics totals, cold JWKS resolution, Auth account/signing/connection state, and OTLP collector lifetime. Sync checkout fixtures now select requested product and reset owned carts; failed keys retain existing terminal 409 contract. Async outage fixture restores audit connection and proves committed intent survives actual Order SIGKILL with one eventual business effect.
+
+No skips/todos or percentage thresholds added. Coverage command now uses supported Vitest 4 include/exclude options. Existing HTTP timing injections remain only where timeout/concurrency is itself tested; arbitrary correlation/drain sleeps were replaced with signals/protocol observations. Disposable runners clean their own resources; developer data and development volumes remain untouched.

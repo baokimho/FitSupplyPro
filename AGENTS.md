@@ -96,7 +96,7 @@ Run commands from the repository root.
 - `npm run test:integration`
 - `npm run test:e2e`
 
-Business test coverage has not yet been implemented. Current Vitest commands intentionally use `--passWithNoTests` so tooling can run before real coverage lands. New business behavior still requires meaningful automated tests.
+Root and workspace test commands use the same discovery matrix. Fast tests require no database/broker; integration commands provision and remove only disposable test infrastructure. E2E runs the full disposable service stack. See `docs/phase16-testing-strategy.md` for guarantee ownership and isolation rules. New business behavior requires meaningful automated tests.
 
 ### Build
 
