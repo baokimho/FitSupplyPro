@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createLogger, deserializeIntegrationEvent, serializeIntegrationEvent, openRabbitMq, readRabbitMqConfig,
   createIntegrationEvent, DOMAIN_EXCHANGE, DEAD_LETTER_EXCHANGE, DOMAIN_QUEUES, inspectDlq, replayDlq, type KnownIntegrationEvent } from "@shared/utils";
@@ -19,6 +19,7 @@ const transportTraces = new Map<string, string>();
 
 async function json(method: string, path: string, token?: string, body?: unknown, key?: string): Promise<unknown> {
   const response = await fetch(`${url}${path}`, { method,
+    signal: AbortSignal.timeout(5000),
     headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...(key ? { "Idempotency-Key": key } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -29,7 +30,7 @@ async function json(method: string, path: string, token?: string, body?: unknown
 
 function sql(database: string, query: string): string {
   const result = execFileSync("docker", ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml", "exec", "-T", "postgres-test",
-    "psql", "-U", "fitsupply_test", "-d", database, "-At", "-v", "ON_ERROR_STOP=1", "-c", query], { encoding: "utf8" });
+    "psql", "-U", "fitsupply_test", "-d", database, "-At", "-v", "ON_ERROR_STOP=1", "-c", query], { encoding: "utf8", timeout: 10000 });
   return result.trim();
 }
 const scalar = (database: string, query: string) => z.coerce.number().int().parse(sql(database, query));
@@ -75,19 +76,23 @@ async function setup(stock: number) {
   return { customer, productId, body, key, order };
 }
 
-beforeAll(async () => {
-  if (process.env.EVENT_DRIVEN_CHECKOUT !== "true") throw new Error("Async E2E requires event-driven test stack");
+async function openAudit() {
   const config = readRabbitMqConfig();
   const endpoint = new URL(config.url);
   if (endpoint.hostname !== "localhost" || endpoint.port !== "5674" || endpoint.username !== "fitsupply_test") throw new Error("Async E2E requires isolated broker localhost:5674");
-  admin = z.object({ accessToken: z.string() }).parse(await json("POST", "/auth/login", undefined,
-    { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD })).accessToken;
   broker = await openRabbitMq(config, createLogger({ service: "async-e2e", environment: "test", level: "silent" }));
   channel = await broker.createChannel();
   auditQueue = (await channel.assertQueue("", { exclusive: true, autoDelete: true })).queue;
   for (const binding of ["order.*", "inventory.*", "payment.*", "checkout.*"]) await channel.bindQueue(auditQueue, DOMAIN_EXCHANGE, binding);
   publisher = await broker.createPublisher();
+}
+beforeAll(async () => {
+  if (process.env.EVENT_DRIVEN_CHECKOUT !== "true") throw new Error("Async E2E requires event-driven test stack");
+  await openAudit();
+  admin = z.object({ accessToken: z.string() }).parse(await json("POST", "/auth/login", undefined,
+    { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD })).accessToken;
 }, 20000);
+beforeEach(() => { events.length = 0; transportTraces.clear(); });
 afterAll(async () => { if (broker) await broker.close(); });
 
 describe("event-driven HTTP checkout", () => {
@@ -96,9 +101,9 @@ describe("event-driven HTTP checkout", () => {
     for (const [offset, service] of targets.entries()) {
       const output = execFileSync("docker", ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml", "exec", "-T", service,
         "node", "--input-type=module", "-e", `const url = 'http://localhost:${3000 + offset}/metrics';
-          const denied = await fetch(url); if (denied.status !== 403) throw new Error('Metrics must be internal');
-          const response = await fetch(url, { headers: { 'x-internal-secret': process.env.GATEWAY_SECRET } });
-          if (response.status !== 200) throw new Error('Metrics scrape failed'); process.stdout.write(await response.text());`], { encoding: "utf8" });
+          const denied = await fetch(url, { signal: AbortSignal.timeout(5000) }); if (denied.status !== 403) throw new Error('Metrics must be internal');
+          const response = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'x-internal-secret': process.env.GATEWAY_SECRET } });
+          if (response.status !== 200) throw new Error('Metrics scrape failed'); process.stdout.write(await response.text());`], { encoding: "utf8", timeout: 15000 });
       expect(output).toContain(`service="${service}"`);
       expect(output).toContain("process_cpu_user_seconds_total");
       expect(output).not.toContain("fitsupply_test_internal_secret");
@@ -250,12 +255,14 @@ describe("event-driven HTTP checkout", () => {
     for (const name of ["checkout.refund_requested", "payment.refunded", "order.cancelled", "inventory.released"]) expect(flow.some((event) => event.eventType === name)).toBe(true);
     expect(flow.every((event) => event.correlationId === correlationId)).toBe(true);
   }, 30000);
-  if (!decline) it("commits checkout while RabbitMQ is offline and converges after automatic reconnect without client replay", async () => {
+  if (!decline) it("recovers committed Outbox after Order process crash and broker outage without client replay", async () => {
     const { customer, productId, suffix } = await catalog(10);
     const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
     await broker.close();
     execFileSync("docker", [...compose, "stop", "rabbitmq-test"], { stdio: "pipe" });
     let order: z.infer<typeof orderSchema>;
+    let killed = false;
+    const started = execFileSync("docker", ["inspect", "--format", "{{.State.StartedAt}}", "fitsupply-stack-order-service-test"], { encoding: "utf8" });
     try {
       order = orderSchema.parse(await json("POST", "/order/orders", customer.accessToken, {
         items: [{ productId, quantity: 3 }], delivery: {
@@ -266,9 +273,15 @@ describe("event-driven HTTP checkout", () => {
       expect(saga(order.id).state).toBe("RESERVING");
       expect(scalar("order_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'eventType'='order.created' AND "payload"::jsonb->'data'->>'orderId'='${order.id}' AND "publishedAt" IS NULL`)).toBe(1);
       expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}'`)).toBe(0);
+      execFileSync("docker", [...compose, "kill", "--signal", "SIGKILL", "order-service"], { stdio: "pipe" });
+      killed = true;
+      expect(scalar("order_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->'data'->>'orderId'='${order.id}' AND "publishedAt" IS NULL`)).toBe(1);
     } finally {
       execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "60", "rabbitmq-test"], { stdio: "pipe" });
+      if (killed) execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "60", "order-service"], { stdio: "pipe" });
+      await openAudit();
     }
+    expect(execFileSync("docker", ["inspect", "--format", "{{.State.StartedAt}}", "fitsupply-stack-order-service-test"], { encoding: "utf8" })).not.toBe(started);
     await vi.waitFor(async () => {
       expect(saga(order.id).state).toBe("COMPLETED");
       expect(scalar("order_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->>'eventType'='order.created' AND "payload"::jsonb->'data'->>'orderId'='${order.id}' AND "publishedAt" IS NOT NULL`)).toBe(1);

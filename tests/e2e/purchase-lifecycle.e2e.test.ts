@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const gatewayUrl = process.env.API_GATEWAY_URL ?? "http://localhost:3500";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin.e2e@fitsupply.test";
@@ -26,6 +26,7 @@ async function requestJson<T>(
   options: { token?: string; body?: unknown; headers?: Record<string, string>; expected?: number } = {},
 ): Promise<T> {
   const response = await fetch(`${gatewayUrl}${path}`, {
+    signal: AbortSignal.timeout(5000),
     method,
     headers: {
       ...(options.body === undefined ? {} : { "content-type": "application/json" }),
@@ -49,6 +50,7 @@ async function requestJson<T>(
 
 async function expectStatus(method: string, path: string, status: number, token: string, body?: unknown, headers?: Record<string, string>) {
   const response = await fetch(`${gatewayUrl}${path}`, {
+    signal: AbortSignal.timeout(5000),
     method,
     headers: {
       ...(body === undefined ? {} : { "content-type": "application/json" }),
@@ -124,6 +126,8 @@ async function checkout(customerToken: string, productId: string, suffix: string
     token: customerToken,
     body: { productId, quantity: 3 },
   });
+  const item = cart.items.find((entry) => entry.productId === productId);
+  if (!item) throw new Error("Missing checkout product");
 
   const order = await requestJson<{
     id: string;
@@ -134,7 +138,7 @@ async function checkout(customerToken: string, productId: string, suffix: string
     token: customerToken,
     headers: { "Idempotency-Key": `checkout-${suffix}` },
     body: {
-      cartItemIds: [cart.items[0]?.id],
+      cartItemIds: [item.id],
       delivery,
     },
   });
@@ -143,7 +147,7 @@ async function checkout(customerToken: string, productId: string, suffix: string
     token: customerToken,
     headers: { "Idempotency-Key": `checkout-${suffix}` },
     body: {
-      cartItemIds: [cart.items[0]?.id],
+      cartItemIds: [item.id],
       delivery,
     },
   });
@@ -162,6 +166,9 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     adminSession = await login(adminEmail, adminPassword);
     customerSession = await registerCustomer(`customer-${suffix}@example.test`);
     otherSession = await registerCustomer(`other-${suffix}@example.test`);
+  });
+  beforeEach(async () => {
+    for (const session of [customerSession, otherSession]) await requestJson("DELETE", "/cart", { token: session.accessToken });
   });
 
   it("enforces Order lifecycle and ownership independently of Payment", async () => {
@@ -209,6 +216,36 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
   it("reports safe process health and local gateway readiness with correlation", async () => {
     expect(await requestJson("GET", "/health")).toEqual({ status: "ok", service: "api-gateway" });
     expect(await requestJson("GET", "/ready")).toEqual({ status: "ready", service: "api-gateway" });
+  });
+  it("insufficient stock preserves cart/domain state; restock requires fresh key and succeeds once", async () => {
+    const suffix = `insufficient-${Date.now()}`;
+    const productId = await createCatalog(adminSession.accessToken, suffix);
+    const cart = await requestJson<{ items: Array<{ id: string; productId: string }> }>("POST", "/cart/items", {
+      token: customerSession.accessToken, body: { productId, quantity: 11 },
+    });
+    const item = cart.items.find((entry) => entry.productId === productId);
+    if (!item) throw new Error("Missing checkout item");
+    const headers = { "Idempotency-Key": suffix };
+    const body = { cartItemIds: [item.id], delivery: { recipientName: "Stock Test", contactPhone: "+358401234567", addressLine1: "Street 1", city: "Helsinki", postalCode: "00100", countryCode: "FI" } };
+    const before = await requestJson<{ items: Array<{ id: string }> }>("GET", "/order/orders/me", { token: customerSession.accessToken });
+    const paymentsBefore = await requestJson<{ items: Array<{ id: string }> }>("GET", "/payment/payments/me", { token: customerSession.accessToken });
+    await expectStatus("POST", "/order/orders/checkout", 400, customerSession.accessToken, body, headers);
+    await expectStatus("POST", "/order/orders/checkout", 409, customerSession.accessToken, body, headers);
+    expect(await requestJson("GET", `/inventory/products/${productId}`, { token: adminSession.accessToken })).toMatchObject({ stock: 10, reservedStock: 0 });
+    const after = await requestJson<{ items: Array<{ id: string }> }>("GET", "/order/orders/me", { token: customerSession.accessToken });
+    expect(after.items.map((entry) => entry.id).sort()).toEqual(before.items.map((entry) => entry.id).sort());
+    const paymentsAfter = await requestJson<{ items: Array<{ id: string }> }>("GET", "/payment/payments/me", { token: customerSession.accessToken });
+    expect(paymentsAfter.items.map((entry) => entry.id).sort()).toEqual(paymentsBefore.items.map((entry) => entry.id).sort());
+    const unchanged = await requestJson<{ items: Array<{ id: string }> }>("GET", "/cart", { token: customerSession.accessToken });
+    expect(unchanged.items.some((entry) => entry.id === item.id)).toBe(true);
+    await requestJson("POST", `/inventory/products/${productId}/adjust`, { token: adminSession.accessToken, body: { quantity: 1, reason: "Test restock" }, expected: 200 });
+    await expectStatus("POST", "/order/orders/checkout", 409, customerSession.accessToken, body, headers);
+    const freshHeaders = { "Idempotency-Key": `${suffix}:restocked` };
+    const order = await requestJson<{ id: string }>("POST", "/order/orders/checkout", { token: customerSession.accessToken, headers: freshHeaders, body });
+    const replay = await requestJson<{ id: string }>("POST", "/order/orders/checkout", { token: customerSession.accessToken, headers: freshHeaders, body });
+    expect(replay.id).toBe(order.id);
+    await requestJson("PATCH", `/order/orders/${order.id}/cancel`, { token: customerSession.accessToken });
+    expect(await requestJson("GET", `/inventory/products/${productId}`, { token: adminSession.accessToken })).toMatchObject({ stock: 11, reservedStock: 0 });
   });
 
   it("runs happy path from auth to delivered shipment with notifications", async () => {
