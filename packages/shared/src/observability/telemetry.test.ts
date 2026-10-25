@@ -31,11 +31,13 @@ app.get("/failed/:id", (_req, res) => { res.status(503).end(); });
 afterAll(async () => { await shutdownTelemetry(); });
 
 it("counts completed HTTP results using route patterns, never IDs or queries", async () => {
+  const labels = { method: "GET", route: "/orders/:id", status_code: "201", service: "order-service" };
+  const before = counterValue(await telemetryMetrics(), "http_requests_total", labels);
   for (const id of [randomUUID(), randomUUID()]) await request(app).get(`/orders/${id}?password=secret`).set("traceparent", parent).expect(201);
   await request(app).get("/failed/unique-value").expect(503);
   await request(app).get("/unknown/arbitrary-secret").expect(404);
   const metrics = await telemetryMetrics();
-  expect(metrics).toContain('route="/orders/:id",status_code="201",service="order-service"} 2');
+  expect(counterValue(metrics, "http_requests_total", labels) - before).toBe(2);
   expect(metrics).toContain('route="/failed/:id",status_code="503"');
   expect(metrics).toContain('route="unmatched",status_code="404"');
   expect(metrics).not.toMatch(/unique-value|arbitrary-secret|password|email|requestId|traceId/);
@@ -177,3 +179,8 @@ it("counts only eligible retries/exhaustion and bounds dynamic operation labels"
 });
 
 async function close(server: Server) { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); }
+
+function counterValue(metrics: string, name: string, labels: Record<string, string>) {
+  const line = metrics.split("\n").find((line) => line.startsWith(`${name}{`) && Object.entries(labels).every(([key, value]) => line.includes(`${key}="${value}"`)));
+  return Number(line?.split(" ").at(-1) ?? 0);
+}

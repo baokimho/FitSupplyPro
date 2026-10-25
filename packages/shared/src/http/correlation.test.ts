@@ -53,8 +53,12 @@ describe("request correlation", () => {
     const logger = createLogger({ service: "test", environment: "test" }, { write(line: string) { lines.push(line); } });
     const app = express();
     app.use(correlationMiddleware("service"), httpLogger(logger), express.json());
+    let arrived = 0;
+    let release!: () => void;
+    const overlap = new Promise<void>((resolve) => { release = resolve; });
     app.post("/:operation", async (req, _res, next) => {
-      await new Promise((resolve) => setTimeout(resolve, Math.random() * 10));
+      if (++arrived === 12) release();
+      await overlap;
       logger.child({ operation: req.params.operation }).info("operation");
       next(Object.assign(new Error("operation failed"), { body: req.body }));
     });

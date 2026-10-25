@@ -2,11 +2,12 @@ import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import express from "express";
 import request from "supertest";
-import { beforeAll, afterAll, expect, it } from "vitest";
+import { beforeAll, beforeEach, afterAll, expect, it } from "vitest";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { initializeTelemetry, telemetryHttp, traced, SpanKind, flushTelemetry, shutdownTelemetry } from "../observability/telemetry.js";
 
 let collector: Server;
+let collectorPort: number;
 const bodies: string[] = [];
 const app = express();
 beforeAll(async () => {
@@ -17,9 +18,14 @@ beforeAll(async () => {
   });
   collector.listen(0, "127.0.0.1"); await once(collector, "listening");
   const address = collector.address(); if (!address || typeof address === "string") throw new Error("No collector address");
+  collectorPort = address.port;
   initializeTelemetry("payment-service", new OTLPTraceExporter({ url: `http://127.0.0.1:${address.port}/v1/traces`, timeoutMillis: 50 }));
   app.use(telemetryHttp("payment-service"));
   app.get("/work", (_req, res) => res.json({ ok: true }));
+});
+beforeEach(async () => {
+  bodies.length = 0;
+  if (!collector.listening) { collector.listen(collectorPort, "127.0.0.1"); await once(collector, "listening"); }
 });
 afterAll(async () => { if (collector.listening) await closeCollector(); await shutdownTelemetry(100); });
 

@@ -126,12 +126,14 @@ describe("real Gateway HTTP boundary", () => {
   });
 
   it.each(["invalid", "expired", "wrong-scheme", "missing", "wrong-issuer", "wrong-audience", "forged", "unsupported-algorithm", "invalid-claims", "missing-kid", "refresh"])("rejects %s JWT without proxying", async (kind) => {
-    const count = seen.length;
+    // Signature validation may resolve JWKS on a cold cache; protected traffic must never proxy.
+    const businessRequests = () => seen.filter((entry) => entry.url !== "/jwks");
+    const count = businessRequests().length;
     const call = request(app).get("/cart/echo");
     if (kind !== "missing") call.set("Authorization", kind === "wrong-scheme" ? `Basic ${token}` : `Bearer ${kind === "expired" ? expired : invalidTokens.get(kind) ?? "invalid.token.value"}`);
     const response = await call.expect(401);
     expect(response.body.error.code).toBe("UNAUTHORIZED");
-    expect(seen).toHaveLength(count);
+    expect(businessRequests()).toHaveLength(count);
     expect(response.headers["x-request-id"]).toBeTruthy();
   });
 

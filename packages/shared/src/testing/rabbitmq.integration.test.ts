@@ -334,15 +334,18 @@ describe("real RabbitMQ mechanics", () => {
   it("preserves correlation in headers and isolates concurrent consumer contexts", async () => {
     const contexts = [1, 2].map(() => ({ requestId: randomUUID(), traceId: randomUUID() }));
     const observed: unknown[] = [];
+    const overlap = deferred();
+    let entered = 0;
     const consumer = await broker.subscribe("inventory.order-created", async (message) => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      if (++entered === 2) overlap.resolve();
+      await overlap.promise;
       observed.push(getCorrelation());
       expect(message.properties.headers?.["x-trace-id"]).toBe(getCorrelation()?.traceId);
     }, 2);
     await Promise.all(contexts.map((context) => runWithCorrelation(context, () =>
       publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from("correlation")))));
-    await vi.waitFor(() => expect(observed).toHaveLength(2));
-    await consumer.stop();
+    try { await vi.waitFor(() => expect(observed).toHaveLength(2)); }
+    finally { overlap.resolve(); await consumer.stop(); }
     expect(observed).toEqual(expect.arrayContaining(contexts));
     expect(getCorrelation()).toBeUndefined();
     const acknowledged = logs.map((line) => JSON.parse(line)).filter((entry) => entry.msg === "broker message acknowledged");
@@ -370,7 +373,7 @@ describe("real RabbitMQ mechanics", () => {
     await started.promise;
     let closed = false;
     const closing = broker.close().then(() => { closed = true; });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await vi.waitFor(async () => expect((await channel.checkQueue("inventory.order-created")).consumerCount).toBe(0));
     expect(closed).toBe(false);
     release.resolve();
     await closing;
@@ -457,7 +460,8 @@ describe("real RabbitMQ mechanics", () => {
     expect(redelivered.fields.redelivered).toBe(true);
     channel.ack(redelivered);
     release.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    // Protocol round trip yields after released handler resumes; no arbitrary sleep.
+    await channel.checkQueue("inventory.order-created");
     expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(false);
     expectedCloseFailure = true;
     await expect(broker.close()).rejects.toThrow("Consumer drain timed out");

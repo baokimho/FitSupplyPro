@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import request from "supertest";
 import { exportJWK, generateKeyPair, decodeProtectedHeader, type JWK } from "jose";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanupDatabase, createPublicKeyLoader, readAuthPolicy, verifyAuthToken } from "@shared/utils";
 
 const state = vi.hoisted(() => ({ keyring: "" }));
@@ -45,6 +45,16 @@ describe("real Auth credentials, refresh state and key rotation", () => {
       return { privateKey: { ...await exportJWK(pair.privateKey), kid, alg: "RS256", use: "sig" }, publicKey: { ...await exportJWK(pair.publicKey), kid, alg: "RS256", use: "sig" } };
     };
     k1 = await generate("K1"); k2 = await generate("K2"); ring(k1, [k1.publicKey]);
+  });
+  afterAll(async () => {
+    vi.useRealTimers();
+    if (state.keyring) unlinkSync(state.keyring);
+    if (directory) rmdirSync(directory);
+  });
+  beforeEach(async () => {
+    // Each case owns application key cache, Prisma pool, HTTP server and account state.
+    vi.resetModules(); vi.stubGlobal("prisma", undefined);
+    ring(k1, [k1.publicKey]);
     const db = await import("./config/db.js"); prisma = db.default; closeDb = db.closeDb;
     await cleanupDatabase("auth_test_db", process.env.AUTH_DATABASE_URL!, { execute: async (sql) => { await prisma.$executeRawUnsafe(sql); } });
     await (await import("./services/auth.service.js")).initializeAuthKeys();
@@ -52,17 +62,18 @@ describe("real Auth credentials, refresh state and key rotation", () => {
     server = createServer(app); server.listen(0, "127.0.0.1"); await once(server, "listening");
     const address = server.address(); if (!address || typeof address === "string") throw new Error("No fixture port");
     url = `http://127.0.0.1:${address.port}`;
+    const seed = await request(app).post("/register").set("x-internal-secret", secret).send(credentials()).expect(201);
+    userId = seed.body.user.id; initialRefresh = seed.body.refreshToken; initialAccess = seed.body.accessToken;
   });
-  afterAll(async () => {
+  afterEach(async () => {
     vi.useRealTimers();
     if (server?.listening) { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); }
     await closeDb?.();
-    if (state.keyring) unlinkSync(state.keyring);
-    if (directory) rmdirSync(directory);
+    vi.unstubAllGlobals();
   });
 
   it("registers CUSTOMER with hashed credentials and atomic hashed refresh state", async () => {
-    const response = await request(app).post("/register").set("x-internal-secret", secret).send(credentials()).expect(201);
+    const response = await request(app).post("/register").set("x-internal-secret", secret).send(credentials("registered@test.invalid")).expect(201);
     userId = response.body.user.id; initialRefresh = response.body.refreshToken; initialAccess = response.body.accessToken;
     expect(response.body.user.role).toBe("CUSTOMER"); expect(response.body.user).not.toHaveProperty("passwordHash");
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -190,6 +201,5 @@ describe("real Auth credentials, refresh state and key rotation", () => {
     const fresh = await request(app).post("/login").set("x-internal-secret", secret).send({ email: "person@test.invalid", password }).expect(200);
     expect(await verifyAuthToken(fresh.body.accessToken, get, "access", policy)).toMatchObject({ sub: userId });
     await expect(get({ alg: "RS256", kid: "K1" })).rejects.toMatchObject({ status: 401 });
-    vi.useRealTimers();
   });
 });
