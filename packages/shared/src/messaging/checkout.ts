@@ -25,8 +25,7 @@ export function readCheckoutConfig(env: NodeJS.ProcessEnv) {
   return { enabled: flag === "true", broker: flag === "true" ? readRabbitMqConfig(env) : undefined };
 }
 
-export interface CheckoutEventTransaction {
-  outboxEvent: OutboxStore["outboxEvent"];
+export interface InboxTransaction {
   $queryRaw(query: TemplateStringsArray, ...values: string[]): Promise<unknown>;
   checkoutEvent: {
     findUnique(args: { where: { eventId: string } }): Promise<{ fingerprint: string; result: string | null } | null>;
@@ -34,9 +33,27 @@ export interface CheckoutEventTransaction {
   };
 }
 
+export interface CheckoutEventTransaction extends InboxTransaction {
+  outboxEvent: OutboxStore["outboxEvent"];
+}
+
 /** Service-local Inbox; caller owns the transaction containing effects and Outbox. */
 export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
   tx: T, event: KnownIntegrationEvent, work: (tx: T) => Promise<KnownIntegrationEvent | null>, logger?: Logger,
+): Promise<KnownIntegrationEvent | null> {
+  return processInboxEvent(tx, event, async (transaction) => {
+    const result = await work(transaction);
+    if (result) {
+      await enqueueOutboxEvent({ outboxEvent: transaction.outboxEvent }, result);
+      logger?.info({ eventId: result.eventId, eventType: result.eventType, correlationId: result.correlationId }, "outbox intent staged with consumer transaction");
+    }
+    return result;
+  });
+}
+
+/** Durable acceptance without requiring an outbound integration event or Outbox. */
+export async function processInboxEvent<T extends InboxTransaction>(
+  tx: T, event: KnownIntegrationEvent, work: (tx: T) => Promise<KnownIntegrationEvent | null>,
 ): Promise<KnownIntegrationEvent | null> {
   const fingerprint = checkoutEventFingerprint(event);
   await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`checkout.event:${event.eventId}`}, 0))`;
@@ -46,10 +63,6 @@ export async function processCheckoutEvent<T extends CheckoutEventTransaction>(
     return receipt.result === null ? null : deserializeIntegrationEvent(receipt.result);
   }
   const result = await work(tx);
-  if (result) {
-    await enqueueOutboxEvent({ outboxEvent: tx.outboxEvent }, result);
-    logger?.info({ eventId: result.eventId, eventType: result.eventType, correlationId: result.correlationId }, "outbox intent staged with consumer transaction");
-  }
   await tx.checkoutEvent.create({ data: {
     eventId: event.eventId, eventType: event.eventType, fingerprint, result: result === null ? null : serializeIntegrationEvent(result).toString("utf8"),
   } });
@@ -158,7 +171,50 @@ export async function startCheckoutMessaging(config: RabbitMqConfig, logger: Log
 /** Reuse broker primitives; reconnect complete consumer/publisher session after loss. */
 export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: CheckoutHandler, database: OutboxDatabase & DeliveryDatabase, onFailure?: CheckoutFailureHandler) {
   const connect = () => startCheckoutMessaging(config, logger, queue, types, handler, onFailure, database);
-  let session = await connect();
+  return manageMessagingSession(connect, logger);
+}
+
+type MessagingSession = { isReady: () => boolean; stop: () => void; close: () => Promise<void> };
+
+/** Consumer-only session: same validation, retry budget, quarantine and settlement. */
+export async function startInboxMessaging(config: RabbitMqConfig, logger: Logger, queue: string, types: readonly EventType[], handler: (event: KnownIntegrationEvent) => Promise<void>, database: DeliveryDatabase) {
+  return manageMessagingSession(async () => {
+    const broker = await openRabbitMq(config, logger);
+    try {
+      const topology = await broker.createChannel();
+      await declareRabbitMqTopology(topology);
+      await topology.close();
+      const publisher = await broker.createPublisher();
+      const delivery = createCheckoutDeliveryHandler(queue, types, async (event) => { await handler(event); return null; }, async () => {}, logger, database);
+      const consumer = await broker.subscribe(queue, delivery.handle, 10, (message, error) => delivery.quarantine(message, error, publisher.publish));
+      return { isReady: broker.isReady, stop: () => { void consumer.stop().catch(() => {}); }, close: broker.close };
+    } catch (error) { await broker.close(); throw error; }
+  }, logger);
+}
+
+/** Publish lifecycle facts without enabling checkout consumers. */
+export async function startOutboxOnlyMessaging(config: RabbitMqConfig, logger: Logger, database: OutboxDatabase) {
+  return manageMessagingSession(async () => {
+    const broker = await openRabbitMq(config, logger);
+    try {
+      const topology = await broker.createChannel();
+      await declareRabbitMqTopology(topology);
+      await topology.close();
+      const publisher = await broker.createPublisher();
+      const worker = startOutboxPublisher(database, (event) => publisher.publish(DOMAIN_EXCHANGE, event.eventType, serializeIntegrationEvent(event)), logger);
+      return { isReady: broker.isReady, stop: worker.stop, close: async () => { await worker.close(); await broker.close(); } };
+    } catch (error) { await broker.close(); throw error; }
+  }, logger, true);
+}
+
+async function manageMessagingSession(connect: () => Promise<MessagingSession>, logger: Logger, allowUnavailable = false) {
+  let session: MessagingSession;
+  try { session = await connect(); }
+  catch (error) {
+    if (!allowUnavailable) throw error;
+    session = { isReady: () => false, stop: () => {}, close: async () => {} };
+    logger.warn("publisher unavailable; durable intents retained for reconnect");
+  }
   let stopped = false;
   let reconnecting = false;
   let failures = 0;
@@ -171,7 +227,7 @@ export async function startOutboxCheckoutMessaging(config: RabbitMqConfig, logge
         reconnecting = true;
         try {
           await session.close().catch((err: unknown) => logger.warn({ err }, "closing unavailable checkout session"));
-          if (!stopped) { session = await connect(); failures = 0; logger.info("checkout messaging recovered; pending outbox resumes"); }
+          if (!stopped) { session = await connect(); failures = 0; logger.info("messaging recovered; durable work resumes"); }
         } catch (err) { failures++; logger.error({ err, attempt: failures, dependency: "rabbitmq", operation: "reconnect" }, "checkout reconnect failed; retry scheduled"); }
         finally { reconnecting = false; }
       }
