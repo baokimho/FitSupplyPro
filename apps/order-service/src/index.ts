@@ -1,5 +1,5 @@
 import { closeDb } from "./config/db.js";
-import { startOutboxCheckoutMessaging } from "@shared/utils";
+import { startOutboxCheckoutMessaging, startOutboxOnlyMessaging, readRabbitMqConfig } from "@shared/utils";
 import prisma from "./config/db.js";
 import { handleOrderCheckout, recordSagaFailure, sagaEventTypes } from "./services/checkout.service.js";
 import express from "express";
@@ -45,6 +45,8 @@ async function bootstrap() {
       readiness.brokerReady = () => false;
       messaging = await startOutboxCheckoutMessaging(config.checkout.broker, logger, "order.payment-events", sagaEventTypes, handleOrderCheckout, prisma, recordSagaFailure);
       readiness.brokerReady = messaging.isReady;
+    } else if (process.env.RABBITMQ_URL) {
+      messaging = await startOutboxOnlyMessaging(readRabbitMqConfig(), logger, prisma);
     }
 
     const server = app.listen(PORT, () => {

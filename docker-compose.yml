@@ -124,6 +124,8 @@ services:
       context: .
       dockerfile: ./apps/order-service/Dockerfile
     container_name: order-service
+    environment:
+      RABBITMQ_URL: ${COMPOSE_RABBITMQ_URL:-amqp://fitsupply:change-me-for-local-development@rabbitmq:5672}
     env_file:
       - ./apps/order-service/.env
     expose:
@@ -234,6 +236,8 @@ services:
       context: .
       dockerfile: ./apps/notification-service/Dockerfile
     container_name: notification-service
+    environment:
+      RABBITMQ_URL: ${COMPOSE_RABBITMQ_URL:-amqp://fitsupply:change-me-for-local-development@rabbitmq:5672}
     env_file:
       - ./apps/notification-service/.env
     expose:
@@ -242,10 +246,12 @@ services:
       - ./apps/notification-service/src:/app/apps/notification-service/src
       - ./apps/notification-service/prisma:/app/apps/notification-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npm --prefix apps/notification-service run dev"
+    command: sh -c "npx prisma generate --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && exec node --import tsx apps/notification-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       shared-watcher:

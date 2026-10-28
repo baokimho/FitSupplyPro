@@ -173,7 +173,6 @@ services:
       CATALOG_SERVICE_URL: http://catalog-service:3002
       INVENTORY_SERVICE_URL: http://inventory-service:3004
       CART_SERVICE_URL: http://cart-service:3005
-      NOTIFICATION_SERVICE_URL: http://notification-service:3008
     command: sh -c "npx prisma migrate deploy --config apps/order-service/prisma.config.ts --schema apps/order-service/prisma/schema.prisma && exec node apps/order-service/dist/index.js"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3003/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -189,8 +188,6 @@ services:
       inventory-service:
         condition: service_healthy
       cart-service:
-        condition: service_healthy
-      notification-service:
         condition: service_healthy
 
   cart-service:
@@ -284,16 +281,19 @@ services:
       <<: *resilience-env
       NODE_ENV: test
       PORT: 3008
+      RABBITMQ_URL: amqp://fitsupply_test:fitsupply_test@rabbitmq-test:5672
       DATABASE_URL: postgresql://fitsupply_test:fitsupply_test@postgres-test:5432/notification_test_db
       GATEWAY_SECRET: fitsupply_test_internal_secret
-    command: sh -c "npm --prefix packages/shared run build && npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npm --prefix apps/notification-service run dev"
+    command: sh -c "npm --prefix packages/shared run build && npx prisma generate --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && npx prisma migrate deploy --config apps/notification-service/prisma.config.ts --schema apps/notification-service/prisma/schema.prisma && exec node --import tsx apps/notification-service/src/index.ts"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3008/health',{headers:{'x-internal-secret':'fitsupply_test_internal_secret'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3008/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 10s
     depends_on:
+      rabbitmq-test:
+        condition: service_healthy
       postgres-test:
         condition: service_healthy
 

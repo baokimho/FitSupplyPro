@@ -1,7 +1,7 @@
 import { classifyFailure, retryOperation, DependencyError } from "@shared/utils";
 import { config } from "../config/index.js";
 import { logger } from "../logger.js";
-import { logPath, correlationHeaders, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent, fetchDependency } from "@shared/utils";
+import { logPath, correlationHeaders, getCorrelation, createIntegrationEvent, deserializeIntegrationEvent, serializeIntegrationEvent, enqueueOutboxEvent, fetchDependency } from "@shared/utils";
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestError,
@@ -90,7 +90,6 @@ type DeliverySnapshot = {
 const catalogServiceUrl = config.catalogServiceUrl;
 const inventoryServiceUrl = config.inventoryServiceUrl;
 const cartServiceUrl = config.cartServiceUrl;
-const notificationServiceUrl = config.notificationServiceUrl;
 const internalSecret = config.gatewaySecret;
 
 const jsonHeaders = {
@@ -195,7 +194,7 @@ const fetchJson = async <T>(url: string, init?: RequestInit, safe = (init?.metho
   let response: Response;
   const targetService = [
     [catalogServiceUrl, "catalog-service"], [inventoryServiceUrl, "inventory-service"],
-    [cartServiceUrl, "cart-service"], [notificationServiceUrl, "notification-service"],
+    [cartServiceUrl, "cart-service"],
   ].find(([base]) => url.startsWith(`${base}/`))?.[1];
   const context = { targetService, operation: `${init?.method ?? "GET"} ${logPath(new URL(url).pathname)}` };
 
@@ -572,30 +571,6 @@ const removeCheckedOutCartItems = async (
   }
 };
 
-const createNotification = async (
-  userId: string,
-  body: { type: "ORDER_CREATED" | "ORDER_CANCELLED"; title: string; message: string },
-) => {
-  try {
-    await fetchJson(`${notificationServiceUrl}/internal/notifications`, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify({
-        userId,
-        ...body,
-      }),
-    });
-  } catch (error) {
-    logger.warn({
-      userId,
-      type: body.type,
-      err: error,
-      targetService: "notification-service",
-      operation: "create-notification",
-    }, "order notification failed");
-  }
-};
-
 const getOrderByIdOrThrow = async (id: string) => {
   const order = await prisma.order.findUnique({
     where: { id },
@@ -778,12 +753,6 @@ export const createOrderService = async (
         }
       }
       return created;
-    });
-
-    if (!order.eventDriven) await createNotification(userId, {
-      type: "ORDER_CREATED",
-      title: "Order created",
-      message: `Order ${order.id} has been created.`,
     });
 
     return toOrderResponse(order, delivery);
@@ -1020,13 +989,18 @@ const updateOrderStatus = async (id: string, status: OrderStatus, ownerId?: stri
     }
   }
 
-  await completeOrderTransition(order, status, prisma, inventoryCommand ? status : null);
+  await prisma.$transaction(async (tx) => {
+    await completeOrderTransition(order, status, tx, inventoryCommand ? status : null);
+    if (status === "CONFIRMED" || status === "CANCELLED") {
+      const correlationId = getCorrelation()?.traceId ?? randomUUID();
+      await enqueueOutboxEvent(tx, status === "CONFIRMED"
+        ? createIntegrationEvent({ eventType: "order.confirmed", correlationId, causationId: null, data: { orderId: id, userId: order.userId } })
+        : createIntegrationEvent({ eventType: "order.cancelled", correlationId, causationId: null, data: {
+          orderId: id, userId: order.userId, items: order.items.map(({ productId, quantity }) => ({ productId, quantity })),
+        } }));
+    }
+  });
   logger.info(context, "order transitioned");
-  if (status === "CANCELLED") {
-    await createNotification(order.userId, {
-      type: "ORDER_CANCELLED", title: "Order cancelled", message: `Order ${id} has been cancelled.`,
-    });
-  }
   return toOrderResponseWithDelivery(await getOrderByIdOrThrow(id));
 };
 

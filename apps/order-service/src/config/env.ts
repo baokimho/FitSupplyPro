@@ -12,7 +12,6 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     catalogServiceUrl: parseUrl("CATALOG_SERVICE_URL", env.CATALOG_SERVICE_URL ?? "http://catalog-service:3002"),
     inventoryServiceUrl: parseUrl("INVENTORY_SERVICE_URL", env.INVENTORY_SERVICE_URL ?? "http://inventory-service:3004"),
     cartServiceUrl: parseUrl("CART_SERVICE_URL", env.CART_SERVICE_URL ?? "http://cart-service:3005"),
-    notificationServiceUrl: parseUrl("NOTIFICATION_SERVICE_URL", env.NOTIFICATION_SERVICE_URL ?? "http://notification-service:3008"),
   };
 }
 

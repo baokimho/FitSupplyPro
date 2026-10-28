@@ -12,7 +12,6 @@ describe("order-service config", () => {
       catalogServiceUrl: "http://catalog-service:3002",
       inventoryServiceUrl: "http://inventory-service:3004",
       cartServiceUrl: "http://cart-service:3005",
-      notificationServiceUrl: "http://notification-service:3008",
     });
   });
 
@@ -31,7 +30,7 @@ describe("order-service config", () => {
     for (const NODE_ENV of ["staging", ""]) expect(() => loadConfig({ ...env, NODE_ENV })).toThrow(ConfigurationError);
   });
 
-  it.each([["CATALOG_SERVICE_URL","catalogServiceUrl"],["INVENTORY_SERVICE_URL","inventoryServiceUrl"],["CART_SERVICE_URL","cartServiceUrl"],["NOTIFICATION_SERVICE_URL","notificationServiceUrl"]])("validates %s and preserves override", (variable, field) => {
+  it.each([["CATALOG_SERVICE_URL","catalogServiceUrl"],["INVENTORY_SERVICE_URL","inventoryServiceUrl"],["CART_SERVICE_URL","cartServiceUrl"]])("validates %s and preserves override", (variable, field) => {
     expect(loadConfig({ ...env, [variable]: "https://service.test/base" })).toHaveProperty(field, "https://service.test/base");
     for (const value of ["invalid", "postgresql://localhost/db", ""]) {
       expect(() => loadConfig({ ...env, [variable]: value })).toThrow(`Configuration variable ${variable} must`);

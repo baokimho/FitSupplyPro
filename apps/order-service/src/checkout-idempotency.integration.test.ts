@@ -20,6 +20,8 @@ let advanceOrderService: typeof advanceOrderServiceType;
 let app: express.Express;
 
 const databaseUrl = requireTestDatabaseUrl("order_test_db");
+const product1Id = "11111111-1111-4111-8111-111111111111";
+const product2Id = "22222222-2222-4222-8222-222222222222";
 const originalFetch = globalThis.fetch;
 
 type Product = {
@@ -195,10 +197,6 @@ function installFetchDouble() {
       return jsonResponse({ success: true, data: product });
     }
 
-    if (url.includes("/internal/notifications")) {
-      return jsonResponse({});
-    }
-
     return jsonResponse({ error: { code: "INTERNAL_ERROR", message: `Unhandled request: ${method} ${url}` } }, 500);
   }));
 }
@@ -209,7 +207,6 @@ beforeAll(async () => {
   process.env.CART_SERVICE_URL = "http://cart-service.test";
   process.env.CATALOG_SERVICE_URL = "http://catalog-service.test";
   process.env.INVENTORY_SERVICE_URL = "http://inventory-service.test";
-  process.env.NOTIFICATION_SERVICE_URL = "http://notification-service.test";
 
   installFetchDouble();
   const dbModule = await import("./config/db.js");
@@ -240,12 +237,45 @@ beforeEach(async () => {
   failConsumeProducts.clear();
   inventoryOperations.clear();
   reserveDelayMs = 0;
-  setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.00", isPublished: true });
-  setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "12.00", isPublished: true });
-  setInventory("product-1", 10);
-  setInventory("product-2", 10);
+  setProduct({ id: product1Id, name: "Protein", slug: "protein", price: "10.00", isPublished: true });
+  setProduct({ id: product2Id, name: "Creatine", slug: "creatine", price: "12.00", isPublished: true });
+  setInventory(product1Id, 10);
+  setInventory(product2Id, 10);
   cartVersion = 1;
-  setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+  setCart([{ id: "cart-item-1", productId: product1Id, quantity: 2 }]);
+});
+
+describe("lifecycle notification publication", () => {
+  it("sync confirmation and cancellation stage canonical facts without Notification HTTP calls", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
+    const correlationId = randomUUID();
+    await runWithCorrelation({ requestId: randomUUID(), traceId: correlationId }, async () => {
+      await confirmOrderService(order.id, "admin", "ADMIN");
+      await cancelOrderService(order.id, "user-1");
+    });
+    const facts = await prisma.outboxEvent.findMany({ orderBy: { createdAt: "asc" } });
+    expect(facts.map((row) => JSON.parse(row.payload).eventType)).toEqual(["order.confirmed", "order.cancelled"]);
+    expect(facts.every((row) => row.publishedAt === null)).toBe(true);
+    for (const row of facts) expect(JSON.parse(row.payload)).toMatchObject({ correlationId, data: { orderId: order.id, userId: "user-1" } });
+    expect(vi.mocked(globalThis.fetch).mock.calls.some(([url]) => String(url).includes("/internal/notifications"))).toBe(false);
+  });
+
+  it("failed lifecycle Outbox insertion rolls back status and a retry publishes once", async () => {
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
+    await prisma.$executeRawUnsafe(`CREATE FUNCTION fail_notification_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test outbox failure'; END $$`);
+    try {
+      await prisma.$executeRawUnsafe(`CREATE TRIGGER fail_notification_outbox BEFORE INSERT ON "OutboxEvent" FOR EACH ROW EXECUTE FUNCTION fail_notification_outbox()`);
+      await expect(confirmOrderService(order.id, "admin", "ADMIN")).rejects.toThrow();
+      expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ status: "PENDING" });
+      expect(await prisma.outboxEvent.count()).toBe(0);
+    } finally {
+      await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS fail_notification_outbox ON "OutboxEvent"`);
+      await prisma.$executeRawUnsafe(`DROP FUNCTION fail_notification_outbox()`);
+    }
+    await confirmOrderService(order.id, "admin", "ADMIN");
+    await expect(confirmOrderService(order.id, "admin", "ADMIN")).rejects.toThrow("Invalid order transition");
+    expect(await prisma.outboxEvent.count()).toBe(1);
+  });
 });
 
 describe("bounded synchronous dependency recovery", () => {
@@ -265,11 +295,11 @@ describe("bounded synchronous dependency recovery", () => {
       expect(traces).toEqual([traceId, traceId]);
       expect(await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "read-recovery")).toEqual(JSON.parse(JSON.stringify(order)));
       expect(await countOrders()).toBe(1);
-      expect(reserveCount("product-1")).toBe(1);
+      expect(reserveCount(product1Id)).toBe(1);
     } finally { installFetchDouble(); }
   });
   it("does not retry insufficient stock and retains original business error", async () => {
-    failReserveProducts.add("product-1");
+    failReserveProducts.add(product1Id);
     await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "permanent-reserve")).rejects.toMatchObject({ status: 400, message: "Insufficient stock" });
     const calls = vi.mocked(globalThis.fetch).mock.calls.filter(([input]) => String(input).endsWith("/reserve"));
     expect(calls).toHaveLength(1);
@@ -290,13 +320,13 @@ describe("bounded synchronous dependency recovery", () => {
       await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "uncertain-reserve")).rejects.toMatchObject({ status: 503 });
       expect(identities).toHaveLength(3);
       expect(new Set(identities).size).toBe(1);
-      expect(reserveCount("product-1")).toBe(1);
-      expect(await prisma.checkoutIdempotency.findFirstOrThrow()).toMatchObject({ status: "COMPENSATION_FAILED", reservedItems: [{ productId: "product-1", quantity: 2, reservationUnknown: true }] });
+      expect(reserveCount(product1Id)).toBe(1);
+      expect(await prisma.checkoutIdempotency.findFirstOrThrow()).toMatchObject({ status: "COMPENSATION_FAILED", reservedItems: [{ productId: product1Id, quantity: 2, reservationUnknown: true }] });
       installFetchDouble();
       await expect(checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "uncertain-reserve")).rejects.toMatchObject({ status: 409, message: "Checkout failed and was compensated" });
-      expect(reserveCount("product-1")).toBe(1);
+      expect(reserveCount(product1Id)).toBe(1);
       expect(releaseCalls).toHaveLength(1);
-      expect(inventory.get("product-1")?.reservedStock).toBe(0);
+      expect(inventory.get(product1Id)?.reservedStock).toBe(0);
       expect(await countOrders()).toBe(0);
       expect(await prisma.checkoutIdempotency.count()).toBe(1);
     } finally { installFetchDouble(); }
@@ -631,19 +661,19 @@ describe("checkout idempotency", () => {
     expect(order.items).toHaveLength(1);
     expect(order.totalAmount).toBe(20);
     expect(await countOrders()).toBe(1);
-    expect(reserveCount("product-1")).toBe(1);
+    expect(reserveCount(product1Id)).toBe(1);
   });
 
   it("replays the same completed checkout without another order or reservation", async () => {
     const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-2");
     cartVersion = 1;
-  setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+  setCart([{ id: "cart-item-1", productId: product1Id, quantity: 2 }]);
 
     const second = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-2");
 
     expect(second).toMatchObject({ id: first.id, totalAmount: first.totalAmount });
     expect(await countOrders()).toBe(1);
-    expect(reserveCount("product-1")).toBe(1);
+    expect(reserveCount(product1Id)).toBe(1);
   });
 
   it("does not depend on process memory for replay", async () => {
@@ -666,7 +696,7 @@ describe("checkout idempotency", () => {
     ]);
 
     expect(await countOrders()).toBe(1);
-    expect(reserveCount("product-1")).toBe(1);
+    expect(reserveCount(product1Id)).toBe(1);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
   });
@@ -682,12 +712,12 @@ describe("checkout idempotency", () => {
   it("scopes the same idempotency key independently per user", async () => {
     await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "shared-key");
     cartVersion = 1;
-  setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+  setCart([{ id: "cart-item-1", productId: product1Id, quantity: 2 }]);
 
     await checkoutOrderService("user-2", checkoutBody(["cart-item-1"]), "shared-key");
 
     expect(await countOrders()).toBe(2);
-    expect(reserveCount("product-1")).toBe(2);
+    expect(reserveCount(product1Id)).toBe(2);
   });
 
   it("validates missing and invalid idempotency keys", async () => {
@@ -713,34 +743,34 @@ describe("checkout idempotency", () => {
   });
   it("rolls back earlier reservations when a later reservation fails", async () => {
     setCart([
-      { id: "cart-item-1", productId: "product-1", quantity: 2 },
-      { id: "cart-item-2", productId: "product-2", quantity: 3 },
+      { id: "cart-item-1", productId: product1Id, quantity: 2 },
+      { id: "cart-item-2", productId: product2Id, quantity: 3 },
     ]);
-    failReserveProducts.add("product-2");
+    failReserveProducts.add(product2Id);
 
     await expect(
       checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-rollback"),
     ).rejects.toMatchObject({ status: 400, message: "Insufficient stock" });
 
     expect(await countOrders()).toBe(0);
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
-    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: product1Id, quantity: 2 }]);
   });
 
   it("records compensation failure durably and retries without double release", async () => {
     setCart([
-      { id: "cart-item-1", productId: "product-1", quantity: 2 },
-      { id: "cart-item-2", productId: "product-2", quantity: 3 },
+      { id: "cart-item-1", productId: product1Id, quantity: 2 },
+      { id: "cart-item-2", productId: product2Id, quantity: 3 },
     ]);
-    failReserveProducts.add("product-2");
-    failReleaseProducts.add("product-1");
+    failReserveProducts.add(product2Id);
+    failReleaseProducts.add(product1Id);
 
     const failure = await checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-compensation").catch((error: unknown) => error);
     expect(failure).toMatchObject({ status: 400, message: "Insufficient stock" });
 
     const [failedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
     expect(failedAttempt.status).toBe("COMPENSATION_FAILED");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 2 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 2 });
 
     failReleaseProducts.clear();
   failConsumeProducts.clear();
@@ -751,8 +781,8 @@ describe("checkout idempotency", () => {
 
     const [retriedAttempt] = await prisma.$queryRaw<Array<{ status: string }>>`SELECT "status" FROM "CheckoutIdempotency" WHERE "userId" = ${"user-1"} AND "idempotencyKey" = ${"checkout-key-compensation"}`;
     expect(retriedAttempt.status).toBe("FAILED");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
-    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: product1Id, quantity: 2 }]);
   });
 
   it("persists normalized delivery snapshot and returns it on retrieval", async () => {
@@ -813,7 +843,7 @@ describe("checkout idempotency", () => {
   it("allows different idempotency keys to use different delivery snapshots", async () => {
     const first = await checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-delivery-a");
     cartVersion = 1;
-    setCart([{ id: "cart-item-1", productId: "product-1", quantity: 2 }]);
+    setCart([{ id: "cart-item-1", productId: product1Id, quantity: 2 }]);
 
     const second = await checkoutOrderService(
       "user-1",
@@ -827,11 +857,11 @@ describe("checkout idempotency", () => {
   });
 
   it("calculates decimal totals exactly from authoritative catalog prices", async () => {
-    setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "12.33", isPublished: true });
-    setProduct({ id: "product-2", name: "Creatine", slug: "creatine", price: "0.34", isPublished: true });
+    setProduct({ id: product1Id, name: "Protein", slug: "protein", price: "12.33", isPublished: true });
+    setProduct({ id: product2Id, name: "Creatine", slug: "creatine", price: "0.34", isPublished: true });
     setCart([
-      { id: "cart-item-1", productId: "product-1", quantity: 3 },
-      { id: "cart-item-2", productId: "product-2", quantity: 1 },
+      { id: "cart-item-1", productId: product1Id, quantity: 3 },
+      { id: "cart-item-2", productId: product2Id, quantity: 1 },
     ]);
 
     const order = await checkoutOrderService("user-1", checkoutBody(["cart-item-1", "cart-item-2"]), "checkout-key-decimal");
@@ -839,8 +869,8 @@ describe("checkout idempotency", () => {
     expect(order.totalAmount).toBe(37.33);
     expect(order.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ productId: "product-1", unitPrice: 12.33, subtotal: 36.99 }),
-        expect.objectContaining({ productId: "product-2", unitPrice: 0.34, subtotal: 0.34 }),
+        expect.objectContaining({ productId: product1Id, unitPrice: 12.33, subtotal: 36.99 }),
+        expect.objectContaining({ productId: product2Id, unitPrice: 0.34, subtotal: 0.34 }),
       ]),
     );
   });
@@ -850,20 +880,20 @@ describe("checkout idempotency", () => {
       "user-1",
       {
         items: [
-          { productId: "product-1", quantity: 1 },
-          { productId: "product-1", quantity: 2 },
+          { productId: product1Id, quantity: 1 },
+          { productId: product1Id, quantity: 2 },
         ],
         delivery: defaultDelivery(),
       },
     );
 
     expect(order.items).toHaveLength(1);
-    expect(order.items[0]).toMatchObject({ productId: "product-1", quantity: 3, subtotal: 30 });
-    expect(reserveCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+    expect(order.items[0]).toMatchObject({ productId: product1Id, quantity: 3, subtotal: 30 });
+    expect(reserveCalls).toEqual([{ productId: product1Id, quantity: 3 }]);
   });
 
   it("rejects invalid authoritative catalog price before reservation", async () => {
-    setProduct({ id: "product-1", name: "Protein", slug: "protein", price: "10.001", isPublished: true });
+    setProduct({ id: product1Id, name: "Protein", slug: "protein", price: "10.001", isPublished: true });
 
     await expect(
       checkoutOrderService("user-1", checkoutBody(["cart-item-1"]), "checkout-key-bad-price"),
@@ -878,7 +908,7 @@ describe("checkout idempotency", () => {
   it("rejects invalid direct order quantities before side effects", async () => {
     await request(app)
       .post("/orders")
-      .send({ items: [{ productId: "product-1", quantity: 0 }], delivery: defaultDelivery() })
+      .send({ items: [{ productId: product1Id, quantity: 0 }], delivery: defaultDelivery() })
       .expect(400);
 
     expect(await countOrders()).toBe(0);
@@ -887,44 +917,44 @@ describe("checkout idempotency", () => {
 
   it("keeps confirmation reserved and consumes inventory when processing starts", async () => {
     const order = await createOrderService("user-1", {
-      items: [{ productId: "product-1", quantity: 3 }],
+      items: [{ productId: product1Id, quantity: 3 }],
       delivery: defaultDelivery(),
     });
 
     const confirmed = await confirmOrderService(order.id, "admin-1", "ADMIN");
 
     expect(confirmed.status).toBe("CONFIRMED");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 3 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 3 });
     const processed = await advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING");
     expect(processed.status).toBe("PROCESSING");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 7, reservedStock: 0 });
-    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 7, reservedStock: 0 });
+    expect(consumeCalls).toEqual([{ productId: product1Id, quantity: 3 }]);
   });
 
   it("rejects repeat public confirmation without inventory effects", async () => {
     const order = await createOrderService("user-1", {
-      items: [{ productId: "product-1", quantity: 2 }],
+      items: [{ productId: product1Id, quantity: 2 }],
       delivery: defaultDelivery(),
     });
     await confirmOrderService(order.id, "admin-1", "ADMIN");
     await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409, code: "INVALID_ORDER_TRANSITION" });
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 2 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 2 });
     expect(consumeCalls).toEqual([]);
   });
 
   it("pins processing intent for retry if multi-item consume fails midway", async () => {
     setCart([
-      { id: "cart-item-1", productId: "product-1", quantity: 2 },
-      { id: "cart-item-2", productId: "product-2", quantity: 1 },
+      { id: "cart-item-1", productId: product1Id, quantity: 2 },
+      { id: "cart-item-2", productId: product2Id, quantity: 1 },
     ]);
     const order = await createOrderService("user-1", {
       items: [
-        { productId: "product-1", quantity: 2 },
-        { productId: "product-2", quantity: 1 },
+        { productId: product1Id, quantity: 2 },
+        { productId: product2Id, quantity: 1 },
       ],
       delivery: defaultDelivery(),
     });
-    failConsumeProducts.add("product-2");
+    failConsumeProducts.add(product2Id);
     await confirmOrderService(order.id, "admin-1", "ADMIN");
     await expect(advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING"))
       .rejects.toMatchObject({ status: 503, message: "Inventory service unavailable" });
@@ -933,36 +963,36 @@ describe("checkout idempotency", () => {
     expect(stored.status).toBe("CONFIRMED");
     expect(stored.pendingStatus).toBe("PROCESSING");
     await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409, code: "ORDER_COMMAND_IN_PROGRESS" });
-    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
-    expect(inventory.get("product-2")).toMatchObject({ stock: 10, reservedStock: 1 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 8, reservedStock: 0 });
+    expect(inventory.get(product2Id)).toMatchObject({ stock: 10, reservedStock: 1 });
 
     failConsumeProducts.clear();
     const retried = await advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING");
 
     expect(retried.status).toBe("PROCESSING");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 8, reservedStock: 0 });
-    expect(inventory.get("product-2")).toMatchObject({ stock: 9, reservedStock: 0 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 8, reservedStock: 0 });
+    expect(inventory.get(product2Id)).toMatchObject({ stock: 9, reservedStock: 0 });
     expect(consumeCalls).toEqual([
-      { productId: "product-1", quantity: 2 },
-      { productId: "product-2", quantity: 1 },
+      { productId: product1Id, quantity: 2 },
+      { productId: product2Id, quantity: 1 },
     ]);
   });
 
   it("releases reserved inventory before cancelling an order", async () => {
     const order = await createOrderService("user-1", {
-      items: [{ productId: "product-1", quantity: 3 }],
+      items: [{ productId: product1Id, quantity: 3 }],
       delivery: defaultDelivery(),
     });
 
     const cancelled = await cancelOrderService(order.id, "user-1");
 
     expect(cancelled.status).toBe("CANCELLED");
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
-    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 3 }]);
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(releaseCalls).toEqual([{ productId: product1Id, quantity: 3 }]);
   });
 
   it("runs entire lifecycle and rejects skipped, backward and terminal transitions", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     for (const command of ["ship", "deliver", "process"]) {
       const response = await request(app).patch(`/orders/${order.id}/${command}`).set("x-test-user-role", "ADMIN").expect(409);
       expect(response.body.error.code).toBe("INVALID_ORDER_TRANSITION");
@@ -976,22 +1006,22 @@ describe("checkout idempotency", () => {
     }
     await request(app).patch(`/orders/${order.id}/process`).set("x-test-user-role", "ADMIN").expect(409);
     await request(app).patch(`/orders/${order.id}/cancel`).expect(409);
-    expect(consumeCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
+    expect(consumeCalls).toEqual([{ productId: product1Id, quantity: 2 }]);
     expect(releaseCalls).toEqual([]);
   });
 
   it("cancels confirmed order and rejects terminal confirmation/repeated cancellation", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     await confirmOrderService(order.id, "admin-1", "ADMIN");
     expect((await cancelOrderService(order.id, "user-1")).status).toBe("CANCELLED");
     await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409 });
     await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
     expect(releaseCalls).toHaveLength(1);
-    expect(inventory.get("product-1")).toMatchObject({ stock: 10, reservedStock: 0 });
+    expect(inventory.get(product1Id)).toMatchObject({ stock: 10, reservedStock: 0 });
   });
 
   it("isolates customer reads/cancellation and rejects customer fulfilment commands", async () => {
-    const order = await createOrderService("user-2", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-2", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     const list = await request(app).get("/orders/me").expect(200);
     expect(list.body.items).toEqual([]);
     await request(app).get(`/orders/${order.id}`).expect(403);
@@ -1006,7 +1036,7 @@ describe("checkout idempotency", () => {
   });
 
   it("serializes concurrent cancellations with at most one inventory release", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     const results = await Promise.allSettled([cancelOrderService(order.id, "user-1"), cancelOrderService(order.id, "user-1")]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(releaseCalls).toHaveLength(1);
@@ -1014,31 +1044,31 @@ describe("checkout idempotency", () => {
   });
 
   it("racing process/cancel cannot both mutate inventory", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     await confirmOrderService(order.id, "admin-1", "ADMIN");
     const results = await Promise.allSettled([advanceOrderService(order.id, "admin-1", "ADMIN", "PROCESSING"), cancelOrderService(order.id, "user-1")]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const stored = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
     expect(["PROCESSING", "CANCELLED"]).toContain(stored.status);
     expect(releaseCalls.length + consumeCalls.length).toBe(1);
-    expect(inventory.get("product-1")?.reservedStock).toBe(0);
+    expect(inventory.get(product1Id)?.reservedStock).toBe(0);
   });
 
   it("retains cancellation intent on partial release failure and safely retries", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }, { productId: "product-2", quantity: 1 }], delivery: defaultDelivery() });
-    failReleaseProducts.add("product-2");
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }, { productId: product2Id, quantity: 1 }], delivery: defaultDelivery() });
+    failReleaseProducts.add(product2Id);
     await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 503 });
     expect(await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).toMatchObject({ status: "PENDING", pendingStatus: "CANCELLED" });
     await expect(confirmOrderService(order.id, "admin-1", "ADMIN")).rejects.toMatchObject({ status: 409 });
     failReleaseProducts.clear();
     await cancelOrderService(order.id, "user-1");
-    expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }, { productId: "product-2", quantity: 1 }]);
-    expect(inventory.get("product-1")?.reservedStock).toBe(0);
-    expect(inventory.get("product-2")?.reservedStock).toBe(0);
+    expect(releaseCalls).toEqual([{ productId: product1Id, quantity: 2 }, { productId: product2Id, quantity: 1 }]);
+    expect(inventory.get(product1Id)?.reservedStock).toBe(0);
+    expect(inventory.get(product2Id)?.reservedStock).toBe(0);
   });
 
   it("retries lost Inventory release acknowledgement without double mutation", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     const fetchImpl = globalThis.fetch;
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const response = await fetchImpl(input, init);
@@ -1053,7 +1083,7 @@ describe("checkout idempotency", () => {
   });
 
   it("keeps durable cancellation intent when final Order DB update fails after release", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     await prisma.$executeRawUnsafe(`CREATE FUNCTION phase3_fail_status() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'private status failure'; END $$`);
     try {
       await prisma.$executeRawUnsafe(`CREATE TRIGGER phase3_fail_status BEFORE UPDATE OF "status" ON "Order" FOR EACH ROW EXECUTE FUNCTION phase3_fail_status()`);
@@ -1065,21 +1095,21 @@ describe("checkout idempotency", () => {
     }
     await cancelOrderService(order.id, "user-1");
     expect(releaseCalls).toHaveLength(1);
-    expect(inventory.get("product-1")?.reservedStock).toBe(0);
+    expect(inventory.get(product1Id)?.reservedStock).toBe(0);
   });
 
   it("preserves historical snapshots and computes decimal totals from Catalog", async () => {
-    setProduct({ id: "product-1", name: "Original", slug: "original", price: "0.10", isPublished: true });
-    setProduct({ id: "product-2", name: "Second", slug: "second", price: "0.20", isPublished: true });
+    setProduct({ id: product1Id, name: "Original", slug: "original", price: "0.10", isPublished: true });
+    setProduct({ id: product2Id, name: "Second", slug: "second", price: "0.20", isPublished: true });
     const response = await request(app).post("/orders").send({ userId: "spoof", status: "DELIVERED", totalAmount: 1,
-      items: [{ productId: "product-1", quantity: 3, unitPrice: 100, productName: "spoof" }, { productId: "product-2", quantity: 2 }], delivery: defaultDelivery() }).expect(201);
+      items: [{ productId: product1Id, quantity: 3, unitPrice: 100, productName: "spoof" }, { productId: product2Id, quantity: 2 }], delivery: defaultDelivery() }).expect(201);
     expect(response.body).toMatchObject({ userId: "user-1", status: "PENDING", totalAmount: 0.7 });
-    setProduct({ id: "product-1", name: "Changed", slug: "changed", price: "99.00", isPublished: true });
+    setProduct({ id: product1Id, name: "Changed", slug: "changed", price: "99.00", isPublished: true });
     const read = await request(app).get(`/orders/${response.body.id}`).expect(200);
     expect(read.body.items).toContainEqual(expect.objectContaining({ productName: "Original", productSlug: "original", unitPrice: 0.1, subtotal: 0.3 }));
   });
 
-  it.each([[], [{ productId: "product-1", quantity: -1 }], [{ productId: "product-1", quantity: 1.5 }], [{ productId: " ", quantity: 1 }]].map((items) => ({ items })))("rejects malformed contents $items", async ({ items }) => {
+  it.each([[], [{ productId: product1Id, quantity: -1 }], [{ productId: product1Id, quantity: 1.5 }], [{ productId: " ", quantity: 1 }]].map((items) => ({ items })))("rejects malformed contents $items", async ({ items }) => {
     const response = await request(app).post("/orders").send({ items, delivery: defaultDelivery() }).expect(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
     expect(await countOrders()).toBe(0);
@@ -1088,9 +1118,9 @@ describe("checkout idempotency", () => {
 
   it("rejects nonexistent/unpublished products and insufficient aggregated stock", async () => {
     await request(app).post("/orders").send({ items: [{ productId: "missing", quantity: 1 }], delivery: defaultDelivery() }).expect(404);
-    setProduct({ id: "product-2", name: "Second", slug: "second", price: "1.00", isPublished: false });
-    await request(app).post("/orders").send({ items: [{ productId: "product-2", quantity: 1 }], delivery: defaultDelivery() }).expect(400);
-    await request(app).post("/orders").send({ items: [{ productId: "product-1", quantity: 6 }, { productId: "product-1", quantity: 5 }], delivery: defaultDelivery() }).expect(400);
+    setProduct({ id: product2Id, name: "Second", slug: "second", price: "1.00", isPublished: false });
+    await request(app).post("/orders").send({ items: [{ productId: product2Id, quantity: 1 }], delivery: defaultDelivery() }).expect(400);
+    await request(app).post("/orders").send({ items: [{ productId: product1Id, quantity: 6 }, { productId: product1Id, quantity: 5 }], delivery: defaultDelivery() }).expect(400);
     expect(await countOrders()).toBe(0);
     expect(reserveCalls).toEqual([]);
   });
@@ -1099,12 +1129,12 @@ describe("checkout idempotency", () => {
     await prisma.$executeRawUnsafe(`CREATE FUNCTION phase3_fail_delivery() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'private DB failure'; END $$`);
     try {
       await prisma.$executeRawUnsafe(`CREATE TRIGGER phase3_fail_delivery BEFORE UPDATE OF "recipientName" ON "Order" FOR EACH ROW EXECUTE FUNCTION phase3_fail_delivery()`);
-      const response = await request(app).post("/orders").send({ items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() }).expect(500);
+      const response = await request(app).post("/orders").send({ items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() }).expect(500);
       expect(response.body).toEqual({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } });
       expect(await countOrders()).toBe(0);
       expect(await prisma.orderItem.count()).toBe(0);
-      expect(releaseCalls).toEqual([{ productId: "product-1", quantity: 2 }]);
-      expect(inventory.get("product-1")?.reservedStock).toBe(0);
+      expect(releaseCalls).toEqual([{ productId: product1Id, quantity: 2 }]);
+      expect(inventory.get(product1Id)?.reservedStock).toBe(0);
     } finally {
       await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS phase3_fail_delivery ON "Order"');
       await prisma.$executeRawUnsafe('DROP FUNCTION phase3_fail_delivery()');
@@ -1112,7 +1142,7 @@ describe("checkout idempotency", () => {
   });
 
   it("never releases legacy confirmed stock already consumed before migration", async () => {
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     await prisma.order.update({ where: { id: order.id }, data: { status: "CONFIRMED", reservationConsumed: true } });
     await expect(cancelOrderService(order.id, "user-1")).rejects.toMatchObject({ status: 409, code: "ORDER_INVENTORY_CONSUMED" });
     expect(releaseCalls).toEqual([]);
@@ -1129,7 +1159,7 @@ describe("checkout idempotency", () => {
     protectedApp.use(attachOrderUser);
     protectedApp.use(routes);
     protectedApp.use(errorHandler);
-    const order = await createOrderService("user-1", { items: [{ productId: "product-1", quantity: 2 }], delivery: defaultDelivery() });
+    const order = await createOrderService("user-1", { items: [{ productId: product1Id, quantity: 2 }], delivery: defaultDelivery() });
     await request(protectedApp).patch(`/internal/orders/${order.id}/confirm`).expect(403);
     await request(protectedApp).patch(`/internal/orders/${order.id}/confirm`).set("x-internal-secret", "wrong").expect(403);
     await request(protectedApp).patch(`/orders/${order.id}/confirm`).set("x-internal-secret", "fitsupply_test_internal_secret").set("x-user-id", "user-1").set("x-user-role", "CUSTOMER").expect(403);
@@ -1146,7 +1176,7 @@ describe("checkout idempotency", () => {
 
     await prisma.$executeRaw`INSERT INTO "Order" ("id", "userId", "status", "totalAmount", "recipientName", "contactPhone", "deliveryAddressLine1", "deliveryCity", "deliveryPostalCode", "deliveryCountryCode", "createdAt", "updatedAt") VALUES (${"constraint-order"}, ${"user-1"}, ${"PENDING"}, ${0}, ${"Ada"}, ${"+358 40 123 4567"}, ${"Street 1"}, ${"Helsinki"}, ${"00100"}, ${"FI"}, NOW(), NOW())`;
     await expect(
-      prisma.$executeRaw`INSERT INTO "OrderItem" ("id", "orderId", "productId", "productName", "productSlug", "quantity", "unitPrice", "subtotal", "createdAt", "updatedAt") VALUES (${"bad-item"}, ${"constraint-order"}, ${"product-1"}, ${"Protein"}, ${"protein"}, ${1}, ${2}, ${3}, NOW(), NOW())`,
+      prisma.$executeRaw`INSERT INTO "OrderItem" ("id", "orderId", "productId", "productName", "productSlug", "quantity", "unitPrice", "subtotal", "createdAt", "updatedAt") VALUES (${"bad-item"}, ${"constraint-order"}, ${product1Id}, ${"Protein"}, ${"protein"}, ${1}, ${2}, ${3}, NOW(), NOW())`,
     ).rejects.toThrow();
   });
 

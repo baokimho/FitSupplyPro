@@ -1,4 +1,5 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const gatewayUrl = process.env.API_GATEWAY_URL ?? "http://localhost:3500";
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin.e2e@fitsupply.test";
@@ -170,6 +171,32 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
   beforeEach(async () => {
     for (const session of [customerSession, otherSession]) await requestJson("DELETE", "/cart", { token: session.accessToken });
   });
+
+  it("sync checkout and lifecycle continue during Notification outage; email resumes after restart", async () => {
+    const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
+    const suffix = `notification-outage-${Date.now()}`;
+    const productId = await createCatalog(adminSession.accessToken, suffix);
+    const delivery = { recipientName: "Notification Outage", contactPhone: "+358401234567", addressLine1: "Street 1", city: "Helsinki", postalCode: "00100", countryCode: "FI" };
+    let orderId: string | undefined;
+    execFileSync("docker", [...compose, "stop", "notification-service"], { timeout: 20000, stdio: "pipe" });
+    try {
+      const order = await checkout(customerSession.accessToken, productId, suffix, delivery);
+      orderId = order.id;
+      expect(order.status).toBe("PENDING");
+      expect(await requestJson("PATCH", `/order/orders/${order.id}/confirm`, { token: adminSession.accessToken })).toMatchObject({ status: "CONFIRMED" });
+      expect(await requestJson("PATCH", `/order/orders/${order.id}/cancel`, { token: customerSession.accessToken })).toMatchObject({ status: "CANCELLED" });
+    } finally {
+      execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "60", "notification-service"], { timeout: 70000, stdio: "pipe" });
+    }
+    if (!orderId) throw new Error("Outage checkout did not complete");
+    const completedOrderId = orderId;
+    await vi.waitFor(() => {
+      const result = execFileSync("docker", [...compose, "exec", "-T", "postgres-test", "psql", "-U", "fitsupply_test", "-d", "notification_test_db", "-At", "-v", "ON_ERROR_STOP=1", "-c",
+        `SELECT count(*) FROM "NotificationDelivery" d JOIN "Notification" n ON n.id=d."notificationId" JOIN "FakeEmailReceipt" f ON f."deliveryKey"='delivery:'||d.id
+        WHERE n.message LIKE '%${completedOrderId}%' AND d.status='SENT' AND d."attemptCount"=1`], { encoding: "utf8", timeout: 10000 });
+      expect(result.trim()).toBe("2");
+    }, { timeout: 10000, interval: 100 });
+  }, 90000);
 
   it("enforces Order lifecycle and ownership independently of Payment", async () => {
     const suffix = `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;

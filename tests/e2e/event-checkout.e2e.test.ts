@@ -160,6 +160,18 @@ describe("event-driven HTTP checkout", () => {
     expect(scalar("payment_test_db", `SELECT count(*) FROM "Payment" WHERE "orderId"='${order.id}'`)).toBe(1);
     expect(scalar("payment_test_db", `SELECT count(*) FROM "FakeProviderOperation" f JOIN "Payment" p ON f."idempotencyKey"=p."id"||':settle' WHERE p."orderId"='${order.id}'`)).toBe(1);
     expect(saga(order.id).state).toBe(decline ? "COMPENSATED" : "COMPLETED");
+    const notificationEvent = flow.find((event) => event.eventType === (decline ? "order.cancelled" : "order.confirmed"));
+    if (!notificationEvent) throw new Error("Notification source event missing");
+    await publisher.publish(DOMAIN_EXCHANGE, notificationEvent.eventType, serializeIntegrationEvent(notificationEvent));
+    await vi.waitFor(() => {
+      expect(scalar("notification_test_db", `SELECT count(*) FROM "CheckoutEvent" WHERE "eventId"='${notificationEvent.eventId}'`)).toBe(1);
+      expect(scalar("notification_test_db", `SELECT count(*) FROM "Notification" WHERE "sourceEventId"='${notificationEvent.eventId}'`)).toBe(1);
+      expect(scalar("notification_test_db", `SELECT count(*) FROM "NotificationDelivery" d JOIN "Notification" n ON n.id=d."notificationId"
+        WHERE n."sourceEventId"='${notificationEvent.eventId}' AND d.status='SENT' AND d."attemptCount"=1`)).toBe(1);
+      expect(scalar("notification_test_db", `SELECT count(*) FROM "FakeEmailReceipt" f JOIN "NotificationDelivery" d ON f."deliveryKey"='delivery:'||d.id
+        JOIN "Notification" n ON n.id=d."notificationId" WHERE n."sourceEventId"='${notificationEvent.eventId}' AND f."messageId"=d."providerMessageId"`)).toBe(1);
+      expect(sql("notification_test_db", `SELECT "traceparent" FROM "Notification" WHERE "sourceEventId"='${notificationEvent.eventId}'`)).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+    }, { timeout: 10000, interval: 100 });
     for (const queue of DOMAIN_QUEUES) expect((await channel.checkQueue(`${queue.name}.dlq`)).messageCount).toBe(0);
     await verifyOperatorReplay(fixture);
   }, 40000);
