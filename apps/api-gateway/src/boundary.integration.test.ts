@@ -5,7 +5,8 @@ import { EventEmitter, once } from "node:events";
 import express from "express";
 import request from "supertest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { ipKeyGenerator, type RateLimitRequestHandler } from "express-rate-limit";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { correlationMiddleware, installShutdown, validCorrelationId } from "@shared/utils";
 import { logger } from "./logger.js";
 
@@ -98,6 +99,15 @@ describe("real Gateway HTTP boundary", () => {
     port = await listen(gateway);
   });
   afterAll(async () => { readiness.stopping = false; await close(gateway); await close(upstream); });
+  beforeEach(async () => {
+    // Each case owns its quota; flood cases must not throttle later security assertions.
+    const limiters = await import("./middleware/rateLimit.middleware.js");
+    for (const limiter of Object.values(limiters)) {
+      for (const key of ["verified-user", ...["127.0.0.1", "::ffff:127.0.0.1", "::1"].map((ip) => ipKeyGenerator(ip))]) {
+        await (limiter as RateLimitRequestHandler).resetKey(key);
+      }
+    }
+  });
 
   it("propagates verified JWT identity and strips arbitrary, credential and forwarding headers", async () => {
     const id = "fce5c467-811f-42c7-b665-9a93b6d8300b";
