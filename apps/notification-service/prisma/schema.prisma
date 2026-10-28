@@ -17,15 +17,77 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  sourceEventId String?      @unique
+  correlationId String?
+  traceparent String?
+  deliveries NotificationDelivery[]
 
   @@index([userId])
 }
 
 enum NotificationType {
+  ORDER_CONFIRMED
   ORDER_CREATED
   PAYMENT_PAID
   PAYMENT_FAILED
   ORDER_SHIPPED
   ORDER_DELIVERED
   ORDER_CANCELLED
+}
+
+model CheckoutEvent {
+  eventId String @id
+  eventType String?
+  processedAt DateTime @default(now())
+  fingerprint String
+  result String?
+}
+
+model ConsumerDelivery {
+  consumer String
+  messageKey String
+  replayCount Int @default(0)
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@id([consumer, messageKey, replayCount])
+}
+
+model NotificationDelivery {
+  id String @id @default(uuid())
+  notificationId String
+  notification Notification @relation(fields: [notificationId], references: [id])
+  channel NotificationChannel @default(EMAIL)
+  status NotificationDeliveryStatus @default(PENDING)
+  attemptCount Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimToken String?
+  claimExpiresAt DateTime?
+  providerMessageId String?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sentAt DateTime?
+  @@unique([notificationId, channel])
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([status, claimExpiresAt])
+}
+
+// Independent fake provider receipt survives a failed delivery completion transaction.
+model FakeEmailReceipt {
+  deliveryKey String @id
+  fingerprint String
+  messageId String @unique
+  createdAt DateTime @default(now())
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
 }

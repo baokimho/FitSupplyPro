@@ -128,7 +128,50 @@ exports.Prisma.NotificationScalarFieldEnum = {
   message: 'message',
   isRead: 'isRead',
   createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  sourceEventId: 'sourceEventId',
+  correlationId: 'correlationId',
+  traceparent: 'traceparent'
+};
+
+exports.Prisma.CheckoutEventScalarFieldEnum = {
+  eventId: 'eventId',
+  eventType: 'eventType',
+  processedAt: 'processedAt',
+  fingerprint: 'fingerprint',
+  result: 'result'
+};
+
+exports.Prisma.ConsumerDeliveryScalarFieldEnum = {
+  consumer: 'consumer',
+  messageKey: 'messageKey',
+  replayCount: 'replayCount',
+  attempts: 'attempts',
+  createdAt: 'createdAt',
   updatedAt: 'updatedAt'
+};
+
+exports.Prisma.NotificationDeliveryScalarFieldEnum = {
+  id: 'id',
+  notificationId: 'notificationId',
+  channel: 'channel',
+  status: 'status',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  claimToken: 'claimToken',
+  claimExpiresAt: 'claimExpiresAt',
+  providerMessageId: 'providerMessageId',
+  lastError: 'lastError',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  sentAt: 'sentAt'
+};
+
+exports.Prisma.FakeEmailReceiptScalarFieldEnum = {
+  deliveryKey: 'deliveryKey',
+  fingerprint: 'fingerprint',
+  messageId: 'messageId',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -140,7 +183,13 @@ exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 };
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
 exports.NotificationType = exports.$Enums.NotificationType = {
+  ORDER_CONFIRMED: 'ORDER_CONFIRMED',
   ORDER_CREATED: 'ORDER_CREATED',
   PAYMENT_PAID: 'PAYMENT_PAID',
   PAYMENT_FAILED: 'PAYMENT_FAILED',
@@ -149,8 +198,23 @@ exports.NotificationType = exports.$Enums.NotificationType = {
   ORDER_CANCELLED: 'ORDER_CANCELLED'
 };
 
+exports.NotificationChannel = exports.$Enums.NotificationChannel = {
+  EMAIL: 'EMAIL'
+};
+
+exports.NotificationDeliveryStatus = exports.$Enums.NotificationDeliveryStatus = {
+  PENDING: 'PENDING',
+  SENDING: 'SENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED'
+};
+
 exports.Prisma.ModelName = {
-  Notification: 'Notification'
+  Notification: 'Notification',
+  CheckoutEvent: 'CheckoutEvent',
+  ConsumerDelivery: 'ConsumerDelivery',
+  NotificationDelivery: 'NotificationDelivery',
+  FakeEmailReceipt: 'FakeEmailReceipt'
 };
 
 /**

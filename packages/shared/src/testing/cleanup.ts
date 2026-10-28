@@ -14,7 +14,7 @@ const cleanupTables: Record<CleanupDatabaseName, readonly string[]> = {
   cart_test_db: ["CartItem", "Cart"],
   payment_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "PaymentIdempotency", "FakeProviderOperation", "Payment"],
   shipping_test_db: ["Shipment"],
-  notification_test_db: ["Notification"],
+  notification_test_db: ["ConsumerDelivery", "CheckoutEvent", "FakeEmailReceipt", "NotificationDelivery", "Notification"],
 };
 
 function quoteIdentifier(identifier: string): string {
