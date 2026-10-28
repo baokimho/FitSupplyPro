@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 16 testing strategy implemented; existing checkout, recovery, security and observability behavior preserved. Frontend and fitness/nutrition product areas are not implemented yet. See [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
+Status: Phase 17 event-driven outbound notifications implemented with durable Inbox acceptance, DB-polled email delivery and safe fake provider. Synchronous checkout remains default; async checkout remains opt-in. Frontend and fitness/nutrition product areas are not implemented yet. See [Notification service](docs/phase17-notification-service.md), [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
 
 ## Services
 
@@ -16,7 +16,7 @@ Status: Phase 16 testing strategy implemented; existing checkout, recovery, secu
 | `apps/order-service` | Checkout, order lifecycle, delivery snapshot, inventory orchestration, cancellation/confirmation |
 | `apps/payment-service` | Payment attempts/lifecycle, provider abstraction, deterministic fake provider, durable idempotency, refunds and retriable Order confirmation |
 | `apps/shipping-service` | Shipment records, one shipment per order, shipment snapshot from confirmed order, fulfillment status transitions |
-| `apps/notification-service` | Notification persistence and customer read-state |
+| `apps/notification-service` | Event-driven notification acceptance, durable email worker, fake provider and preserved legacy read-state |
 | `packages/shared` | Shared errors, middleware, config validation, structured logging, JWT/user header helpers, internal secret middleware |
 
 ## Architecture
@@ -368,7 +368,7 @@ The distinct auth proxy/JWKS defaults are current behavior. An explicit
 | `CATALOG_SERVICE_URL` | Optional; `http://catalog-service:3002` | Product snapshots/validation | `http://catalog-service:3002` |
 | `INVENTORY_SERVICE_URL` | Optional; `http://inventory-service:3004` | Reserve/release/consume orchestration | `http://inventory-service:3004` |
 | `CART_SERVICE_URL` | Optional; `http://cart-service:3005` | Internal checkout cart access | `http://cart-service:3005` |
-| `NOTIFICATION_SERVICE_URL` | Optional; `http://notification-service:3008` | Order notifications | `http://notification-service:3008` |
+| `RABBITMQ_URL` | Required for outbound lifecycle publication; async checkout also requires it | Durable Order Outbox publisher | `amqp://fitsupply:change-me-for-local-development@rabbitmq:5672` |
 
 ### Auth keys and JWKS
 
@@ -417,7 +417,7 @@ public **test-only credentials**, never development/production keys. See
 
 The exact variable is `GATEWAY_SECRET`, not `INTERNAL_SERVICE_SECRET`. All five
 services require it. Gateway sends `x-internal-secret` to downstream services and
-JWKS; order sends it to catalog/inventory/cart/notification. Receivers validate
+JWKS; order sends it to catalog/inventory/cart. Receivers validate
 the same header. Match the secret across every communicating service, including
 the other implemented services in full Compose. This does not replace user JWT,
 role, or ownership checks. Scoped `/health` and `/ready` probes are safe and public;
@@ -621,13 +621,7 @@ Current meaningful coverage:
 - Shipping integration tests for one shipment per order, snapshot copying, status transitions, and notifications.
 - Root E2E covers purchase lifecycle, payment failure with explicit Order cancellation, fresh-attempt retry, duplicate success/refund and gateway security boundaries.
 
-Known non-blocking gaps:
-
-- `auth-service` has no dedicated integration test file.
-- `catalog-service` has no dedicated integration test file.
-- `notification-service` has no dedicated integration test file.
-
-These are not current backend freeze blockers because the full E2E suite exercises authentication, catalog admin setup/browse, and notification read behavior through the gateway. Add targeted service-level tests later when changing those services.
+Phase 16 added dedicated Auth, Catalog and Notification API/persistence suites. Phase 17 adds Notification policy, delivery, Inbox and real broker coverage, plus sync outage and async delivery E2E checks. See [TESTING.md](TESTING.md) for current commands and verification counts.
 
 ## Deferred Operational Work
 
@@ -643,9 +637,10 @@ Do not claim deployment, CI/CD, Kubernetes, Terraform, cloud hosting, or Stripe 
 
 ## RabbitMQ foundation (Phase 5)
 
-RabbitMQ infrastructure and delivery primitives are available; existing checkout,
-inventory, payment and notification paths remain synchronous HTTP. No business
-consumers run unless opted into Phase 7. Phase 6 provides typed, validated integration contracts; see
+RabbitMQ infrastructure and delivery primitives are available. Checkout remains
+synchronous by default; Inventory/Payment checkout consumers are opt-in.
+Notification always consumes lifecycle events and sends through its DB-polled
+worker. Phase 6 provides typed, validated integration contracts; see
 [Integration events](docs/phase6-integration-events.md) for envelope, payloads,
 correlation/causation, versions and serialization. See
 [RabbitMQ fundamentals](docs/phase5-rabbitmq-fundamentals.md) for setup, exact
@@ -699,7 +694,6 @@ Phase 14 strengthens scrypt credentials, strict JWT claims, Auth-only signing-ke
 rotation, bounded Gateway JWKS refresh and existing refresh-token state. See
 [Auth improvements](docs/phase14-auth-improvements.md) for token contracts,
 coordinated rollout, rotation/retirement, revocation and remaining limits.
-Phase 15 metrics/tracing and Phase 16 testing-strategy work remain deferred.
 ## Phase 15 observability
 
 All services expose internal, secret-protected `GET /metrics` with Prometheus HTTP/dependency/messaging metrics and Node runtime measurements. OpenTelemetry spans propagate W3C context through HTTP and RabbitMQ; persisted Outbox context links later dispatches across restarts. Existing UUID correlation and checkout behavior remain unchanged.
@@ -710,3 +704,12 @@ See [observability architecture and operating semantics](docs/phase15-observabil
 Testing follows four ownership layers: pure unit, service/API component, real database/broker infrastructure, and critical checkout E2E. Root and workspace commands share one runner; use `npm test -- --seed 16016` or `npm run test:e2e -- --seed 16016` for reproducible order checks. `node scripts/test-matrix.mjs all --list` inventories suites without starting infrastructure.
 
 See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee matrix, transaction/idempotency evidence, process-crash recovery, fixtures and intentional limits. [TESTING.md](TESTING.md) records executed verification. No business/runtime contracts changed.
+
+## Phase 17 outbound notifications
+
+Notification consumes existing `order.confirmed` / `order.cancelled` facts into an
+atomic Inbox/Notification/EMAIL delivery transaction. A separate worker claims
+durable rows, applies bounded retries and uses stable fake-provider identities.
+Order no longer calls Notification over HTTP; Shipping's distinct legacy in-app
+intake and existing read APIs remain. See [Notification architecture](docs/phase17-notification-service.md)
+for concurrency, recovery, observability, configuration and external email ambiguity.

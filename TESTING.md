@@ -2,6 +2,46 @@
 
 Root and workspace test commands use the same discovery matrix. Shared package builds first; fast unit/local-HTTP tests run without PostgreSQL/RabbitMQ, infrastructure tests use disposable resources, and E2E runs separately. See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee ownership and intentional limits.
 
+## Phase 17 verification (2026-10-28)
+
+Architecture/audit: [Notification service](docs/phase17-notification-service.md).
+Historical phase results below retain their original counts; current results:
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | All workspaces passed |
+| `npm run lint` | Passed |
+| `npm run test:unit -- --seed 17017` | 832 Vitest cases + 9 native Node runner checks passed |
+| `npm run test:integration -- --workspace notification-service --seed 17017` | 19 real PostgreSQL/RabbitMQ cases passed |
+| `npm run test:integration -- --seed 17017` | All 326 infrastructure cases passed, including security and observability regressions |
+| `npm run test:e2e -- --seed 17017` | 17 passed: 9 sync, 5 async success, 3 async decline |
+| `npm run build` | All workspaces passed |
+| `npm exec -- tsc --noEmit --strict --skipLibCheck --target ES2023 --module NodeNext --moduleResolution NodeNext --esModuleInterop --types node tests/e2e/purchase-lifecycle.e2e.test.ts tests/e2e/event-checkout.e2e.test.ts` | Both E2E files typechecked |
+| `git diff --check` | Passed |
+
+Fast cases: Gateway 35, Auth 44, Catalog 14, Inventory 15, Order 98, Cart 11,
+Payment 25, Shipping 2, Notification 17, shared 571. Removed Order config case
+covered retired `NOTIFICATION_SERVICE_URL`; active downstream validation stays.
+Infrastructure cases: Gateway 56, Auth 15, Catalog 4, Inventory 44, Order 68,
+Cart 2, Payment 59, Shipping 7, Notification 19, shared 52.
+
+Disposable setup checks all eight migration histories against current schemas,
+then applies migrations; no drift detected. First infrastructure attempt found
+Docker stopped; Docker Desktop was started and checks rerun. First full shuffled
+matrix exposed shared Gateway flood-test quotas leaking into later cases; fixtures
+now reset actual limiter keys per case, with quotas/security assertions unchanged.
+Final matrix passes with seed 17017. No arbitrary sleeps or skips added.
+
+New guarantees include atomic Inbox/Notification/delivery acceptance, six-way
+duplicate acceptance, provider identity conflict checks, concurrent claims/sends,
+stale claim fencing/exhaustion, provider timeout and retry budget, completion
+rollback after fake acceptance, worker drain, persisted metrics and broker
+quarantine/budget/context. Sync E2E proves checkout and lifecycle commands succeed
+while Notification is stopped; restart drains both lifecycle emails. Async E2E
+proves one source receipt, notification, SENT delivery and durable fake receipt
+for confirmation and payment-decline cancellation, including source duplicates.
+Only disposable resources are reset; teardown removes both owned test projects.
+
 ## Commands
 
 ```sh
@@ -90,7 +130,7 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 | `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
 | `payment-service` | 4 files: config, lifecycle matrix, probes, downstream errors | 3 files: commands/recovery/races, fake provider, legacy migrations | available |
 | `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
-| `notification-service` | intentionally no separate pure-policy suite | 1 file: existing API/read persistence isolation | available |
+| `notification-service` | event templates, retry policy, identity, sanitization, config | 1 file: API/read isolation, Inbox/delivery transactions, provider, recovery and real RabbitMQ | available |
 | `@shared/utils` | 25 files: security/events/middleware, correlation/logs, resilience/telemetry and test helpers | 3 files: actual HTTP contracts, RabbitMQ and OTLP | available |
 
 Phase 1 closeout: 278 unit tests, 92 integration tests, and 3 Docker-backed E2E

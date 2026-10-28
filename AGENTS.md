@@ -32,7 +32,7 @@ Microservices monorepo. Keep current service boundaries unless user explicitly a
   - Ownership: shipment records, shipment state transitions, shipping notifications
 
 - `apps/notification-service`
-  - Ownership: notification persistence, read-state, internal notification intake
+  - Ownership: event-driven Inbox acceptance, notification/delivery persistence, email provider/worker, preserved legacy read-state/internal intake
 
 - `packages/shared`
   - Ownership: shared middleware, auth helpers, header helpers, validation middleware, reusable HTTP error classes
