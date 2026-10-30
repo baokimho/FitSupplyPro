@@ -194,6 +194,8 @@ it("API rejects missing identity/secret and foreign mutations without revealing 
 it("API validates quantities and prevents overflow without partial version changes", async () => {
   for (const quantity of [0, -1, 1.5, true, null, 2_147_483_648]) await request(app).post("/items").set("x-internal-secret", secret).set("x-user-id", "owner").send({ productId: "product", quantity }).expect(400);
   const first = await service.addCartItemService("owner", { productId: "product", quantity: 2_147_483_647 });
+  await request(app).delete("/internal/cart/items").set("x-internal-secret", secret).set("x-user-id", "owner")
+    .send({ cartId: first.id, cartVersion: 2_147_483_648, cartItemIds: [first.items[0].id] }).expect(409);
   await expect(service.addCartItemService("owner", { productId: "product", quantity: 1 })).rejects.toMatchObject({ status: 400 });
   expect(await service.getUserCartOrEmpty("owner")).toMatchObject({ version: first.version, items: [{ quantity: 2_147_483_647 }] });
 });
@@ -211,6 +213,9 @@ it("Catalog failures/unpublished products do not persist carts; snapshots refres
   await service.updateCartItemService("owner", old.items[0].id, { quantity: 2 });
   expect(await service.getUserCartOrEmpty("owner")).toMatchObject({ items: [{ unitPrice: 10 }] });
   expect(await service.addCartItemService("owner", { productId: "product", quantity: 1 })).toMatchObject({ items: [{ unitPrice: 20, quantity: 3 }] });
+  await prisma.cartItem.update({ where: { id: old.items[0].id }, data: { createdAt: new Date(0) } });
+  await service.addCartItemService("owner", { productId: "second", quantity: 1 });
+  expect((await service.addCartItemService("owner", { productId: "product", quantity: 1 })).items.map((item) => item.productId)).toEqual(["product", "second"]);
 });
 
 it("malformed or mismatched Catalog responses map to safe 503 with no persistence", async () => {

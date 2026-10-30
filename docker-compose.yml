@@ -178,7 +178,7 @@ services:
       - ./apps/cart-service/src:/app/apps/cart-service/src
       - ./apps/cart-service/prisma:/app/apps/cart-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/cart-service/prisma.config.ts --schema apps/cart-service/prisma/schema.prisma && npm --prefix apps/cart-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/cart-service/prisma.config.ts --schema apps/cart-service/prisma/schema.prisma && exec node --import tsx apps/cart-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:

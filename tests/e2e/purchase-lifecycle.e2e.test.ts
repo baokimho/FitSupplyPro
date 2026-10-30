@@ -172,6 +172,28 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     for (const session of [customerSession, otherSession]) await requestJson("DELETE", "/cart", { token: session.accessToken });
   });
 
+  it("Cart quantities and advisory prices never override Catalog checkout snapshots", async () => {
+    const productId = await createCatalog(adminSession.accessToken, `cart-price-${Date.now()}`);
+    type Cart = { items: Array<{ id: string; productId: string; quantity: number; unitPrice: number }> };
+    const added = await requestJson<Cart>("POST", "/cart/items", { token: customerSession.accessToken, body: { productId, quantity: 2 } });
+    const item = added.items.find((entry) => entry.productId === productId)!;
+    await requestJson("PATCH", `/cart/items/${item.id}`, { token: customerSession.accessToken, body: { quantity: 3 } });
+    await requestJson("PUT", `/catalog/products/${productId}`, { token: adminSession.accessToken, body: { price: 20 } });
+    const stale = await requestJson<Cart>("GET", "/cart", { token: customerSession.accessToken });
+    expect(stale.items.find((entry) => entry.id === item.id)).toMatchObject({ quantity: 3, unitPrice: 12.5 });
+    await requestJson("PATCH", `/catalog/products/${productId}/unpublish`, { token: adminSession.accessToken });
+    const body = { cartItemIds: [item.id], delivery: { recipientName: "Cart Buyer", contactPhone: "+358401234567", addressLine1: "Street 1", city: "Helsinki", postalCode: "00100", countryCode: "FI" } };
+    await expectStatus("POST", "/order/orders/checkout", 400, customerSession.accessToken, body, { "Idempotency-Key": `stale:${productId}` });
+    expect((await requestJson<Cart>("GET", "/cart", { token: customerSession.accessToken })).items).toHaveLength(1);
+    await requestJson("PATCH", `/catalog/products/${productId}/publish`, { token: adminSession.accessToken });
+    const order = await requestJson<{ id: string; totalAmount: number; items: Array<{ quantity: number; unitPrice: number }> }>("POST", "/order/orders/checkout", {
+      token: customerSession.accessToken, body, headers: { "Idempotency-Key": `current:${productId}` },
+    });
+    expect(order).toMatchObject({ totalAmount: 60, items: [{ quantity: 3, unitPrice: 20 }] });
+    expect((await requestJson<Cart>("GET", "/cart", { token: customerSession.accessToken })).items).toEqual([]);
+    await requestJson("PATCH", `/order/orders/${order.id}/cancel`, { token: customerSession.accessToken });
+  });
+
   it("sync checkout and lifecycle continue during Notification outage; email resumes after restart", async () => {
     const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
     const suffix = `notification-outage-${Date.now()}`;

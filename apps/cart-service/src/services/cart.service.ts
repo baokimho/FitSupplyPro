@@ -205,7 +205,7 @@ const readCart = (tx: Prisma.TransactionClient, userId: string) => tx.cart.findU
   where: { userId }, include: { items: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
 });
 const bumpCart = async (tx: Prisma.TransactionClient, cartId: string, userId: string) => toCartResponse(
-  await tx.cart.update({ where: { id: cartId }, data: { version: { increment: 1 } }, include: { items: true } }), userId,
+  await tx.cart.update({ where: { id: cartId }, data: { version: { increment: 1 } }, include: { items: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } } }), userId,
 );
 
 export const getUserCartOrEmpty = (userId: string) => withCart(userId, async (tx) => toCartResponse(await readCart(tx, userId), userId));
@@ -261,6 +261,7 @@ export const removeCartItemsService = async (userId: string, body: RemoveCartIte
     const cart = await readCart(tx, userId);
     if (!cart) throw new NotFoundError("Cart not found");
     if (body.cartId !== undefined && body.cartId !== cart.id) throw new ConflictError("Cart changed during checkout");
+    if (body.cartVersion !== undefined && body.cartVersion > cart.version) throw new ConflictError("Cart changed during checkout");
     const ids = [...new Set(body.cartItemIds)].sort();
     const fingerprint = createHash("sha256").update(JSON.stringify(ids)).digest("hex");
     const versioned = body.cartId !== undefined && body.cartVersion !== undefined;
