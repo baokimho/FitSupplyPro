@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 17 event-driven outbound notifications implemented with durable Inbox acceptance, DB-polled email delivery and safe fake provider. Synchronous checkout remains default; async checkout remains opt-in. Frontend and fitness/nutrition product areas are not implemented yet. See [Notification service](docs/phase17-notification-service.md), [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
+Status: Phase 18 Cart hardening adds serialized mutations, atomic versioned checkout cleanup and durable cleanup replay. Phase 17 outbound notifications remain intact. Synchronous checkout remains default; async checkout remains opt-in. Frontend and fitness/nutrition product areas are not implemented yet. See [Cart service](docs/phase18-cart-service.md), [Notification service](docs/phase17-notification-service.md), [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
 
 ## Services
 

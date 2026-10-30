@@ -2,6 +2,39 @@
 
 Root and workspace test commands use the same discovery matrix. Shared package builds first; fast unit/local-HTTP tests run without PostgreSQL/RabbitMQ, infrastructure tests use disposable resources, and E2E runs separately. See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee ownership and intentional limits.
 
+## Phase 18 verification (2026-10-30)
+
+Architecture/audit: [Cart service](docs/phase18-cart-service.md).
+
+| Command | Result |
+| --- | --- |
+| `npm run test:unit -- --seed 18018` | 850 Vitest cases + 9 native runner checks passed |
+| `npm run test:unit -- --workspace cart-service --seed 18018` | 29 cases passed |
+| `npm run test:integration -- --seed 18018` | 337 cases passed, including 13 Cart DB/API cases and all security, Saga, messaging and Notification regressions |
+| `npm run test:e2e -- --seed 18018` | 18 cases passed: 10 sync, 5 async success, 3 async decline |
+| `npm run test:integration -- --workspace cart-service --seed 18018` | 13 cases passed after final response-order and future-version guard review |
+| `npm run typecheck` / `npm run lint` / `npm run build` | Passed |
+| `npm exec -- tsc --noEmit --strict --skipLibCheck --target ES2023 --module NodeNext --moduleResolution NodeNext --esModuleInterop --types node tests/e2e/purchase-lifecycle.e2e.test.ts tests/e2e/event-checkout.e2e.test.ts` | Passed |
+| `git diff --check` | Passed |
+
+All eight migration histories match schemas. Additive Cart migration enforces
+quantity/price/version checks and creates durable checkout-removal receipts.
+Generated Cart Prisma client updated. Tests use explicit PostgreSQL lock barriers
+and eventual assertions, not arbitrary sleeps.
+
+Seed 18018 exposed two earlier regression gaps: real Gateway shutdown aborted
+later cold-cache dependency requests, now isolated in its own test file; concurrent
+initial delivery-budget ledger creation raced, now one native bounded PostgreSQL
+upsert. Existing budgets and security/shutdown assertions remain intact; rejected
+concurrent claims must specifically be `DELIVERY_BUDGET_EXHAUSTED`.
+
+Docker initially required startup; one broker readiness attempt exceeded disposable
+startup budget during builds. A concurrent E2E/build run exceeded an existing
+5-second whole-journey test deadline. Final integration passed and E2E reruns alone;
+production deadlines, test assertions and journey timeouts were not relaxed.
+Final E2E passed all modes. Phase 19 remains gated on completed Phase 18
+verification, documentation, local commits and clean working tree.
+
 ## Phase 17 verification (2026-10-28)
 
 Architecture/audit: [Notification service](docs/phase17-notification-service.md).
@@ -127,7 +160,7 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 | `catalog-service` | 4 files: config, logger, probes, DB cleanup | 1 file: real API/persistence/constraints | available |
 | `inventory-service` | 4 files: config, logger, probes, DB cleanup | 1 file: inventory reservations | available |
 | `order-service` | 10 files: config, logging, errors, lifecycle, creation, snapshot and Saga policy | 2 files: checkout/Saga/Outbox and migrations | available |
-| `cart-service` | 1 file: error contract | 1 file: cart versioning | available |
+| `cart-service` | 2 files: validation, dependency/error/correlation policy | 1 file: API ownership, constraints, concurrent mutations and durable checkout cleanup | available |
 | `payment-service` | 4 files: config, lifecycle matrix, probes, downstream errors | 3 files: commands/recovery/races, fake provider, legacy migrations | available |
 | `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
 | `notification-service` | event templates, retry policy, identity, sanitization, config | 1 file: API/read isolation, Inbox/delivery transactions, provider, recovery and real RabbitMQ | available |
