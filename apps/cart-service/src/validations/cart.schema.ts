@@ -1,16 +1,20 @@
 import { z } from "zod";
 
+const quantitySchema = z.union([z.number(), z.string().min(1)]).transform(Number).pipe(
+  z.number().int().positive("Quantity must be greater than 0").max(2_147_483_647),
+);
+
 export const cartItemParamsSchema = z.object({
   id: z.string().min(1, "Cart item id is required"),
 });
 
 export const addCartItemSchema = z.object({
   productId: z.string().min(1, "Product id is required"),
-  quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+  quantity: quantitySchema,
 });
 
 export const updateCartItemSchema = z.object({
-  quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
+  quantity: quantitySchema,
 });
 
 export const removeCartItemsSchema = z.object({

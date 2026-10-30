@@ -128,6 +128,13 @@ exports.Prisma.CartScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.CartCheckoutRemovalScalarFieldEnum = {
+  cartId: 'cartId',
+  cartVersion: 'cartVersion',
+  fingerprint: 'fingerprint',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.CartItemScalarFieldEnum = {
   id: 'id',
   cartId: 'cartId',
@@ -158,6 +165,7 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   Cart: 'Cart',
+  CartCheckoutRemoval: 'CartCheckoutRemoval',
   CartItem: 'CartItem'
 };
 

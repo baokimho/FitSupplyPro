@@ -1,8 +1,11 @@
-import { classifyFailure } from "@shared/utils";
+import { createHash } from "node:crypto";
+import { classifyFailure, retryOperation, correlationHeaders } from "@shared/utils";
 import { fetchDependency, readResilienceConfig, createLogger, parseNodeEnv } from "@shared/utils";
 import { BadRequestError, ConflictError, NotFoundError, ServiceUnavailableError } from "@shared/utils";
 import { Prisma } from "../generated/prisma/index.js";
 import prisma from "../config/db.js";
+import { addCartItemSchema, updateCartItemSchema, removeCartItemsSchema } from "../validations/cart.schema.js";
+import { z } from "zod";
 import type {
   AddCartItemInput,
   RemoveCartItemsInput,
@@ -33,12 +36,15 @@ const catalogServiceUrl = process.env.CATALOG_SERVICE_URL || "http://catalog-ser
 const internalSecret = process.env.GATEWAY_SECRET || "";
 
 const toNumber = (value: Prisma.Decimal | string | number) => Number(value);
-const getCartVersion = (cart: unknown) => (cart as { version?: number }).version ?? 1;
-const getPersistedCartVersion = async (cartId: string) => {
-  const [row] = await prisma.$queryRaw<Array<{ version: number }>>`SELECT "version" FROM "Cart" WHERE "id" = ${cartId}`;
-  return row?.version ?? 1;
-};
-const toDecimal = (value: number) => new Prisma.Decimal(value.toFixed(2));
+const catalogProductSchema = z.object({ id: z.string().min(1), name: z.string(),
+  price: z.union([z.string().regex(/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/), z.number().nonnegative().max(99_999_999.99)]),
+  isPublished: z.boolean(), images: z.array(z.string()).nullish(), imageUrl: z.string().nullish() });
+
+/** One transaction boundary for mutations and coherent checkout snapshots, including absent carts. */
+const withCart = <T>(userId: string, work: (tx: Prisma.TransactionClient) => Promise<T>) => prisma.$transaction(async (tx) => {
+  await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`cart.user:${userId}`}, 0))`;
+  return work(tx);
+});
 
 type CartItemResponse = {
   id: string;
@@ -98,7 +104,7 @@ const toCartResponse = (cart: CartWithItems | null, userId: string) => {
   return {
     id: cart.id,
     userId: cart.userId,
-    version: getCartVersion(cart),
+    version: cart.version,
     items,
     totalItems,
     totalAmount,
@@ -110,7 +116,7 @@ const toCartResponse = (cart: CartWithItems | null, userId: string) => {
 const resilience = readResilienceConfig();
 const dependencyLogger = createLogger({ service: "cart-service", environment: parseNodeEnv("NODE_ENV", process.env.NODE_ENV, "development") });
 
-export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
+export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => retryOperation(async () => {
   let response: Response;
   let text: string;
 
@@ -121,17 +127,14 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
     }));
   } catch (error) {
     if (classifyFailure(error) === "cancelled") throw error;
-    throw new ServiceUnavailableError("Downstream service unavailable", {
-      url,
-      cause: error instanceof Error ? error.message : "Unknown error",
-    });
+    throw new ServiceUnavailableError("Downstream service unavailable", undefined, undefined, error);
   }
 
   let data: unknown;
   try {
     data = text ? JSON.parse(text) : {};
   } catch (error) {
-    if (response.ok) throw error;
+    if (response.ok) throw new ServiceUnavailableError("Downstream service unavailable", undefined, undefined, error);
     data = {};
   }
 
@@ -141,12 +144,7 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
     const message = "message" in downstreamError && typeof downstreamError.message === "string" ? downstreamError.message : undefined;
     const code = "code" in downstreamError && typeof downstreamError.code === "string" ? downstreamError.code : undefined;
     const details = "details" in downstreamError ? downstreamError.details : undefined;
-    console.error("Cart service downstream request failed", {
-      url,
-      method: init?.method ?? "GET",
-      status: response.status,
-      response: data,
-    });
+    dependencyLogger.warn({ dependency: "catalog-service", status: response.status }, "catalog request failed");
 
     if (response.status === 404) {
       throw new NotFoundError(
@@ -158,9 +156,7 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
 
     if (response.status >= 500) {
       throw new ServiceUnavailableError("Downstream service unavailable", {
-        url,
         status: response.status,
-        ...(details === undefined ? {} : { details }),
       });
     }
 
@@ -172,20 +168,26 @@ export const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> 
   }
 
   return data as T;
-};
+}, { ...resilience, dependency: "catalog-service", operation: init?.method ?? "GET",
+  safe: (init?.method ?? "GET") === "GET", logger: dependencyLogger });
 
 export const getProductById = async (productId: string) => {
   try {
     const response = await fetchJson<CatalogProductResponse>(
-      `${catalogServiceUrl}/products/${productId}`,
+      `${catalogServiceUrl}/products/${encodeURIComponent(productId)}`,
       {
         headers: {
+          ...correlationHeaders(),
           "x-internal-secret": internalSecret,
         },
       },
     );
 
-    return response.data;
+    const parsed = catalogProductSchema.safeParse(response?.data);
+    if (!parsed.success || parsed.data.id !== productId || new Prisma.Decimal(parsed.data.price).decimalPlaces() > 2) {
+      throw new ServiceUnavailableError("Catalog service unavailable");
+    }
+    return parsed.data;
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw new NotFoundError("Product not found", { productId });
@@ -199,208 +201,81 @@ export const getProductById = async (productId: string) => {
   }
 };
 
-export const getOrCreateCart = async (userId: string) => {
-  const existingCart = await prisma.cart.findUnique({
-    where: { userId },
-    include: { items: true },
-  });
+const readCart = (tx: Prisma.TransactionClient, userId: string) => tx.cart.findUnique({
+  where: { userId }, include: { items: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+});
+const bumpCart = async (tx: Prisma.TransactionClient, cartId: string, userId: string) => toCartResponse(
+  await tx.cart.update({ where: { id: cartId }, data: { version: { increment: 1 } }, include: { items: true } }), userId,
+);
 
-  if (existingCart) {
-    return existingCart;
-  }
+export const getUserCartOrEmpty = (userId: string) => withCart(userId, async (tx) => toCartResponse(await readCart(tx, userId), userId));
 
-  return prisma.cart.create({
-    data: { userId },
-    include: { items: true },
-  });
-};
-
-const getCartByUserId = async (userId: string) =>
-  prisma.cart.findUnique({
-    where: { userId },
-    include: {
-      items: {
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-    },
-  });
-
-export const getUserCartOrEmpty = async (userId: string) => {
-  const cart = await getCartByUserId(userId);
-  if (!cart) {
-    return toCartResponse(null, userId);
-  }
-
-  const version = await getPersistedCartVersion(cart.id);
-  return toCartResponse({ ...cart, version } as unknown as CartWithItems, userId);
-};
-export const ensureCartItemBelongsToUserCart = async (userId: string, itemId: string) => {
-  const cart = await prisma.cart.findUnique({
-    where: { userId },
-  });
-
-  if (!cart) {
-    throw new NotFoundError("Cart item not found");
-  }
-
-  const item = await prisma.cartItem.findFirst({
-    where: {
-      id: itemId,
-      cartId: cart.id,
-    },
-  });
-
-  if (!item) {
-    throw new NotFoundError("Cart item not found");
-  }
-
+const ownedItem = async (tx: Prisma.TransactionClient, userId: string, itemId: string) => {
+  const cart = await readCart(tx, userId);
+  const item = cart?.items.find((item) => item.id === itemId);
+  if (!cart || !item) throw new NotFoundError("Cart item not found");
   return { cart, item };
 };
 
 export const addCartItemService = async (userId: string, body: AddCartItemInput) => {
+  body = addCartItemSchema.parse(body);
   const product = await getProductById(body.productId);
-
-  if (!product.isPublished) {
-    throw new BadRequestError("Product is not published", { productId: body.productId });
-  }
-
-  const cart = await getOrCreateCart(userId);
-  const existingItem = cart.items.find((item) => item.productId === body.productId);
-
-  if (existingItem) {
-    await prisma.$transaction([
-      prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: {
-          quantity: existingItem.quantity + body.quantity,
-          nameSnapshot: product.name,
-          priceSnapshot: toDecimal(Number(product.price)),
-          imageSnapshot: getImageSnapshot(product),
-        },
-      }),
-      prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-    ]);
-  } else {
-    await prisma.$transaction([
-      prisma.cartItem.create({
-        data: {
-          cartId: cart.id,
-          productId: product.id,
-          quantity: body.quantity,
-          nameSnapshot: product.name,
-          priceSnapshot: toDecimal(Number(product.price)),
-          imageSnapshot: getImageSnapshot(product),
-        },
-      }),
-      prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-    ]);
-  }
-
-  return getUserCartOrEmpty(userId);
-};
-
-export const updateCartItemService = async (
-  userId: string,
-  itemId: string,
-  body: UpdateCartItemInput,
-) => {
-  const { cart } = await ensureCartItemBelongsToUserCart(userId, itemId);
-
-  await prisma.$transaction([
-    prisma.cartItem.update({
-      where: { id: itemId },
-      data: {
-        quantity: body.quantity,
-      },
-    }),
-    prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-  ]);
-
-  return getUserCartOrEmpty(userId);
-};
-
-export const deleteCartItemService = async (userId: string, itemId: string) => {
-  const { cart } = await ensureCartItemBelongsToUserCart(userId, itemId);
-
-  await prisma.$transaction([
-    prisma.cartItem.delete({
-      where: { id: itemId },
-    }),
-    prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-  ]);
-
-  return getUserCartOrEmpty(userId);
-};
-export const clearCartService = async (userId: string) => {
-  const cart = await prisma.cart.findUnique({
-    where: { userId },
+  if (!product.isPublished) throw new BadRequestError("Product is not published", { productId: body.productId });
+  return withCart(userId, async (tx) => {
+    const cart = await readCart(tx, userId) ?? await tx.cart.create({ data: { userId }, include: { items: true } });
+    const existing = cart.items.find((item) => item.productId === body.productId);
+    if ((existing?.quantity ?? 0) + body.quantity > 2_147_483_647) throw new BadRequestError("Cart quantity exceeds supported range");
+    const snapshot = { nameSnapshot: product.name, priceSnapshot: new Prisma.Decimal(product.price), imageSnapshot: getImageSnapshot(product) };
+    await tx.cartItem.upsert({ where: { cartId_productId: { cartId: cart.id, productId: product.id } },
+      create: { cartId: cart.id, productId: product.id, quantity: body.quantity, ...snapshot },
+      update: { quantity: { increment: body.quantity }, ...snapshot } });
+    return bumpCart(tx, cart.id, userId);
   });
-
-  if (!cart) {
-    return toCartResponse(null, userId);
-  }
-
-  await prisma.$transaction([
-    prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    }),
-    prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-  ]);
-
-  return toCartResponse(
-    {
-      ...cart,
-      version: getCartVersion(cart) + 1,
-      items: [],
-    } as CartWithItems,
-    userId,
-  );
 };
+
+export const updateCartItemService = async (userId: string, itemId: string, body: UpdateCartItemInput) => {
+  body = updateCartItemSchema.parse(body);
+  return withCart(userId, async (tx) => {
+    const { cart } = await ownedItem(tx, userId, itemId);
+    await tx.cartItem.update({ where: { id: itemId }, data: { quantity: body.quantity } });
+    return bumpCart(tx, cart.id, userId);
+  });
+};
+
+export const deleteCartItemService = (userId: string, itemId: string) => withCart(userId, async (tx) => {
+  const { cart } = await ownedItem(tx, userId, itemId);
+  await tx.cartItem.delete({ where: { id: itemId } });
+  return bumpCart(tx, cart.id, userId);
+});
+
+export const clearCartService = (userId: string) => withCart(userId, async (tx) => {
+  const cart = await readCart(tx, userId);
+  if (!cart) return toCartResponse(null, userId);
+  await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+  return bumpCart(tx, cart.id, userId);
+});
 
 export const removeCartItemsService = async (userId: string, body: RemoveCartItemsInput) => {
-  const cart = await prisma.cart.findUnique({
-    where: { userId },
-    include: { items: true },
+  body = removeCartItemsSchema.parse(body);
+  return withCart(userId, async (tx) => {
+    const cart = await readCart(tx, userId);
+    if (!cart) throw new NotFoundError("Cart not found");
+    if (body.cartId !== undefined && body.cartId !== cart.id) throw new ConflictError("Cart changed during checkout");
+    const ids = [...new Set(body.cartItemIds)].sort();
+    const fingerprint = createHash("sha256").update(JSON.stringify(ids)).digest("hex");
+    const versioned = body.cartId !== undefined && body.cartVersion !== undefined;
+    if (versioned) {
+      const receipt = await tx.cartCheckoutRemoval.findUnique({ where: { cartId_cartVersion: { cartId: cart.id, cartVersion: body.cartVersion! } } });
+      if (receipt) {
+        if (receipt.fingerprint !== fingerprint) throw new ConflictError("Cart changed during checkout");
+        return toCartResponse(cart, userId);
+      }
+    }
+    if (body.cartVersion !== undefined && body.cartVersion !== cart.version) throw new ConflictError("Cart changed during checkout");
+    const invalidIds = ids.filter((id) => !cart.items.some((item) => item.id === id));
+    if (invalidIds.length) throw new NotFoundError("Cart item not found", { cartItemIds: invalidIds });
+    await tx.cartItem.deleteMany({ where: { cartId: cart.id, id: { in: ids } } });
+    if (versioned) await tx.cartCheckoutRemoval.create({ data: { cartId: cart.id, cartVersion: body.cartVersion!, fingerprint } });
+    return bumpCart(tx, cart.id, userId);
   });
-
-  if (!cart) {
-    throw new NotFoundError("Cart not found");
-  }
-
-  const currentVersion = await getPersistedCartVersion(cart.id);
-
-  if ((body.cartId && body.cartId !== cart.id) || (body.cartVersion && body.cartVersion !== currentVersion)) {
-    throw new ConflictError("Cart changed during checkout");
-  }
-
-  const requestedIds = new Set(body.cartItemIds);
-  const cartItemIds = new Set(cart.items.map((item) => item.id));
-  const invalidIds = [...requestedIds].filter((itemId) => !cartItemIds.has(itemId));
-
-  if (invalidIds.length > 0) {
-    throw new NotFoundError("Cart item not found", { cartItemIds: invalidIds });
-  }
-
-  await prisma.$transaction([
-    prisma.cartItem.deleteMany({
-      where: {
-        cartId: cart.id,
-        id: {
-          in: [...requestedIds],
-        },
-      },
-    }),
-    prisma.$executeRaw`UPDATE "Cart" SET "version" = "version" + 1 WHERE "id" = ${cart.id}`,
-  ]);
-
-  return getUserCartOrEmpty(userId);
 };
-
-
-
-
-
-
-

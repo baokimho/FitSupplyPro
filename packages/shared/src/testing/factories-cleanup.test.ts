@@ -69,7 +69,7 @@ describe("database cleanup", () => {
     expect(getCleanupTables("order_test_db")).toEqual(["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "CheckoutSaga", "CheckoutIdempotency", "OrderItem", "Order"]);
     expect(getCleanupTables("inventory_test_db")).toContain("InventoryOperation");
     expect(getCleanupTables("payment_test_db")).toContain("FakeProviderOperation");
-    expect(getCleanupTables("cart_test_db")).toEqual(["CartItem", "Cart"]);
+    expect(getCleanupTables("cart_test_db")).toEqual(["CartCheckoutRemoval", "CartItem", "Cart"]);
     expect(getCleanupTables("catalog_test_db")).toEqual(["Product", "Category", "Brand"]);
   });
 

@@ -13,8 +13,18 @@ model Cart {
   userId    String     @unique
   version   Int        @default(1)
   items     CartItem[]
+  checkoutRemovals CartCheckoutRemoval[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+}
+
+model CartCheckoutRemoval {
+  cartId String
+  cartVersion Int
+  fingerprint String
+  createdAt DateTime @default(now())
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  @@id([cartId, cartVersion])
 }
 
 model CartItem {

@@ -19,6 +19,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
  */
 export type Cart = $Result.DefaultSelection<Prisma.$CartPayload>
 /**
+ * Model CartCheckoutRemoval
+ *
+ */
+export type CartCheckoutRemoval = $Result.DefaultSelection<Prisma.$CartCheckoutRemovalPayload>
+/**
  * Model CartItem
  * 
  */
@@ -154,6 +159,16 @@ export class PrismaClient<
     * ```
     */
   get cart(): Prisma.CartDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.cartCheckoutRemoval`: Exposes CRUD operations for the **CartCheckoutRemoval** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CartCheckoutRemovals
+    * const cartCheckoutRemovals = await prisma.cartCheckoutRemoval.findMany()
+    * ```
+    */
+  get cartCheckoutRemoval(): Prisma.CartCheckoutRemovalDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.cartItem`: Exposes CRUD operations for the **CartItem** model.
@@ -599,6 +614,7 @@ export namespace Prisma {
 
   export const ModelName: {
     Cart: 'Cart',
+    CartCheckoutRemoval: 'CartCheckoutRemoval',
     CartItem: 'CartItem'
   };
 
@@ -615,7 +631,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "cart" | "cartItem"
+      modelProps: "cart" | "cartCheckoutRemoval" | "cartItem"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -690,6 +706,80 @@ export namespace Prisma {
           count: {
             args: Prisma.CartCountArgs<ExtArgs>
             result: $Utils.Optional<CartCountAggregateOutputType> | number
+          }
+        }
+      }
+      CartCheckoutRemoval: {
+        payload: Prisma.$CartCheckoutRemovalPayload<ExtArgs>
+        fields: Prisma.CartCheckoutRemovalFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CartCheckoutRemovalFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CartCheckoutRemovalFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          findFirst: {
+            args: Prisma.CartCheckoutRemovalFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CartCheckoutRemovalFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          findMany: {
+            args: Prisma.CartCheckoutRemovalFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>[]
+          }
+          create: {
+            args: Prisma.CartCheckoutRemovalCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          createMany: {
+            args: Prisma.CartCheckoutRemovalCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CartCheckoutRemovalCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>[]
+          }
+          delete: {
+            args: Prisma.CartCheckoutRemovalDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          update: {
+            args: Prisma.CartCheckoutRemovalUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          deleteMany: {
+            args: Prisma.CartCheckoutRemovalDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CartCheckoutRemovalUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CartCheckoutRemovalUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>[]
+          }
+          upsert: {
+            args: Prisma.CartCheckoutRemovalUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CartCheckoutRemovalPayload>
+          }
+          aggregate: {
+            args: Prisma.CartCheckoutRemovalAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCartCheckoutRemoval>
+          }
+          groupBy: {
+            args: Prisma.CartCheckoutRemovalGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CartCheckoutRemovalGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CartCheckoutRemovalCountArgs<ExtArgs>
+            result: $Utils.Optional<CartCheckoutRemovalCountAggregateOutputType> | number
           }
         }
       }
@@ -876,6 +966,7 @@ export namespace Prisma {
   }
   export type GlobalOmitConfig = {
     cart?: CartOmit
+    cartCheckoutRemoval?: CartCheckoutRemovalOmit
     cartItem?: CartItemOmit
   }
 
@@ -958,10 +1049,12 @@ export namespace Prisma {
 
   export type CartCountOutputType = {
     items: number
+    checkoutRemovals: number
   }
 
   export type CartCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | CartCountOutputTypeCountItemsArgs
+    checkoutRemovals?: boolean | CartCountOutputTypeCountCheckoutRemovalsArgs
   }
 
   // Custom InputTypes
@@ -980,6 +1073,13 @@ export namespace Prisma {
    */
   export type CartCountOutputTypeCountItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: CartItemWhereInput
+  }
+
+  /**
+   * CartCountOutputType without action
+   */
+  export type CartCountOutputTypeCountCheckoutRemovalsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CartCheckoutRemovalWhereInput
   }
 
 
@@ -1186,6 +1286,7 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     items?: boolean | Cart$itemsArgs<ExtArgs>
+    checkoutRemovals?: boolean | Cart$checkoutRemovalsArgs<ExtArgs>
     _count?: boolean | CartCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["cart"]>
 
@@ -1216,6 +1317,7 @@ export namespace Prisma {
   export type CartOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["cart"]>
   export type CartInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     items?: boolean | Cart$itemsArgs<ExtArgs>
+    checkoutRemovals?: boolean | Cart$checkoutRemovalsArgs<ExtArgs>
     _count?: boolean | CartCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type CartIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -1225,6 +1327,7 @@ export namespace Prisma {
     name: "Cart"
     objects: {
       items: Prisma.$CartItemPayload<ExtArgs>[]
+      checkoutRemovals: Prisma.$CartCheckoutRemovalPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -1627,6 +1730,7 @@ export namespace Prisma {
   export interface Prisma__CartClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     items<T extends Cart$itemsArgs<ExtArgs> = {}>(args?: Subset<T, Cart$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CartItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    checkoutRemovals<T extends Cart$checkoutRemovalsArgs<ExtArgs> = {}>(args?: Subset<T, Cart$checkoutRemovalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2078,6 +2182,30 @@ export namespace Prisma {
   }
 
   /**
+   * Cart.checkoutRemovals
+   */
+  export type Cart$checkoutRemovalsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    where?: CartCheckoutRemovalWhereInput
+    orderBy?: CartCheckoutRemovalOrderByWithRelationInput | CartCheckoutRemovalOrderByWithRelationInput[]
+    cursor?: CartCheckoutRemovalWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CartCheckoutRemovalScalarFieldEnum | CartCheckoutRemovalScalarFieldEnum[]
+  }
+
+  /**
    * Cart without action
    */
   export type CartDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2093,6 +2221,1090 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: CartInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CartCheckoutRemoval
+   */
+
+  export type AggregateCartCheckoutRemoval = {
+    _count: CartCheckoutRemovalCountAggregateOutputType | null
+    _avg: CartCheckoutRemovalAvgAggregateOutputType | null
+    _sum: CartCheckoutRemovalSumAggregateOutputType | null
+    _min: CartCheckoutRemovalMinAggregateOutputType | null
+    _max: CartCheckoutRemovalMaxAggregateOutputType | null
+  }
+
+  export type CartCheckoutRemovalAvgAggregateOutputType = {
+    cartVersion: number | null
+  }
+
+  export type CartCheckoutRemovalSumAggregateOutputType = {
+    cartVersion: number | null
+  }
+
+  export type CartCheckoutRemovalMinAggregateOutputType = {
+    cartId: string | null
+    cartVersion: number | null
+    fingerprint: string | null
+    createdAt: Date | null
+  }
+
+  export type CartCheckoutRemovalMaxAggregateOutputType = {
+    cartId: string | null
+    cartVersion: number | null
+    fingerprint: string | null
+    createdAt: Date | null
+  }
+
+  export type CartCheckoutRemovalCountAggregateOutputType = {
+    cartId: number
+    cartVersion: number
+    fingerprint: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type CartCheckoutRemovalAvgAggregateInputType = {
+    cartVersion?: true
+  }
+
+  export type CartCheckoutRemovalSumAggregateInputType = {
+    cartVersion?: true
+  }
+
+  export type CartCheckoutRemovalMinAggregateInputType = {
+    cartId?: true
+    cartVersion?: true
+    fingerprint?: true
+    createdAt?: true
+  }
+
+  export type CartCheckoutRemovalMaxAggregateInputType = {
+    cartId?: true
+    cartVersion?: true
+    fingerprint?: true
+    createdAt?: true
+  }
+
+  export type CartCheckoutRemovalCountAggregateInputType = {
+    cartId?: true
+    cartVersion?: true
+    fingerprint?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type CartCheckoutRemovalAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CartCheckoutRemoval to aggregate.
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CartCheckoutRemovals to fetch.
+     */
+    orderBy?: CartCheckoutRemovalOrderByWithRelationInput | CartCheckoutRemovalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the start position
+     */
+    cursor?: CartCheckoutRemovalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CartCheckoutRemovals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CartCheckoutRemovals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Count returned CartCheckoutRemovals
+    **/
+    _count?: true | CartCheckoutRemovalCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to average
+    **/
+    _avg?: CartCheckoutRemovalAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to sum
+    **/
+    _sum?: CartCheckoutRemovalSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the minimum value
+    **/
+    _min?: CartCheckoutRemovalMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     *
+     * Select which fields to find the maximum value
+    **/
+    _max?: CartCheckoutRemovalMaxAggregateInputType
+  }
+
+  export type GetCartCheckoutRemovalAggregateType<T extends CartCheckoutRemovalAggregateArgs> = {
+        [P in keyof T & keyof AggregateCartCheckoutRemoval]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCartCheckoutRemoval[P]>
+      : GetScalarType<T[P], AggregateCartCheckoutRemoval[P]>
+  }
+
+
+
+
+  export type CartCheckoutRemovalGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CartCheckoutRemovalWhereInput
+    orderBy?: CartCheckoutRemovalOrderByWithAggregationInput | CartCheckoutRemovalOrderByWithAggregationInput[]
+    by: CartCheckoutRemovalScalarFieldEnum[] | CartCheckoutRemovalScalarFieldEnum
+    having?: CartCheckoutRemovalScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CartCheckoutRemovalCountAggregateInputType | true
+    _avg?: CartCheckoutRemovalAvgAggregateInputType
+    _sum?: CartCheckoutRemovalSumAggregateInputType
+    _min?: CartCheckoutRemovalMinAggregateInputType
+    _max?: CartCheckoutRemovalMaxAggregateInputType
+  }
+
+  export type CartCheckoutRemovalGroupByOutputType = {
+    cartId: string
+    cartVersion: number
+    fingerprint: string
+    createdAt: Date
+    _count: CartCheckoutRemovalCountAggregateOutputType | null
+    _avg: CartCheckoutRemovalAvgAggregateOutputType | null
+    _sum: CartCheckoutRemovalSumAggregateOutputType | null
+    _min: CartCheckoutRemovalMinAggregateOutputType | null
+    _max: CartCheckoutRemovalMaxAggregateOutputType | null
+  }
+
+  type GetCartCheckoutRemovalGroupByPayload<T extends CartCheckoutRemovalGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CartCheckoutRemovalGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CartCheckoutRemovalGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CartCheckoutRemovalGroupByOutputType[P]>
+            : GetScalarType<T[P], CartCheckoutRemovalGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CartCheckoutRemovalSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    cartId?: boolean
+    cartVersion?: boolean
+    fingerprint?: boolean
+    createdAt?: boolean
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cartCheckoutRemoval"]>
+
+  export type CartCheckoutRemovalSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    cartId?: boolean
+    cartVersion?: boolean
+    fingerprint?: boolean
+    createdAt?: boolean
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cartCheckoutRemoval"]>
+
+  export type CartCheckoutRemovalSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    cartId?: boolean
+    cartVersion?: boolean
+    fingerprint?: boolean
+    createdAt?: boolean
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cartCheckoutRemoval"]>
+
+  export type CartCheckoutRemovalSelectScalar = {
+    cartId?: boolean
+    cartVersion?: boolean
+    fingerprint?: boolean
+    createdAt?: boolean
+  }
+
+  export type CartCheckoutRemovalOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"cartId" | "cartVersion" | "fingerprint" | "createdAt", ExtArgs["result"]["cartCheckoutRemoval"]>
+  export type CartCheckoutRemovalInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }
+  export type CartCheckoutRemovalIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }
+  export type CartCheckoutRemovalIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cart?: boolean | CartDefaultArgs<ExtArgs>
+  }
+
+  export type $CartCheckoutRemovalPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CartCheckoutRemoval"
+    objects: {
+      cart: Prisma.$CartPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      cartId: string
+      cartVersion: number
+      fingerprint: string
+      createdAt: Date
+    }, ExtArgs["result"]["cartCheckoutRemoval"]>
+    composites: {}
+  }
+
+  type CartCheckoutRemovalGetPayload<S extends boolean | null | undefined | CartCheckoutRemovalDefaultArgs> = $Result.GetResult<Prisma.$CartCheckoutRemovalPayload, S>
+
+  type CartCheckoutRemovalCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CartCheckoutRemovalFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CartCheckoutRemovalCountAggregateInputType | true
+    }
+
+  export interface CartCheckoutRemovalDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CartCheckoutRemoval'], meta: { name: 'CartCheckoutRemoval' } }
+    /**
+     * Find zero or one CartCheckoutRemoval that matches the filter.
+     * @param {CartCheckoutRemovalFindUniqueArgs} args - Arguments to find a CartCheckoutRemoval
+     * @example
+     * // Get one CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CartCheckoutRemovalFindUniqueArgs>(args: SelectSubset<T, CartCheckoutRemovalFindUniqueArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CartCheckoutRemoval that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CartCheckoutRemovalFindUniqueOrThrowArgs} args - Arguments to find a CartCheckoutRemoval
+     * @example
+     * // Get one CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CartCheckoutRemovalFindUniqueOrThrowArgs>(args: SelectSubset<T, CartCheckoutRemovalFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CartCheckoutRemoval that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalFindFirstArgs} args - Arguments to find a CartCheckoutRemoval
+     * @example
+     * // Get one CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CartCheckoutRemovalFindFirstArgs>(args?: SelectSubset<T, CartCheckoutRemovalFindFirstArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CartCheckoutRemoval that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalFindFirstOrThrowArgs} args - Arguments to find a CartCheckoutRemoval
+     * @example
+     * // Get one CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CartCheckoutRemovalFindFirstOrThrowArgs>(args?: SelectSubset<T, CartCheckoutRemovalFindFirstOrThrowArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CartCheckoutRemovals that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CartCheckoutRemovals
+     * const cartCheckoutRemovals = await prisma.cartCheckoutRemoval.findMany()
+     *
+     * // Get first 10 CartCheckoutRemovals
+     * const cartCheckoutRemovals = await prisma.cartCheckoutRemoval.findMany({ take: 10 })
+     *
+     * // Only select the `cartId`
+     * const cartCheckoutRemovalWithCartIdOnly = await prisma.cartCheckoutRemoval.findMany({ select: { cartId: true } })
+     *
+     */
+    findMany<T extends CartCheckoutRemovalFindManyArgs>(args?: SelectSubset<T, CartCheckoutRemovalFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CartCheckoutRemoval.
+     * @param {CartCheckoutRemovalCreateArgs} args - Arguments to create a CartCheckoutRemoval.
+     * @example
+     * // Create one CartCheckoutRemoval
+     * const CartCheckoutRemoval = await prisma.cartCheckoutRemoval.create({
+     *   data: {
+     *     // ... data to create a CartCheckoutRemoval
+     *   }
+     * })
+     *
+     */
+    create<T extends CartCheckoutRemovalCreateArgs>(args: SelectSubset<T, CartCheckoutRemovalCreateArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CartCheckoutRemovals.
+     * @param {CartCheckoutRemovalCreateManyArgs} args - Arguments to create many CartCheckoutRemovals.
+     * @example
+     * // Create many CartCheckoutRemovals
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     */
+    createMany<T extends CartCheckoutRemovalCreateManyArgs>(args?: SelectSubset<T, CartCheckoutRemovalCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CartCheckoutRemovals and returns the data saved in the database.
+     * @param {CartCheckoutRemovalCreateManyAndReturnArgs} args - Arguments to create many CartCheckoutRemovals.
+     * @example
+     * // Create many CartCheckoutRemovals
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Create many CartCheckoutRemovals and only return the `cartId`
+     * const cartCheckoutRemovalWithCartIdOnly = await prisma.cartCheckoutRemoval.createManyAndReturn({
+     *   select: { cartId: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    createManyAndReturn<T extends CartCheckoutRemovalCreateManyAndReturnArgs>(args?: SelectSubset<T, CartCheckoutRemovalCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CartCheckoutRemoval.
+     * @param {CartCheckoutRemovalDeleteArgs} args - Arguments to delete one CartCheckoutRemoval.
+     * @example
+     * // Delete one CartCheckoutRemoval
+     * const CartCheckoutRemoval = await prisma.cartCheckoutRemoval.delete({
+     *   where: {
+     *     // ... filter to delete one CartCheckoutRemoval
+     *   }
+     * })
+     *
+     */
+    delete<T extends CartCheckoutRemovalDeleteArgs>(args: SelectSubset<T, CartCheckoutRemovalDeleteArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CartCheckoutRemoval.
+     * @param {CartCheckoutRemovalUpdateArgs} args - Arguments to update one CartCheckoutRemoval.
+     * @example
+     * // Update one CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    update<T extends CartCheckoutRemovalUpdateArgs>(args: SelectSubset<T, CartCheckoutRemovalUpdateArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CartCheckoutRemovals.
+     * @param {CartCheckoutRemovalDeleteManyArgs} args - Arguments to filter CartCheckoutRemovals to delete.
+     * @example
+     * // Delete a few CartCheckoutRemovals
+     * const { count } = await prisma.cartCheckoutRemoval.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     *
+     */
+    deleteMany<T extends CartCheckoutRemovalDeleteManyArgs>(args?: SelectSubset<T, CartCheckoutRemovalDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CartCheckoutRemovals.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CartCheckoutRemovals
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     *
+     */
+    updateMany<T extends CartCheckoutRemovalUpdateManyArgs>(args: SelectSubset<T, CartCheckoutRemovalUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CartCheckoutRemovals and returns the data updated in the database.
+     * @param {CartCheckoutRemovalUpdateManyAndReturnArgs} args - Arguments to update many CartCheckoutRemovals.
+     * @example
+     * // Update many CartCheckoutRemovals
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *
+     * // Update zero or more CartCheckoutRemovals and only return the `cartId`
+     * const cartCheckoutRemovalWithCartIdOnly = await prisma.cartCheckoutRemoval.updateManyAndReturn({
+     *   select: { cartId: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     *
+     */
+    updateManyAndReturn<T extends CartCheckoutRemovalUpdateManyAndReturnArgs>(args: SelectSubset<T, CartCheckoutRemovalUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CartCheckoutRemoval.
+     * @param {CartCheckoutRemovalUpsertArgs} args - Arguments to update or create a CartCheckoutRemoval.
+     * @example
+     * // Update or create a CartCheckoutRemoval
+     * const cartCheckoutRemoval = await prisma.cartCheckoutRemoval.upsert({
+     *   create: {
+     *     // ... data to create a CartCheckoutRemoval
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CartCheckoutRemoval we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CartCheckoutRemovalUpsertArgs>(args: SelectSubset<T, CartCheckoutRemovalUpsertArgs<ExtArgs>>): Prisma__CartCheckoutRemovalClient<$Result.GetResult<Prisma.$CartCheckoutRemovalPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CartCheckoutRemovals.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalCountArgs} args - Arguments to filter CartCheckoutRemovals to count.
+     * @example
+     * // Count the number of CartCheckoutRemovals
+     * const count = await prisma.cartCheckoutRemoval.count({
+     *   where: {
+     *     // ... the filter for the CartCheckoutRemovals we want to count
+     *   }
+     * })
+    **/
+    count<T extends CartCheckoutRemovalCountArgs>(
+      args?: Subset<T, CartCheckoutRemovalCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CartCheckoutRemovalCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CartCheckoutRemoval.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CartCheckoutRemovalAggregateArgs>(args: Subset<T, CartCheckoutRemovalAggregateArgs>): Prisma.PrismaPromise<GetCartCheckoutRemovalAggregateType<T>>
+
+    /**
+     * Group by CartCheckoutRemoval.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CartCheckoutRemovalGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     *
+    **/
+    groupBy<
+      T extends CartCheckoutRemovalGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CartCheckoutRemovalGroupByArgs['orderBy'] }
+        : { orderBy?: CartCheckoutRemovalGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CartCheckoutRemovalGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCartCheckoutRemovalGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CartCheckoutRemoval model
+   */
+  readonly fields: CartCheckoutRemovalFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CartCheckoutRemoval.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CartCheckoutRemovalClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    cart<T extends CartDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CartDefaultArgs<ExtArgs>>): Prisma__CartClient<$Result.GetResult<Prisma.$CartPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CartCheckoutRemoval model
+   */
+  interface CartCheckoutRemovalFieldRefs {
+    readonly cartId: FieldRef<"CartCheckoutRemoval", 'String'>
+    readonly cartVersion: FieldRef<"CartCheckoutRemoval", 'Int'>
+    readonly fingerprint: FieldRef<"CartCheckoutRemoval", 'String'>
+    readonly createdAt: FieldRef<"CartCheckoutRemoval", 'DateTime'>
+  }
+
+
+  // Custom InputTypes
+  /**
+   * CartCheckoutRemoval findUnique
+   */
+  export type CartCheckoutRemovalFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter, which CartCheckoutRemoval to fetch.
+     */
+    where: CartCheckoutRemovalWhereUniqueInput
+  }
+
+  /**
+   * CartCheckoutRemoval findUniqueOrThrow
+   */
+  export type CartCheckoutRemovalFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter, which CartCheckoutRemoval to fetch.
+     */
+    where: CartCheckoutRemovalWhereUniqueInput
+  }
+
+  /**
+   * CartCheckoutRemoval findFirst
+   */
+  export type CartCheckoutRemovalFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter, which CartCheckoutRemoval to fetch.
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CartCheckoutRemovals to fetch.
+     */
+    orderBy?: CartCheckoutRemovalOrderByWithRelationInput | CartCheckoutRemovalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CartCheckoutRemovals.
+     */
+    cursor?: CartCheckoutRemovalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CartCheckoutRemovals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CartCheckoutRemovals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CartCheckoutRemovals.
+     */
+    distinct?: CartCheckoutRemovalScalarFieldEnum | CartCheckoutRemovalScalarFieldEnum[]
+  }
+
+  /**
+   * CartCheckoutRemoval findFirstOrThrow
+   */
+  export type CartCheckoutRemovalFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter, which CartCheckoutRemoval to fetch.
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CartCheckoutRemovals to fetch.
+     */
+    orderBy?: CartCheckoutRemovalOrderByWithRelationInput | CartCheckoutRemovalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for searching for CartCheckoutRemovals.
+     */
+    cursor?: CartCheckoutRemovalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CartCheckoutRemovals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CartCheckoutRemovals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CartCheckoutRemovals.
+     */
+    distinct?: CartCheckoutRemovalScalarFieldEnum | CartCheckoutRemovalScalarFieldEnum[]
+  }
+
+  /**
+   * CartCheckoutRemoval findMany
+   */
+  export type CartCheckoutRemovalFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter, which CartCheckoutRemovals to fetch.
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     *
+     * Determine the order of CartCheckoutRemovals to fetch.
+     */
+    orderBy?: CartCheckoutRemovalOrderByWithRelationInput | CartCheckoutRemovalOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     *
+     * Sets the position for listing CartCheckoutRemovals.
+     */
+    cursor?: CartCheckoutRemovalWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Take `±n` CartCheckoutRemovals from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     *
+     * Skip the first `n` CartCheckoutRemovals.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     *
+     * Filter by unique combinations of CartCheckoutRemovals.
+     */
+    distinct?: CartCheckoutRemovalScalarFieldEnum | CartCheckoutRemovalScalarFieldEnum[]
+  }
+
+  /**
+   * CartCheckoutRemoval create
+   */
+  export type CartCheckoutRemovalCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CartCheckoutRemoval.
+     */
+    data: XOR<CartCheckoutRemovalCreateInput, CartCheckoutRemovalUncheckedCreateInput>
+  }
+
+  /**
+   * CartCheckoutRemoval createMany
+   */
+  export type CartCheckoutRemovalCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CartCheckoutRemovals.
+     */
+    data: CartCheckoutRemovalCreateManyInput | CartCheckoutRemovalCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CartCheckoutRemoval createManyAndReturn
+   */
+  export type CartCheckoutRemovalCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * The data used to create many CartCheckoutRemovals.
+     */
+    data: CartCheckoutRemovalCreateManyInput | CartCheckoutRemovalCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CartCheckoutRemoval update
+   */
+  export type CartCheckoutRemovalUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CartCheckoutRemoval.
+     */
+    data: XOR<CartCheckoutRemovalUpdateInput, CartCheckoutRemovalUncheckedUpdateInput>
+    /**
+     * Choose, which CartCheckoutRemoval to update.
+     */
+    where: CartCheckoutRemovalWhereUniqueInput
+  }
+
+  /**
+   * CartCheckoutRemoval updateMany
+   */
+  export type CartCheckoutRemovalUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CartCheckoutRemovals.
+     */
+    data: XOR<CartCheckoutRemovalUpdateManyMutationInput, CartCheckoutRemovalUncheckedUpdateManyInput>
+    /**
+     * Filter which CartCheckoutRemovals to update
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * Limit how many CartCheckoutRemovals to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CartCheckoutRemoval updateManyAndReturn
+   */
+  export type CartCheckoutRemovalUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * The data used to update CartCheckoutRemovals.
+     */
+    data: XOR<CartCheckoutRemovalUpdateManyMutationInput, CartCheckoutRemovalUncheckedUpdateManyInput>
+    /**
+     * Filter which CartCheckoutRemovals to update
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * Limit how many CartCheckoutRemovals to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CartCheckoutRemoval upsert
+   */
+  export type CartCheckoutRemovalUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CartCheckoutRemoval to update in case it exists.
+     */
+    where: CartCheckoutRemovalWhereUniqueInput
+    /**
+     * In case the CartCheckoutRemoval found by the `where` argument doesn't exist, create a new CartCheckoutRemoval with this data.
+     */
+    create: XOR<CartCheckoutRemovalCreateInput, CartCheckoutRemovalUncheckedCreateInput>
+    /**
+     * In case the CartCheckoutRemoval was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CartCheckoutRemovalUpdateInput, CartCheckoutRemovalUncheckedUpdateInput>
+  }
+
+  /**
+   * CartCheckoutRemoval delete
+   */
+  export type CartCheckoutRemovalDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
+    /**
+     * Filter which CartCheckoutRemoval to delete.
+     */
+    where: CartCheckoutRemovalWhereUniqueInput
+  }
+
+  /**
+   * CartCheckoutRemoval deleteMany
+   */
+  export type CartCheckoutRemovalDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CartCheckoutRemovals to delete
+     */
+    where?: CartCheckoutRemovalWhereInput
+    /**
+     * Limit how many CartCheckoutRemovals to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CartCheckoutRemoval without action
+   */
+  export type CartCheckoutRemovalDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CartCheckoutRemoval
+     */
+    select?: CartCheckoutRemovalSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CartCheckoutRemoval
+     */
+    omit?: CartCheckoutRemovalOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CartCheckoutRemovalInclude<ExtArgs> | null
   }
 
 
@@ -3274,6 +4486,16 @@ export namespace Prisma {
   export type CartScalarFieldEnum = (typeof CartScalarFieldEnum)[keyof typeof CartScalarFieldEnum]
 
 
+  export const CartCheckoutRemovalScalarFieldEnum: {
+    cartId: 'cartId',
+    cartVersion: 'cartVersion',
+    fingerprint: 'fingerprint',
+    createdAt: 'createdAt'
+  };
+
+  export type CartCheckoutRemovalScalarFieldEnum = (typeof CartCheckoutRemovalScalarFieldEnum)[keyof typeof CartCheckoutRemovalScalarFieldEnum]
+
+
   export const CartItemScalarFieldEnum: {
     id: 'id',
     cartId: 'cartId',
@@ -3401,6 +4623,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     items?: CartItemListRelationFilter
+    checkoutRemovals?: CartCheckoutRemovalListRelationFilter
   }
 
   export type CartOrderByWithRelationInput = {
@@ -3410,6 +4633,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     items?: CartItemOrderByRelationAggregateInput
+    checkoutRemovals?: CartCheckoutRemovalOrderByRelationAggregateInput
   }
 
   export type CartWhereUniqueInput = Prisma.AtLeast<{
@@ -3422,6 +4646,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     items?: CartItemListRelationFilter
+    checkoutRemovals?: CartCheckoutRemovalListRelationFilter
   }, "id" | "userId">
 
   export type CartOrderByWithAggregationInput = {
@@ -3446,6 +4671,59 @@ export namespace Prisma {
     version?: IntWithAggregatesFilter<"Cart"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
+  }
+
+  export type CartCheckoutRemovalWhereInput = {
+    AND?: CartCheckoutRemovalWhereInput | CartCheckoutRemovalWhereInput[]
+    OR?: CartCheckoutRemovalWhereInput[]
+    NOT?: CartCheckoutRemovalWhereInput | CartCheckoutRemovalWhereInput[]
+    cartId?: StringFilter<"CartCheckoutRemoval"> | string
+    cartVersion?: IntFilter<"CartCheckoutRemoval"> | number
+    fingerprint?: StringFilter<"CartCheckoutRemoval"> | string
+    createdAt?: DateTimeFilter<"CartCheckoutRemoval"> | Date | string
+    cart?: XOR<CartScalarRelationFilter, CartWhereInput>
+  }
+
+  export type CartCheckoutRemovalOrderByWithRelationInput = {
+    cartId?: SortOrder
+    cartVersion?: SortOrder
+    fingerprint?: SortOrder
+    createdAt?: SortOrder
+    cart?: CartOrderByWithRelationInput
+  }
+
+  export type CartCheckoutRemovalWhereUniqueInput = Prisma.AtLeast<{
+    cartId_cartVersion?: CartCheckoutRemovalCartIdCartVersionCompoundUniqueInput
+    AND?: CartCheckoutRemovalWhereInput | CartCheckoutRemovalWhereInput[]
+    OR?: CartCheckoutRemovalWhereInput[]
+    NOT?: CartCheckoutRemovalWhereInput | CartCheckoutRemovalWhereInput[]
+    cartId?: StringFilter<"CartCheckoutRemoval"> | string
+    cartVersion?: IntFilter<"CartCheckoutRemoval"> | number
+    fingerprint?: StringFilter<"CartCheckoutRemoval"> | string
+    createdAt?: DateTimeFilter<"CartCheckoutRemoval"> | Date | string
+    cart?: XOR<CartScalarRelationFilter, CartWhereInput>
+  }, "cartId_cartVersion">
+
+  export type CartCheckoutRemovalOrderByWithAggregationInput = {
+    cartId?: SortOrder
+    cartVersion?: SortOrder
+    fingerprint?: SortOrder
+    createdAt?: SortOrder
+    _count?: CartCheckoutRemovalCountOrderByAggregateInput
+    _avg?: CartCheckoutRemovalAvgOrderByAggregateInput
+    _max?: CartCheckoutRemovalMaxOrderByAggregateInput
+    _min?: CartCheckoutRemovalMinOrderByAggregateInput
+    _sum?: CartCheckoutRemovalSumOrderByAggregateInput
+  }
+
+  export type CartCheckoutRemovalScalarWhereWithAggregatesInput = {
+    AND?: CartCheckoutRemovalScalarWhereWithAggregatesInput | CartCheckoutRemovalScalarWhereWithAggregatesInput[]
+    OR?: CartCheckoutRemovalScalarWhereWithAggregatesInput[]
+    NOT?: CartCheckoutRemovalScalarWhereWithAggregatesInput | CartCheckoutRemovalScalarWhereWithAggregatesInput[]
+    cartId?: StringWithAggregatesFilter<"CartCheckoutRemoval"> | string
+    cartVersion?: IntWithAggregatesFilter<"CartCheckoutRemoval"> | number
+    fingerprint?: StringWithAggregatesFilter<"CartCheckoutRemoval"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"CartCheckoutRemoval"> | Date | string
   }
 
   export type CartItemWhereInput = {
@@ -3533,6 +4811,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemCreateNestedManyWithoutCartInput
+    checkoutRemovals?: CartCheckoutRemovalCreateNestedManyWithoutCartInput
   }
 
   export type CartUncheckedCreateInput = {
@@ -3542,6 +4821,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemUncheckedCreateNestedManyWithoutCartInput
+    checkoutRemovals?: CartCheckoutRemovalUncheckedCreateNestedManyWithoutCartInput
   }
 
   export type CartUpdateInput = {
@@ -3551,6 +4831,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUpdateManyWithoutCartNestedInput
+    checkoutRemovals?: CartCheckoutRemovalUpdateManyWithoutCartNestedInput
   }
 
   export type CartUncheckedUpdateInput = {
@@ -3560,6 +4841,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUncheckedUpdateManyWithoutCartNestedInput
+    checkoutRemovals?: CartCheckoutRemovalUncheckedUpdateManyWithoutCartNestedInput
   }
 
   export type CartCreateManyInput = {
@@ -3584,6 +4866,54 @@ export namespace Prisma {
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalCreateInput = {
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
+    cart: CartCreateNestedOneWithoutCheckoutRemovalsInput
+  }
+
+  export type CartCheckoutRemovalUncheckedCreateInput = {
+    cartId: string
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
+  }
+
+  export type CartCheckoutRemovalUpdateInput = {
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cart?: CartUpdateOneRequiredWithoutCheckoutRemovalsNestedInput
+  }
+
+  export type CartCheckoutRemovalUncheckedUpdateInput = {
+    cartId?: StringFieldUpdateOperationsInput | string
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalCreateManyInput = {
+    cartId: string
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
+  }
+
+  export type CartCheckoutRemovalUpdateManyMutationInput = {
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalUncheckedUpdateManyInput = {
+    cartId?: StringFieldUpdateOperationsInput | string
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type CartItemCreateInput = {
@@ -3712,7 +5042,17 @@ export namespace Prisma {
     none?: CartItemWhereInput
   }
 
+  export type CartCheckoutRemovalListRelationFilter = {
+    every?: CartCheckoutRemovalWhereInput
+    some?: CartCheckoutRemovalWhereInput
+    none?: CartCheckoutRemovalWhereInput
+  }
+
   export type CartItemOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CartCheckoutRemovalOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -3796,6 +5136,45 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type CartScalarRelationFilter = {
+    is?: CartWhereInput
+    isNot?: CartWhereInput
+  }
+
+  export type CartCheckoutRemovalCartIdCartVersionCompoundUniqueInput = {
+    cartId: string
+    cartVersion: number
+  }
+
+  export type CartCheckoutRemovalCountOrderByAggregateInput = {
+    cartId?: SortOrder
+    cartVersion?: SortOrder
+    fingerprint?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CartCheckoutRemovalAvgOrderByAggregateInput = {
+    cartVersion?: SortOrder
+  }
+
+  export type CartCheckoutRemovalMaxOrderByAggregateInput = {
+    cartId?: SortOrder
+    cartVersion?: SortOrder
+    fingerprint?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CartCheckoutRemovalMinOrderByAggregateInput = {
+    cartId?: SortOrder
+    cartVersion?: SortOrder
+    fingerprint?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CartCheckoutRemovalSumOrderByAggregateInput = {
+    cartVersion?: SortOrder
+  }
+
   export type DecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -3820,11 +5199,6 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type CartScalarRelationFilter = {
-    is?: CartWhereInput
-    isNot?: CartWhereInput
   }
 
   export type SortOrderInput = {
@@ -3924,11 +5298,25 @@ export namespace Prisma {
     connect?: CartItemWhereUniqueInput | CartItemWhereUniqueInput[]
   }
 
+  export type CartCheckoutRemovalCreateNestedManyWithoutCartInput = {
+    create?: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput> | CartCheckoutRemovalCreateWithoutCartInput[] | CartCheckoutRemovalUncheckedCreateWithoutCartInput[]
+    connectOrCreate?: CartCheckoutRemovalCreateOrConnectWithoutCartInput | CartCheckoutRemovalCreateOrConnectWithoutCartInput[]
+    createMany?: CartCheckoutRemovalCreateManyCartInputEnvelope
+    connect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+  }
+
   export type CartItemUncheckedCreateNestedManyWithoutCartInput = {
     create?: XOR<CartItemCreateWithoutCartInput, CartItemUncheckedCreateWithoutCartInput> | CartItemCreateWithoutCartInput[] | CartItemUncheckedCreateWithoutCartInput[]
     connectOrCreate?: CartItemCreateOrConnectWithoutCartInput | CartItemCreateOrConnectWithoutCartInput[]
     createMany?: CartItemCreateManyCartInputEnvelope
     connect?: CartItemWhereUniqueInput | CartItemWhereUniqueInput[]
+  }
+
+  export type CartCheckoutRemovalUncheckedCreateNestedManyWithoutCartInput = {
+    create?: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput> | CartCheckoutRemovalCreateWithoutCartInput[] | CartCheckoutRemovalUncheckedCreateWithoutCartInput[]
+    connectOrCreate?: CartCheckoutRemovalCreateOrConnectWithoutCartInput | CartCheckoutRemovalCreateOrConnectWithoutCartInput[]
+    createMany?: CartCheckoutRemovalCreateManyCartInputEnvelope
+    connect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -3961,6 +5349,20 @@ export namespace Prisma {
     deleteMany?: CartItemScalarWhereInput | CartItemScalarWhereInput[]
   }
 
+  export type CartCheckoutRemovalUpdateManyWithoutCartNestedInput = {
+    create?: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput> | CartCheckoutRemovalCreateWithoutCartInput[] | CartCheckoutRemovalUncheckedCreateWithoutCartInput[]
+    connectOrCreate?: CartCheckoutRemovalCreateOrConnectWithoutCartInput | CartCheckoutRemovalCreateOrConnectWithoutCartInput[]
+    upsert?: CartCheckoutRemovalUpsertWithWhereUniqueWithoutCartInput | CartCheckoutRemovalUpsertWithWhereUniqueWithoutCartInput[]
+    createMany?: CartCheckoutRemovalCreateManyCartInputEnvelope
+    set?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    disconnect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    delete?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    connect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    update?: CartCheckoutRemovalUpdateWithWhereUniqueWithoutCartInput | CartCheckoutRemovalUpdateWithWhereUniqueWithoutCartInput[]
+    updateMany?: CartCheckoutRemovalUpdateManyWithWhereWithoutCartInput | CartCheckoutRemovalUpdateManyWithWhereWithoutCartInput[]
+    deleteMany?: CartCheckoutRemovalScalarWhereInput | CartCheckoutRemovalScalarWhereInput[]
+  }
+
   export type CartItemUncheckedUpdateManyWithoutCartNestedInput = {
     create?: XOR<CartItemCreateWithoutCartInput, CartItemUncheckedCreateWithoutCartInput> | CartItemCreateWithoutCartInput[] | CartItemUncheckedCreateWithoutCartInput[]
     connectOrCreate?: CartItemCreateOrConnectWithoutCartInput | CartItemCreateOrConnectWithoutCartInput[]
@@ -3973,6 +5375,34 @@ export namespace Prisma {
     update?: CartItemUpdateWithWhereUniqueWithoutCartInput | CartItemUpdateWithWhereUniqueWithoutCartInput[]
     updateMany?: CartItemUpdateManyWithWhereWithoutCartInput | CartItemUpdateManyWithWhereWithoutCartInput[]
     deleteMany?: CartItemScalarWhereInput | CartItemScalarWhereInput[]
+  }
+
+  export type CartCheckoutRemovalUncheckedUpdateManyWithoutCartNestedInput = {
+    create?: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput> | CartCheckoutRemovalCreateWithoutCartInput[] | CartCheckoutRemovalUncheckedCreateWithoutCartInput[]
+    connectOrCreate?: CartCheckoutRemovalCreateOrConnectWithoutCartInput | CartCheckoutRemovalCreateOrConnectWithoutCartInput[]
+    upsert?: CartCheckoutRemovalUpsertWithWhereUniqueWithoutCartInput | CartCheckoutRemovalUpsertWithWhereUniqueWithoutCartInput[]
+    createMany?: CartCheckoutRemovalCreateManyCartInputEnvelope
+    set?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    disconnect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    delete?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    connect?: CartCheckoutRemovalWhereUniqueInput | CartCheckoutRemovalWhereUniqueInput[]
+    update?: CartCheckoutRemovalUpdateWithWhereUniqueWithoutCartInput | CartCheckoutRemovalUpdateWithWhereUniqueWithoutCartInput[]
+    updateMany?: CartCheckoutRemovalUpdateManyWithWhereWithoutCartInput | CartCheckoutRemovalUpdateManyWithWhereWithoutCartInput[]
+    deleteMany?: CartCheckoutRemovalScalarWhereInput | CartCheckoutRemovalScalarWhereInput[]
+  }
+
+  export type CartCreateNestedOneWithoutCheckoutRemovalsInput = {
+    create?: XOR<CartCreateWithoutCheckoutRemovalsInput, CartUncheckedCreateWithoutCheckoutRemovalsInput>
+    connectOrCreate?: CartCreateOrConnectWithoutCheckoutRemovalsInput
+    connect?: CartWhereUniqueInput
+  }
+
+  export type CartUpdateOneRequiredWithoutCheckoutRemovalsNestedInput = {
+    create?: XOR<CartCreateWithoutCheckoutRemovalsInput, CartUncheckedCreateWithoutCheckoutRemovalsInput>
+    connectOrCreate?: CartCreateOrConnectWithoutCheckoutRemovalsInput
+    upsert?: CartUpsertWithoutCheckoutRemovalsInput
+    connect?: CartWhereUniqueInput
+    update?: XOR<XOR<CartUpdateToOneWithWhereWithoutCheckoutRemovalsInput, CartUpdateWithoutCheckoutRemovalsInput>, CartUncheckedUpdateWithoutCheckoutRemovalsInput>
   }
 
   export type CartCreateNestedOneWithoutItemsInput = {
@@ -4196,6 +5626,28 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CartCheckoutRemovalCreateWithoutCartInput = {
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
+  }
+
+  export type CartCheckoutRemovalUncheckedCreateWithoutCartInput = {
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
+  }
+
+  export type CartCheckoutRemovalCreateOrConnectWithoutCartInput = {
+    where: CartCheckoutRemovalWhereUniqueInput
+    create: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput>
+  }
+
+  export type CartCheckoutRemovalCreateManyCartInputEnvelope = {
+    data: CartCheckoutRemovalCreateManyCartInput | CartCheckoutRemovalCreateManyCartInput[]
+    skipDuplicates?: boolean
+  }
+
   export type CartItemUpsertWithWhereUniqueWithoutCartInput = {
     where: CartItemWhereUniqueInput
     update: XOR<CartItemUpdateWithoutCartInput, CartItemUncheckedUpdateWithoutCartInput>
@@ -4227,12 +5679,91 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"CartItem"> | Date | string
   }
 
+  export type CartCheckoutRemovalUpsertWithWhereUniqueWithoutCartInput = {
+    where: CartCheckoutRemovalWhereUniqueInput
+    update: XOR<CartCheckoutRemovalUpdateWithoutCartInput, CartCheckoutRemovalUncheckedUpdateWithoutCartInput>
+    create: XOR<CartCheckoutRemovalCreateWithoutCartInput, CartCheckoutRemovalUncheckedCreateWithoutCartInput>
+  }
+
+  export type CartCheckoutRemovalUpdateWithWhereUniqueWithoutCartInput = {
+    where: CartCheckoutRemovalWhereUniqueInput
+    data: XOR<CartCheckoutRemovalUpdateWithoutCartInput, CartCheckoutRemovalUncheckedUpdateWithoutCartInput>
+  }
+
+  export type CartCheckoutRemovalUpdateManyWithWhereWithoutCartInput = {
+    where: CartCheckoutRemovalScalarWhereInput
+    data: XOR<CartCheckoutRemovalUpdateManyMutationInput, CartCheckoutRemovalUncheckedUpdateManyWithoutCartInput>
+  }
+
+  export type CartCheckoutRemovalScalarWhereInput = {
+    AND?: CartCheckoutRemovalScalarWhereInput | CartCheckoutRemovalScalarWhereInput[]
+    OR?: CartCheckoutRemovalScalarWhereInput[]
+    NOT?: CartCheckoutRemovalScalarWhereInput | CartCheckoutRemovalScalarWhereInput[]
+    cartId?: StringFilter<"CartCheckoutRemoval"> | string
+    cartVersion?: IntFilter<"CartCheckoutRemoval"> | number
+    fingerprint?: StringFilter<"CartCheckoutRemoval"> | string
+    createdAt?: DateTimeFilter<"CartCheckoutRemoval"> | Date | string
+  }
+
+  export type CartCreateWithoutCheckoutRemovalsInput = {
+    id?: string
+    userId: string
+    version?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: CartItemCreateNestedManyWithoutCartInput
+  }
+
+  export type CartUncheckedCreateWithoutCheckoutRemovalsInput = {
+    id?: string
+    userId: string
+    version?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: CartItemUncheckedCreateNestedManyWithoutCartInput
+  }
+
+  export type CartCreateOrConnectWithoutCheckoutRemovalsInput = {
+    where: CartWhereUniqueInput
+    create: XOR<CartCreateWithoutCheckoutRemovalsInput, CartUncheckedCreateWithoutCheckoutRemovalsInput>
+  }
+
+  export type CartUpsertWithoutCheckoutRemovalsInput = {
+    update: XOR<CartUpdateWithoutCheckoutRemovalsInput, CartUncheckedUpdateWithoutCheckoutRemovalsInput>
+    create: XOR<CartCreateWithoutCheckoutRemovalsInput, CartUncheckedCreateWithoutCheckoutRemovalsInput>
+    where?: CartWhereInput
+  }
+
+  export type CartUpdateToOneWithWhereWithoutCheckoutRemovalsInput = {
+    where?: CartWhereInput
+    data: XOR<CartUpdateWithoutCheckoutRemovalsInput, CartUncheckedUpdateWithoutCheckoutRemovalsInput>
+  }
+
+  export type CartUpdateWithoutCheckoutRemovalsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: CartItemUpdateManyWithoutCartNestedInput
+  }
+
+  export type CartUncheckedUpdateWithoutCheckoutRemovalsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: CartItemUncheckedUpdateManyWithoutCartNestedInput
+  }
+
   export type CartCreateWithoutItemsInput = {
     id?: string
     userId: string
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    checkoutRemovals?: CartCheckoutRemovalCreateNestedManyWithoutCartInput
   }
 
   export type CartUncheckedCreateWithoutItemsInput = {
@@ -4241,6 +5772,7 @@ export namespace Prisma {
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    checkoutRemovals?: CartCheckoutRemovalUncheckedCreateNestedManyWithoutCartInput
   }
 
   export type CartCreateOrConnectWithoutItemsInput = {
@@ -4265,6 +5797,7 @@ export namespace Prisma {
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    checkoutRemovals?: CartCheckoutRemovalUpdateManyWithoutCartNestedInput
   }
 
   export type CartUncheckedUpdateWithoutItemsInput = {
@@ -4273,6 +5806,7 @@ export namespace Prisma {
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    checkoutRemovals?: CartCheckoutRemovalUncheckedUpdateManyWithoutCartNestedInput
   }
 
   export type CartItemCreateManyCartInput = {
@@ -4284,6 +5818,12 @@ export namespace Prisma {
     imageSnapshot?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type CartCheckoutRemovalCreateManyCartInput = {
+    cartVersion: number
+    fingerprint: string
+    createdAt?: Date | string
   }
 
   export type CartItemUpdateWithoutCartInput = {
@@ -4317,6 +5857,24 @@ export namespace Prisma {
     imageSnapshot?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalUpdateWithoutCartInput = {
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalUncheckedUpdateWithoutCartInput = {
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CartCheckoutRemovalUncheckedUpdateManyWithoutCartInput = {
+    cartVersion?: IntFieldUpdateOperationsInput | number
+    fingerprint?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 
