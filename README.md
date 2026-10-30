@@ -2,7 +2,7 @@
 
 Backend-only TypeScript microservices portfolio for a fitness commerce purchase flow.
 
-Status: Phase 18 Cart hardening adds serialized mutations, atomic versioned checkout cleanup and durable cleanup replay. Phase 17 outbound notifications remain intact. Synchronous checkout remains default; async checkout remains opt-in. Frontend and fitness/nutrition product areas are not implemented yet. See [Cart service](docs/phase18-cart-service.md), [Notification service](docs/phase17-notification-service.md), [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
+Status: Phase 19 Shipping hardening adds serialized fulfillment transitions, pinned manual tracking and transactional notification events. Phase 18 Cart concurrency/replay and Phase 17 outbound notifications remain intact. Synchronous checkout remains default; async checkout remains opt-in. Frontend and fitness/nutrition product areas are not implemented yet. See [Shipping service](docs/phase19-shipping-service.md), [Cart service](docs/phase18-cart-service.md), [Notification service](docs/phase17-notification-service.md), [testing strategy](docs/phase16-testing-strategy.md), [observability](docs/phase15-observability.md), [Payment domain](docs/phase4-payment-domain.md) and [Order domain](docs/phase3-order-domain.md) for operating and ownership contracts.
 
 ## Services
 
@@ -15,7 +15,7 @@ Status: Phase 18 Cart hardening adds serialized mutations, atomic versioned chec
 | `apps/cart-service` | Customer carts, item snapshots, cart versioning, internal cart access for checkout |
 | `apps/order-service` | Checkout, order lifecycle, delivery snapshot, inventory orchestration, cancellation/confirmation |
 | `apps/payment-service` | Payment attempts/lifecycle, provider abstraction, deterministic fake provider, durable idempotency, refunds and retriable Order confirmation |
-| `apps/shipping-service` | Shipment records, one shipment per order, shipment snapshot from confirmed order, fulfillment status transitions |
+| `apps/shipping-service` | Manual/admin fulfillment, one shipment per Order, pinned tracking, serialized transitions and transactional fulfillment events |
 | `apps/notification-service` | Event-driven notification acceptance, durable email worker, fake provider and preserved legacy read-state |
 | `packages/shared` | Shared errors, middleware, config validation, structured logging, JWT/user header helpers, internal secret middleware |
 

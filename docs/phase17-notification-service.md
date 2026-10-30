@@ -1,5 +1,9 @@
 # Phase 17 — Notification Service
 
+This records Phase 17 baseline. Phase 19 replaces Shipping's legacy HTTP intake
+with real `shipment.shipped` / `shipment.delivered` producers and extends existing
+Notification queue/templates. See [Shipping service](phase19-shipping-service.md).
+
 ## Before Phase 17
 
 Notification had one Prisma `Notification` model: user, legacy type, title/message,

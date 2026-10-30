@@ -2,6 +2,62 @@
 
 Root and workspace test commands use the same discovery matrix. Shared package builds first; fast unit/local-HTTP tests run without PostgreSQL/RabbitMQ, infrastructure tests use disposable resources, and E2E runs separately. See [Phase 16 strategy](docs/phase16-testing-strategy.md) for guarantee ownership and intentional limits.
 
+## Phase 19 verification (2026-10-30)
+
+Architecture/audit: [Shipping service](docs/phase19-shipping-service.md). Phase 18
+hard gate closed at local commit `1490d66` with clean tree before Shipping audit.
+Shipping remains manual/admin initiated; no carrier mutation or Order consumer is
+invented. Its new outgoing fulfillment facts have real Notification consumers.
+
+| Command | Result |
+| --- | --- |
+| `npm run test:unit -- --seed 19019` | 888 Vitest cases + 9 native runner checks passed |
+| `npm run test:integration -- --workspace shipping-service --seed 19019` | 14 PostgreSQL/RabbitMQ cases passed |
+| `npm run test:integration -- --seed 19019` | 349 cases passed, including Shipping 14, Notification 22 and shared infrastructure 54 |
+| `npm exec --workspace @shared/utils -- vitest run src/testing/rabbitmq-shutdown.integration.test.ts` | Isolated broker shutdown case passed with disposable localhost:5673 configured |
+| `npm run test:e2e -- --seed 19019` | 19 cases passed: 11 sync, 5 async success, 3 async decline |
+| `npm run typecheck` / `npm run lint` / `npm run build` | Passed |
+| `git diff --check 1490d66` | Passed |
+
+Additional standalone typecheck passed:
+
+```sh
+npm exec -- tsc --noEmit --strict --skipLibCheck --target ES2023 --module NodeNext --moduleResolution NodeNext --esModuleInterop --types node tests/e2e/purchase-lifecycle.e2e.test.ts tests/e2e/event-checkout.e2e.test.ts packages/shared/src/testing/rabbitmq-shutdown.integration.test.ts packages/shared/src/testing/rabbitmq.integration.test.ts packages/shared/src/events/contracts.test.ts packages/shared/src/observability/telemetry.test.ts
+```
+
+Fast cases: Gateway 35, Auth 44, Catalog 14, Inventory 15, Order 98, Cart 29,
+Payment 25, Shipping 20, Notification 19, shared 589. Integration: Gateway 56,
+Auth 15, Catalog 4, Inventory 44, Order 68, Cart 13, Payment 59, Shipping 14,
+Notification 22, shared 54. All eight migration histories match schemas; additive
+Shipping migration and generated Prisma client verified. No development DB reset.
+
+Real DB tests prove admin/owner boundaries, safe dispatch after Order processing,
+duplicate creation/commands, pinned unique tracking, locked concurrent transitions,
+state/Outbox rollback, trace persistence and committed metrics. Broker checks prove
+confirm-before-marker recovery republishes same envelope, shipment facts produce
+one email across duplicates, durable exhaustion quarantines, and explicit selected
+DLQ replay recovers safely even after prior delivery success.
+
+New duplicate test explicitly respects existing budget: three concurrent
+unreceipted copies share three acceptance slots; later committed duplicate bypasses
+budget. Four concurrent copies need not all ACK before first Inbox commits.
+No budget or quarantine semantics changed to satisfy test expectations.
+
+Seed 19019 exposed global test fault leakage in Order and irreversible dependency
+shutdown in shared RabbitMQ file. Fault injection is now scoped to one Catalog
+product; real shutdown assertions run in an isolated file with independently named
+durable exchange/queues, then remove them. Test assertions, production cancellation,
+retry limits and DLQ behavior remain intact. No arbitrary sleeps, skips or global
+test serialization added.
+
+E2E verifies full manual fulfillment and exact shipment-specific notifications,
+plus broker stop, committed Shipping state/Outbox, actual Shipping SIGKILL/restart
+and one published fact/SENT fake email. Existing Cart, Payment, Saga, Gateway/Auth,
+Order recovery and Phase 17 Notification journeys pass. Fulfillment journey now
+uses eventual assertions and explicit bounded test budget for asynchronous email;
+business HTTP deadlines remain unchanged. Disposable teardown removes both owned
+test projects. Working tree/local commit state verified at closeout; nothing pushed.
+
 ## Phase 18 verification (2026-10-30)
 
 Architecture/audit: [Cart service](docs/phase18-cart-service.md).
@@ -162,7 +218,7 @@ Scope includes handwritten production TypeScript under `src/**/*.ts`. Excluded p
 | `order-service` | 10 files: config, logging, errors, lifecycle, creation, snapshot and Saga policy | 2 files: checkout/Saga/Outbox and migrations | available |
 | `cart-service` | 2 files: validation, dependency/error/correlation policy | 1 file: API ownership, constraints, concurrent mutations and durable checkout cleanup | available |
 | `payment-service` | 4 files: config, lifecycle matrix, probes, downstream errors | 3 files: commands/recovery/races, fake provider, legacy migrations | available |
-| `shipping-service` | 1 file: error contract | 1 file: shipping lifecycle | available |
+| `shipping-service` | 2 files: lifecycle/tracking and dependency policy | 1 file: API/DB lifecycle, atomic Outbox, concurrency, metrics and broker recovery | available |
 | `notification-service` | event templates, retry policy, identity, sanitization, config | 1 file: API/read isolation, Inbox/delivery transactions, provider, recovery and real RabbitMQ | available |
 | `@shared/utils` | 25 files: security/events/middleware, correlation/logs, resilience/telemetry and test helpers | 3 files: actual HTTP contracts, RabbitMQ and OTLP | available |
 

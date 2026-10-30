@@ -29,7 +29,7 @@ Microservices monorepo. Keep current service boundaries unless user explicitly a
   - Ownership: payment records, payment state transitions, order confirmation trigger, payment notifications
 
 - `apps/shipping-service`
-  - Ownership: shipment records, shipment state transitions, shipping notifications
+  - Ownership: manual/admin shipment records, tracking identity, serialized transitions, durable fulfillment event publication
 
 - `apps/notification-service`
   - Ownership: event-driven Inbox acceptance, notification/delivery persistence, email provider/worker, preserved legacy read-state/internal intake
