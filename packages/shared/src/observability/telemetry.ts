@@ -8,7 +8,7 @@ import { requireGatewaySecret } from "../middleware/internalGateway.middleware.j
 
 const services = new Set(["api-gateway", "dlq-operator", ...["auth", "catalog", "inventory", "cart", "order", "payment", "shipping", "notification"].map((s) => `${s}-service`)]);
 const operations = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "proxy", "jwks", "fetch-jwks", "payment-snapshot", "confirm", "settle", "refund", "publish", "reconnect"]);
-const eventOperations = new Set(["order.created", "order.confirmed", "order.cancelled", "order.processing_started", "inventory.reserved", "inventory.reservation_failed", "inventory.released", "inventory.release_failed", "payment.succeeded", "payment.failed", "payment.refunded", "payment.refund_failed", "checkout.payment_requested", "checkout.refund_requested"]);
+const eventOperations = new Set(["order.created", "order.confirmed", "order.cancelled", "order.processing_started", "inventory.reserved", "inventory.reservation_failed", "inventory.released", "inventory.release_failed", "payment.succeeded", "payment.failed", "payment.refunded", "payment.refund_failed", "checkout.payment_requested", "checkout.refund_requested", "shipment.shipped", "shipment.delivered"]);
 const routeOverrides = new WeakMap<Request, string>();
 export function proxyRoute(req: Request, targetService: string) { routeOverrides.set(req, services.has(targetService) ? `/${targetService}/*` : "proxy"); }
 export function dependencyLabels(dependency: string, operation: string) {

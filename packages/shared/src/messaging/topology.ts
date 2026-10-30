@@ -6,6 +6,7 @@ export const DOMAIN_ROUTING_KEYS = [
   "order.created", "inventory.reserved", "inventory.reservation_failed",
   "payment.succeeded", "payment.failed", "order.confirmed", "order.cancelled",
   "inventory.released",
+  "shipment.shipped", "shipment.delivered",
   "checkout.payment_requested", "checkout.refund_requested", "payment.refunded", "payment.refund_failed", "inventory.release_failed",
 ] as const;
 
@@ -13,7 +14,7 @@ export const DOMAIN_QUEUES = [
   { name: "inventory.order-created", bindings: ["order.created", "order.cancelled"] },
   { name: "payment.inventory-reserved", bindings: ["checkout.payment_requested", "checkout.refund_requested"] },
   { name: "order.payment-events", bindings: ["inventory.reserved", "payment.succeeded", "payment.failed", "inventory.reservation_failed", "inventory.released", "payment.refunded", "payment.refund_failed", "inventory.release_failed"] },
-  { name: "notification.order-events", bindings: ["order.confirmed", "order.cancelled"] },
+  { name: "notification.order-events", bindings: ["order.confirmed", "order.cancelled", "shipment.shipped", "shipment.delivered"] },
 ] as const;
 
 /** Compatible declarations are idempotent. Each service owns its queue and DLQ. */

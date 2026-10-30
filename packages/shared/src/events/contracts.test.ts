@@ -26,6 +26,8 @@ const payloads = {
   "order.confirmed": order,
   "order.cancelled": { ...order, items: reservations },
   "order.processing_started": order,
+  "shipment.shipped": { ...order, shipmentId: randomUUID() },
+  "shipment.delivered": { ...order, shipmentId: randomUUID() },
 } satisfies { [T in EventType]: PayloadFor<T> };
 
 function event(eventType: EventType, data: unknown = payloads[eventType]) {
@@ -61,7 +63,7 @@ describe("registered business facts", () => {
           invalidPayload(eventType, data);
         });
       }
-      for (const field of ["orderId", "paymentId", "productId"]) {
+      for (const field of ["orderId", "paymentId", "productId", "shipmentId"]) {
         if (field in payloads[eventType]) {
           it(`requires UUID ${field}`, () => {
             invalidPayload(eventType, { ...payloads[eventType], [field]: "invalid" });

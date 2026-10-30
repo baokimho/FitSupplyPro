@@ -50,6 +50,8 @@ export const integrationEventRegistry = Object.freeze([
   eventSchema("order.confirmed", "order-service", orderDataSchema),
   eventSchema("order.cancelled", "order-service", orderDataSchema.extend({ items: itemsSchema })),
   eventSchema("order.processing_started", "order-service", orderDataSchema),
+  eventSchema("shipment.shipped", "shipping-service", orderDataSchema.extend({ shipmentId: eventUuidSchema })),
+  eventSchema("shipment.delivered", "shipping-service", orderDataSchema.extend({ shipmentId: eventUuidSchema })),
 ] as const);
 
 export const knownIntegrationEventSchema = z.discriminatedUnion("eventType", integrationEventRegistry);
