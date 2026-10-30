@@ -137,6 +137,19 @@ exports.Prisma.ShipmentScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.OutboxEventScalarFieldEnum = {
+  id: 'id',
+  eventId: 'eventId',
+  deduplicationKey: 'deduplicationKey',
+  payload: 'payload',
+  traceparent: 'traceparent',
+  createdAt: 'createdAt',
+  publishedAt: 'publishedAt',
+  attempts: 'attempts',
+  lastError: 'lastError',
+  nextAttemptAt: 'nextAttemptAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -160,7 +173,8 @@ exports.ShipmentStatus = exports.$Enums.ShipmentStatus = {
 };
 
 exports.Prisma.ModelName = {
-  Shipment: 'Shipment'
+  Shipment: 'Shipment',
+  OutboxEvent: 'OutboxEvent'
 };
 
 /**

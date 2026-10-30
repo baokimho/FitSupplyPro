@@ -26,7 +26,7 @@ const getUserId = (req: Request) => {
 };
 
 export const createShipment = async (req: Request<{}, {}, CreateShipmentInput>, res: Response) => {
-  const shipment = await createShipmentService(getUserId(req), req.body);
+  const shipment = await createShipmentService(getUserId(req), req.body, getUserRole(req));
   res.status(StatusCodes.CREATED).json(shipment);
 };
 

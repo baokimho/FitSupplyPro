@@ -20,12 +20,27 @@ model Shipment {
   city           String
   postalCode     String
   country        String
-  trackingNumber String?
+  trackingNumber String?        @unique
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   @@index([userId])
   @@index([orderId])
+}
+
+model OutboxEvent {
+  id               String    @id @default(uuid())
+  eventId          String    @unique
+  deduplicationKey String    @unique
+  payload          String
+  traceparent      String?
+  createdAt        DateTime  @default(now())
+  publishedAt      DateTime?
+  attempts         Int       @default(0)
+  lastError        String?
+  nextAttemptAt    DateTime  @default(now())
+
+  @@index([publishedAt, nextAttemptAt, createdAt])
 }
 
 enum ShipmentStatus {

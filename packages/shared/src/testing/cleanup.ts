@@ -13,7 +13,7 @@ const cleanupTables: Record<CleanupDatabaseName, readonly string[]> = {
   order_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "CheckoutSaga", "CheckoutIdempotency", "OrderItem", "Order"],
   cart_test_db: ["CartCheckoutRemoval", "CartItem", "Cart"],
   payment_test_db: ["OutboxEvent", "ConsumerDelivery", "CheckoutEvent", "PaymentIdempotency", "FakeProviderOperation", "Payment"],
-  shipping_test_db: ["Shipment"],
+  shipping_test_db: ["OutboxEvent", "Shipment"],
   notification_test_db: ["ConsumerDelivery", "CheckoutEvent", "FakeEmailReceipt", "NotificationDelivery", "Notification"],
 };
 
