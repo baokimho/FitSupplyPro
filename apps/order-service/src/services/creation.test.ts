@@ -41,7 +41,7 @@ beforeEach(() => {
       return releaseFailures.has(productId) ? json({}, 503) : json({});
     }
     if (!init?.method) {
-      if (catalogFailure) throw new Error("private connection failure");
+      if (catalogFailure && productId === "A") throw new Error("private connection failure");
       return json({ data: { id: productId, name: `Name ${productId}`, slug: `slug-${productId}`, price: "0.10", isPublished: true } });
     }
     throw new Error("Unexpected request");

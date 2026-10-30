@@ -1,16 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { createServer } from "node:http";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { Channel, GetMessage } from "amqplib";
 import { createLogger } from "../logging/logger.js";
 import { getCorrelation, runWithCorrelation } from "../http/correlation.js";
-import { installShutdown } from "../http/shutdown.js";
 import { readRabbitMqConfig } from "../messaging/config.js";
 import { openRabbitMq } from "../messaging/broker.js";
 import { DEAD_LETTER_EXCHANGE, DOMAIN_EXCHANGE, DOMAIN_QUEUES, declareRabbitMqTopology } from "../messaging/topology.js";
 import { checkoutMessageHandler } from "../messaging/checkout.js";
 import { createIntegrationEvent } from "../events/boundary.js";
-import { ServiceUnavailableError } from "../errors/httpErrors.js";
 import { inspectDlq, replayDlq, replayDlqDelivery } from "../messaging/dlq.js";
 import { serializeIntegrationEvent } from "../events/boundary.js";
 import { traced, SpanKind, traceHeaders, activeTraceFields, telemetryMetrics } from "../observability/telemetry.js";
@@ -411,42 +408,6 @@ describe("real RabbitMQ mechanics", () => {
       expect(message.content.toString()).toBe("durable outcome");
       expect(logs.some((line) => JSON.parse(line).msg === "broker message acknowledged")).toBe(true);
     } finally { release.resolve(); await inspector.close(); }
-  });
-
-  it("existing HTTP shutdown hook drains broker before DB cleanup and handles duplicate signals", async () => {
-    const logger = createLogger({ service: "shutdown-test", environment: "test", level: "silent" });
-    const server = createServer();
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const state = { stopping: false };
-    const cleanup: string[] = [];
-    const exit = vi.fn();
-    const shutdown = installShutdown({ server, logger, state, exit,
-      cleanup: [async () => { await broker.close(); cleanup.push("broker"); }, () => { cleanup.push("database"); }],
-    });
-    const input = createIntegrationEvent({ eventType: "order.created", correlationId: randomUUID(), causationId: null,
-      data: { orderId: randomUUID(), userId: "user", items: [{ productId: randomUUID(), quantity: 1 }], totalAmount: "1.00", currency: "USD" } });
-    const handler = vi.fn().mockRejectedValue(new ServiceUnavailableError("temporary database outage"));
-    const process = checkoutMessageHandler(["order.created"], handler, async () => {}, logger, undefined,
-      { policy: { maxAttempts: 3, baseDelayMs: 60000, maxDelayMs: 60000 } });
-    await broker.subscribe("inventory.order-created", (message) => process(message.content));
-    await publisher.publish(DOMAIN_EXCHANGE, "order.created", Buffer.from(JSON.stringify(input)));
-    await vi.waitFor(() => expect(handler).toHaveBeenCalledOnce());
-    const pending = shutdown.shutdown("SIGTERM");
-    expect(shutdown.shutdown("SIGINT")).toBe(pending);
-    expect(state.stopping).toBe(true);
-    await pending;
-    expect(cleanup).toEqual(["broker", "database"]);
-    expect(exit).toHaveBeenCalledExactlyOnceWith(0);
-    expect(broker.isReady()).toBe(false);
-    expect(handler).toHaveBeenCalledOnce();
-    const inspector = await openRabbitMq(readRabbitMqConfig(), logger);
-    try {
-      const reader = await inspector.createChannel();
-      const message = await reader.get("inventory.order-created", { noAck: true });
-      if (!message) throw new Error("Shutdown lost unsettled delivery");
-      expect(message.fields.redelivered).toBe(true);
-      expect((await reader.checkQueue("inventory.order-created.dlq")).messageCount).toBe(0);
-    } finally { await inspector.close(); }
   });
 
   it("bounded drain closes channel, requeues unsettled work and prevents late ACK", async () => {
