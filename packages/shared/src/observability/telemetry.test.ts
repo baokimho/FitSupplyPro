@@ -154,7 +154,7 @@ it("keeps dispatch span open through marker commit and marks commit failure", as
 it("observes duplicates separately, confirmed quarantine and replay without changing settlement", async () => {
   const input = event();
   const delivery = createCheckoutDeliveryHandler("order.payment-events", ["order.confirmed"], async () => null, async () => {}, logger,
-    { $transaction: async (work) => work({ checkoutEvent: { findUnique: async () => ({ fingerprint: (await import("../messaging/checkout.js")).checkoutEventFingerprint(input) }) }, consumerDelivery: { upsert: vi.fn(), update: vi.fn() } }) });
+    { $transaction: async (work) => work({ $queryRaw: vi.fn(), checkoutEvent: { findUnique: async () => ({ fingerprint: (await import("../messaging/checkout.js")).checkoutEventFingerprint(input) }) } }) });
   const message = { content: serializeIntegrationEvent(input), fields: { routingKey: input.eventType, deliveryTag: 1 }, properties: { headers: {} } } as ConsumeMessage;
   await delivery.handle(message);
   const before = await telemetryMetrics();

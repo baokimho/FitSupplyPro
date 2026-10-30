@@ -352,6 +352,7 @@ describe("durable delivery budgets and operator recovery", () => {
     const f = await input();
     const key = { consumer: queue, messageKey: messageKey(f.bytes), replayCount: 0 };
     const results = await Promise.allSettled(Array.from({ length: 8 }, () => claimDeliveryAttempt(prisma, key, f.event, 3)));
+    for (const result of results) if (result.status === "rejected") expect(result.reason).toMatchObject({ code: "DELIVERY_BUDGET_EXHAUSTED" });
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(3);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(5);
     expect(await prisma.consumerDelivery.findUniqueOrThrow({ where: { consumer_messageKey_replayCount: key } })).toMatchObject({ attempts: 3 });
