@@ -425,14 +425,14 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     const delivered = await requestJson<{ status: string }>("PATCH", `/order/orders/${order.id}/deliver`, { token: admin.accessToken });
     expect(delivered.status).toBe("DELIVERED");
 
-    const notifications = await requestJson<{ items: Array<{ id: string; type: string; isRead: boolean }> }>("GET", "/notification/notifications/me", {
-      token: customer.accessToken,
-      expected: 200,
-    });
-    const types = notifications.items.map((item) => item.type);
-    expect(types).toContain("ORDER_SHIPPED");
-    expect(types).toContain("ORDER_DELIVERED");
-    const notification = notifications.items.find((item) => item.type === "ORDER_SHIPPED");
+    type Notifications = { items: Array<{ id: string; type: string; isRead: boolean; message: string }> };
+    let notifications: Notifications = { items: [] };
+    await vi.waitFor(async () => {
+      notifications = await requestJson<Notifications>("GET", "/notification/notifications/me", { token: customer.accessToken });
+      const types = notifications.items.filter((item) => item.message.includes(shipment.id)).map((item) => item.type);
+      expect(types.sort()).toEqual(["ORDER_DELIVERED", "ORDER_SHIPPED"]);
+    }, { timeout: 10000, interval: 100 });
+    const notification = notifications.items.find((item) => item.type === "ORDER_SHIPPED" && item.message.includes(shipment.id));
     if (!notification) throw new Error("Missing shipped notification");
     expect(notification.isRead).toBe(false);
     await expectStatus("PATCH", `/notification/notifications/${notification.id}/read`, 403, otherSession.accessToken, undefined, spoofedOwner);
@@ -441,7 +441,40 @@ describe("cross-service purchase lifecycle through api-gateway", () => {
     const foreignNotifications = await requestJson<typeof notifications>("GET", "/notification/notifications/me", { token: otherSession.accessToken });
     expect(foreignNotifications.items.some((item) => item.id === notification.id)).toBe(false);
     expect(await requestJson("PATCH", `/notification/notifications/${notification.id}/read`, { token: customer.accessToken })).toMatchObject({ id: notification.id, isRead: true });
-  });
+  }, 30000);
+
+  it("Shipping Outbox survives broker outage and process kill, then sends one logical email", async () => {
+    const compose = ["compose", "-p", "fitsupply-e2e", "-f", "docker-compose.test.yml"];
+    const sql = (database: string, query: string) => execFileSync("docker", [...compose, "exec", "-T", "postgres-test", "psql", "-U", "fitsupply_test", "-d", database,
+      "-At", "-v", "ON_ERROR_STOP=1", "-c", query], { encoding: "utf8", timeout: 10000 }).trim();
+    const suffix = `shipping-recovery-${Date.now()}`;
+    const productId = await createCatalog(adminSession.accessToken, suffix);
+    const delivery = { recipientName: "Shipping Recovery", contactPhone: "+358401234567", addressLine1: "Street 1", city: "Helsinki", postalCode: "00100", countryCode: "FI" };
+    const order = await checkout(customerSession.accessToken, productId, suffix, delivery);
+    await requestJson("PATCH", `/order/orders/${order.id}/confirm`, { token: adminSession.accessToken });
+    const shipment = await requestJson<{ id: string }>("POST", "/shipping/shipments", { token: adminSession.accessToken, body: { orderId: order.id } });
+    await requestJson("PATCH", `/order/orders/${order.id}/process`, { token: adminSession.accessToken });
+    const startedAt = execFileSync("docker", ["inspect", "--format", "{{.State.StartedAt}}", "fitsupply-stack-shipping-service-test"], { encoding: "utf8", timeout: 10000 });
+    let sourceEventId = "";
+    execFileSync("docker", [...compose, "stop", "rabbitmq-test"], { timeout: 20000, stdio: "pipe" });
+    try {
+      await requestJson("PATCH", `/shipping/shipments/${shipment.id}/status`, { token: adminSession.accessToken, body: { status: "SHIPPED", trackingNumber: suffix } });
+      sourceEventId = sql("shipping_test_db", `SELECT "eventId" FROM "OutboxEvent" WHERE "deduplicationKey"='shipment:${shipment.id}:SHIPPED' AND "publishedAt" IS NULL`);
+      expect(sourceEventId).toMatch(/^[0-9a-f-]{36}$/);
+      execFileSync("docker", [...compose, "kill", "-s", "SIGKILL", "shipping-service"], { timeout: 10000, stdio: "pipe" });
+    } finally {
+      execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "30", "rabbitmq-test"], { timeout: 40000, stdio: "pipe" });
+      execFileSync("docker", [...compose, "start", "--wait", "--wait-timeout", "30", "shipping-service"], { timeout: 40000, stdio: "pipe" });
+    }
+    expect(execFileSync("docker", ["inspect", "--format", "{{.State.StartedAt}}", "fitsupply-stack-shipping-service-test"], { encoding: "utf8", timeout: 10000 })).not.toBe(startedAt);
+    await requestJson("PATCH", `/shipping/shipments/${shipment.id}/status`, { token: adminSession.accessToken, body: { status: "SHIPPED", trackingNumber: suffix } });
+    expect(sql("shipping_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "payload"::jsonb->'data'->>'shipmentId'='${shipment.id}'`)).toBe("1");
+    await vi.waitFor(() => {
+      expect(sql("shipping_test_db", `SELECT count(*) FROM "OutboxEvent" WHERE "eventId"='${sourceEventId}' AND "publishedAt" IS NOT NULL`)).toBe("1");
+      expect(sql("notification_test_db", `SELECT count(*) FROM "Notification" n JOIN "NotificationDelivery" d ON d."notificationId"=n.id
+        JOIN "FakeEmailReceipt" f ON f."deliveryKey"='delivery:'||d.id WHERE n."sourceEventId"='${sourceEventId}' AND d.status='SENT' AND d."attemptCount"=1`)).toBe("1");
+    }, { timeout: 30000, interval: 100 });
+  }, 150000);
 
   it("payment failure preserves pending Order until explicit customer cancellation", async () => {
     const suffix = `fail-${Date.now()}-${Math.random().toString(16).slice(2)}`;

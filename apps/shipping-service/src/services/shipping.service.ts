@@ -136,13 +136,19 @@ export const createShipmentService = async (_userId: string, body: CreateShipmen
   if (role !== "ADMIN") throw new ForbiddenError("Forbidden");
   body = createShipmentSchema.parse(body);
   const existing = await prisma.shipment.findFirst({ where: { orderId: body.orderId } });
-  if (existing) return toShipmentResponse(existing);
+  if (existing) {
+    dependencyLogger.info({ shipmentId: existing.id, orderId: existing.orderId, status: existing.status, result: "duplicate" }, "shipment creation replay");
+    return toShipmentResponse(existing);
+  }
   const order = await getOrder(body.orderId);
   if (order.status !== "CONFIRMED") throw new BadRequestError("Order must be confirmed before shipment", { orderId: order.id, status: order.status });
   return traced("shipping.create", SpanKind.INTERNAL, {}, () => prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${`shipping.order:${body.orderId}`}, 0))`;
     const existing = await tx.shipment.findUnique({ where: { orderId: body.orderId } });
-    if (existing) return toShipmentResponse(existing);
+    if (existing) {
+      dependencyLogger.info({ shipmentId: existing.id, orderId: existing.orderId, status: existing.status, result: "duplicate" }, "shipment creation replay");
+      return toShipmentResponse(existing);
+    }
     const shipment = await tx.shipment.create({ data: {
       userId: order.userId, orderId: order.id, status: "PROCESSING", recipientName: order.delivery.recipientName,
       phone: order.delivery.contactPhone, addressLine1: order.delivery.addressLine1, addressLine2: order.delivery.addressLine2,
@@ -187,7 +193,10 @@ export const updateShipmentStatusService = async (id: string, _userId: string, b
     await tx.$queryRaw`SELECT "id" FROM "Shipment" WHERE "id" = ${id} FOR UPDATE`;
     const current = await tx.shipment.findUniqueOrThrow({ where: { id } });
     const next = shipmentTransition(current, body);
-    if (!next.changed) return toShipmentResponse(current);
+    if (!next.changed) {
+      dependencyLogger.info({ shipmentId: current.id, orderId: current.orderId, status: current.status, result: "duplicate" }, "shipment command replay");
+      return toShipmentResponse(current);
+    }
     const updated = await tx.shipment.update({ where: { id }, data: { status: next.status, trackingNumber: next.trackingNumber } });
     if (next.status === "SHIPPED" || next.status === "DELIVERED") {
       const event = createIntegrationEvent({ eventType: next.status === "SHIPPED" ? "shipment.shipped" : "shipment.delivered",
@@ -195,7 +204,9 @@ export const updateShipmentStatusService = async (id: string, _userId: string, b
         data: { orderId: updated.orderId, shipmentId: updated.id, userId: updated.userId } });
       await enqueueOutboxEvent(tx, event, `shipment:${updated.id}:${next.status}`);
       dependencyLogger.info({ eventId: event.eventId, eventType: event.eventType, correlationId: event.correlationId,
-        shipmentId: updated.id, orderId: updated.orderId, status: updated.status }, "shipment transition and notification intent staged");
+        shipmentId: updated.id, orderId: updated.orderId, previousStatus: current.status, status: updated.status }, "shipment transition and notification intent staged");
+    } else {
+      dependencyLogger.info({ shipmentId: updated.id, orderId: updated.orderId, previousStatus: current.status, status: updated.status }, "shipment transition staged");
     }
     return toShipmentResponse(updated);
   }));

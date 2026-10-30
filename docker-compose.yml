@@ -214,6 +214,8 @@ services:
       context: .
       dockerfile: ./apps/shipping-service/Dockerfile
     container_name: shipping-service
+    environment:
+      RABBITMQ_URL: ${COMPOSE_RABBITMQ_URL:-amqp://fitsupply:change-me-for-local-development@rabbitmq:5672}
     env_file:
       - ./apps/shipping-service/.env
     expose:
@@ -222,7 +224,7 @@ services:
       - ./apps/shipping-service/src:/app/apps/shipping-service/src
       - ./apps/shipping-service/prisma:/app/apps/shipping-service/prisma
       - ./packages/shared:/app/packages/shared
-    command: sh -c "npx prisma migrate deploy --config apps/shipping-service/prisma.config.ts --schema apps/shipping-service/prisma/schema.prisma && npm --prefix apps/shipping-service run dev"
+    command: sh -c "npx prisma migrate deploy --config apps/shipping-service/prisma.config.ts --schema apps/shipping-service/prisma/schema.prisma && exec node --import tsx apps/shipping-service/src/index.ts"
     stdin_open: true
     tty: true
     depends_on:
