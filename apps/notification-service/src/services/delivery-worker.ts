@@ -4,6 +4,8 @@ import type { PrismaClient } from "../generated/prisma/index.js";
 import type { EmailProvider } from "../providers/email-provider.js";
 import { defaultEmailPolicy, deliveryFailureState, deliveryIdentity, EmailProviderError, type EmailDeliveryPolicy } from "../domain/notification.js";
 
+const eventTypeByNotification: Record<string, string> = { ORDER_CONFIRMED: "order.confirmed", ORDER_CANCELLED: "order.cancelled", ORDER_SHIPPED: "shipment.shipped", ORDER_DELIVERED: "shipment.delivered" };
+
 /** Committed claim consumes budget even if process dies before/after provider acceptance. */
 export async function claimEmailDelivery(database: PrismaClient, policy = defaultEmailPolicy) {
   return database.$transaction(async (tx) => {
@@ -42,7 +44,7 @@ export async function sendClaimedEmail(database: PrismaClient, claim: { id: stri
     if (!locked[0]) return false;
     const row = await tx.notificationDelivery.findUniqueOrThrow({ where: { id: claim.id }, include: { notification: true } });
     const notification = row.notification;
-    const metadata = { eventId: notification.sourceEventId, eventType: notification.type === "ORDER_CONFIRMED" ? "order.confirmed" : "order.cancelled", correlationId: notification.correlationId,
+    const metadata = { eventId: notification.sourceEventId, eventType: eventTypeByNotification[notification.type] ?? "unknown", correlationId: notification.correlationId,
       notificationId: notification.id, deliveryId: row.id, channel: row.channel, attempt: row.attemptCount };
     await traced("notification.email.send", SpanKind.CLIENT, { channel: row.channel, attempt: row.attemptCount }, () =>
       runWithCorrelation({ requestId: randomUUID(), traceId: notification.correlationId ?? randomUUID() }, async () => {

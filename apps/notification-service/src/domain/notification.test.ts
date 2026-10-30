@@ -22,6 +22,13 @@ describe("notification content", () => {
     } });
     expect(() => buildNotification(event)).toThrow(DeliveryPoisonError);
   });
+  it.each(["shipment.shipped", "shipment.delivered"] as const)("maps real %s fulfillment fact", (eventType) => {
+    const shipmentId = randomUUID();
+    const result = buildNotification(createIntegrationEvent({ eventType, ...metadata(), data: { orderId: randomUUID(), shipmentId, userId: "owner" } }));
+    expect(result).toEqual({ userId: "owner", type: eventType === "shipment.shipped" ? "ORDER_SHIPPED" : "ORDER_DELIVERED",
+      title: eventType === "shipment.shipped" ? "Order shipped" : "Order delivered",
+      message: eventType === "shipment.shipped" ? `Shipment ${shipmentId} has shipped.` : `Shipment ${shipmentId} has been delivered.` });
+  });
 });
 
 describe("email retry policy", () => {

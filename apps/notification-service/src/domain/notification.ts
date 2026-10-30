@@ -1,6 +1,6 @@
 import { DeliveryPoisonError, retryDelay, type KnownIntegrationEvent } from "@shared/utils";
 
-export const notificationEventTypes = ["order.confirmed", "order.cancelled"] as const;
+export const notificationEventTypes = ["order.confirmed", "order.cancelled", "shipment.shipped", "shipment.delivered"] as const;
 
 export function buildNotification(event: KnownIntegrationEvent) {
   switch (event.eventType) {
@@ -10,6 +10,12 @@ export function buildNotification(event: KnownIntegrationEvent) {
     case "order.cancelled":
       return { userId: event.data.userId, type: "ORDER_CANCELLED" as const,
         title: "Order cancelled", message: `Order ${event.data.orderId} has been cancelled.` };
+    case "shipment.shipped":
+      return { userId: event.data.userId, type: "ORDER_SHIPPED" as const,
+        title: "Order shipped", message: `Shipment ${event.data.shipmentId} has shipped.` };
+    case "shipment.delivered":
+      return { userId: event.data.userId, type: "ORDER_DELIVERED" as const,
+        title: "Order delivered", message: `Shipment ${event.data.shipmentId} has been delivered.` };
     default: throw new DeliveryPoisonError();
   }
 }

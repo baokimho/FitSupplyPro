@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { buildNotification, cleanupDatabase, createGatewaySecretMiddleware, errorHandler, requireTestDatabaseUrl,
   createIntegrationEvent, createLogger, processInboxEvent, openRabbitMq, readRabbitMqConfig, declareRabbitMqTopology,
   serializeIntegrationEvent, DOMAIN_EXCHANGE, startInboxMessaging, ServiceUnavailableError, getCorrelation,
-  traced, SpanKind, telemetryMetrics, runWithCorrelation, activeTraceFields, traceHeaders, telemetryContext, ROOT_CONTEXT, type KnownIntegrationEvent } from "@shared/utils";
+  traced, SpanKind, telemetryMetrics, runWithCorrelation, activeTraceFields, traceHeaders, telemetryContext, ROOT_CONTEXT, inspectDlq, replayDlq, DEAD_LETTER_EXCHANGE, type KnownIntegrationEvent } from "@shared/utils";
 import type { PrismaClient } from "./generated/prisma/index.js";
 import { acceptNotificationEvent } from "./services/notification-consumer.js";
 import { claimEmailDelivery, deliverEmailOnce, sendClaimedEmail, startEmailWorker } from "./services/delivery-worker.js";
@@ -292,7 +292,52 @@ it("Notification broker failures exhaust durable acceptance budget; duplicate qu
   }, handler);
 });
 
+it.each(["shipment.shipped", "shipment.delivered"] as const)("real broker %s creates one logical email across duplicate deliveries", async (eventType) => {
+  await withBroker(async ({ publisher }) => {
+    const source = createIntegrationEvent({ eventType, correlationId: randomUUID(), causationId: null,
+      data: { orderId: randomUUID(), shipmentId: randomUUID(), userId: "owner" } });
+    // Three unreceipted concurrent copies share the acceptance budget; committed duplicates bypass it.
+    for (let i = 0; i < 3; i++) await publisher.publish(DOMAIN_EXCHANGE, eventType, serializeIntegrationEvent(source));
+    await vi.waitFor(() => expect(logs.filter((line) => line.includes(source.eventId) && line.includes("safe to acknowledge"))).toHaveLength(3), { timeout: 5000, interval: 20 });
+    await publisher.publish(DOMAIN_EXCHANGE, eventType, serializeIntegrationEvent(source));
+    await vi.waitFor(() => expect(logs.filter((line) => line.includes(source.eventId) && line.includes("safe to acknowledge"))).toHaveLength(4), { timeout: 5000, interval: 20 });
+    expect(await prisma.notification.count()).toBe(1);
+    expect(await prisma.notificationDelivery.count()).toBe(1);
+    expect(await prisma.notification.findFirstOrThrow()).toMatchObject({ sourceEventId: source.eventId, correlationId: source.correlationId,
+      type: eventType === "shipment.shipped" ? "ORDER_SHIPPED" : "ORDER_DELIVERED" });
+    await deliverEmailOnce(prisma, new FakeEmailProvider(prisma), logger);
+    expect(await deliverEmailOnce(prisma, new FakeEmailProvider(prisma), logger)).toBe(false);
+    expect(await prisma.fakeEmailReceipt.count()).toBe(1);
+  });
+});
+
+it("Shipping fact exhausts acceptance budget, recovers by explicit DLQ replay and keeps sent email idempotent", async () => {
+  let broken = true;
+  const source = createIntegrationEvent({ eventType: "shipment.shipped", correlationId: randomUUID(), causationId: null,
+    data: { orderId: randomUUID(), shipmentId: randomUUID(), userId: "owner" } });
+  await withBroker(async ({ publisher, channel, broker }) => {
+    const dlq = "notification.order-events.dlq";
+    await publisher.publish(DOMAIN_EXCHANGE, source.eventType, serializeIntegrationEvent(source));
+    await vi.waitFor(async () => expect((await channel.checkQueue(dlq)).messageCount).toBe(1), { timeout: 5000, interval: 20 });
+    expect(await prisma.consumerDelivery.findFirstOrThrow()).toMatchObject({ attempts: 3 });
+    expect(await prisma.notification.count()).toBe(0);
+    const selected = (await inspectDlq(broker, dlq)).find((row) => row.event?.eventId === source.eventId)!;
+    broken = false;
+    await replayDlq(broker, dlq, selected.id, selected.id);
+    await vi.waitFor(async () => expect(await prisma.checkoutEvent.count()).toBe(1), { timeout: 5000, interval: 20 });
+    await deliverEmailOnce(prisma, new FakeEmailProvider(prisma), logger);
+    await publisher.publish(DEAD_LETTER_EXCHANGE, "notification.order-events", serializeIntegrationEvent(source));
+    const duplicate = (await inspectDlq(broker, dlq)).find((row) => row.event?.eventId === source.eventId)!;
+    await replayDlq(broker, dlq, duplicate.id, duplicate.id);
+    await vi.waitFor(() => expect(logs.filter((line) => line.includes(source.eventId) && line.includes("safe to acknowledge"))).toHaveLength(2), { timeout: 5000, interval: 20 });
+    expect(await prisma.notification.count()).toBe(1);
+    expect(await prisma.notificationDelivery.findFirstOrThrow()).toMatchObject({ status: "SENT", attemptCount: 1 });
+    expect(await prisma.fakeEmailReceipt.count()).toBe(1);
+  }, async (event) => { if (broken) throw new ServiceUnavailableError("test acceptance outage"); await acceptNotificationEvent(prisma, event, logger); });
+});
+
 async function withBroker(work: (resources: {
+  broker: Awaited<ReturnType<typeof openRabbitMq>>;
   publisher: Awaited<ReturnType<Awaited<ReturnType<typeof openRabbitMq>>["createPublisher"]>>;
   channel: Awaited<ReturnType<Awaited<ReturnType<typeof openRabbitMq>>["createChannel"]>>;
   session: Awaited<ReturnType<typeof startInboxMessaging>>;
@@ -307,7 +352,7 @@ async function withBroker(work: (resources: {
     await channel.purgeQueue("notification.order-events"); await channel.purgeQueue("notification.order-events.dlq");
     session = await startInboxMessaging(config, logger, "notification.order-events", notificationEventTypes,
       handler, prisma);
-    await work({ publisher: await broker.createPublisher(), channel, session });
+    await work({ publisher: await broker.createPublisher(), channel, session, broker });
   } finally {
     await session?.close();
     await channel.purgeQueue("notification.order-events"); await channel.purgeQueue("notification.order-events.dlq");
