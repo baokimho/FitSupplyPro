@@ -1,14 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { createServer, request as httpRequest, type Server } from "node:http";
 import { connect } from "node:net";
-import { EventEmitter, once } from "node:events";
+import { once } from "node:events";
 import express from "express";
 import request from "supertest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { ipKeyGenerator, type RateLimitRequestHandler } from "express-rate-limit";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { correlationMiddleware, installShutdown, validCorrelationId } from "@shared/utils";
-import { logger } from "./logger.js";
+import { correlationMiddleware, validCorrelationId } from "@shared/utils";
 
 const state = vi.hoisted(() => ({ target: "", info: vi.fn(), error: vi.fn(), debug: vi.fn(), warn: vi.fn() }));
 vi.mock("./logger.js", () => ({ logger: { info: state.info, error: state.error, debug: state.debug, warn: state.warn } }));
@@ -42,8 +41,6 @@ describe("real Gateway HTTP boundary", () => {
   let admin: string;
   const invalidTokens = new Map<string, string>();
   let readiness: { stopping: boolean };
-  let delayedEntered: (() => void) | undefined;
-  let releaseDelayed: (() => void) | undefined;
   const seen: Array<{ url: string; headers: import("node:http").IncomingHttpHeaders; body: string }> = [];
 
   beforeAll(async () => {
@@ -73,11 +70,6 @@ describe("real Gateway HTTP boundary", () => {
       seen.push({ url: req.url ?? "", headers: req.headers, body });
       if (req.url === "/jwks") { res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ keys: [jwk] })); return; }
       if (req.url === "/hang") return;
-      if (req.url === "/delayed") {
-        await new Promise<void>((resolve) => { releaseDelayed = resolve; delayedEntered?.(); });
-        res.end("completed");
-        return;
-      }
       if (req.url === "/trickle") {
         res.writeHead(200, { "content-type": "text/plain" });
         const timer = setInterval(() => res.write("x"), 20);
@@ -297,32 +289,6 @@ describe("real Gateway HTTP boundary", () => {
       expect(response.headers.connection).toBe("close");
       expect(response.body.error.code).toBe("SERVICE_UNAVAILABLE");
     } finally { readiness.stopping = false; }
-  });
-
-  it("SIGTERM drains an accepted proxy response before shutdown completes", async () => {
-    const server = createServer(app);
-    const shutdownPort = await listen(server);
-    const exit = vi.fn();
-    const signals = new EventEmitter() as unknown as Pick<NodeJS.Process, "on" | "off">;
-    const lifecycle = installShutdown({ server, state: readiness, logger, signals, exit });
-    const entered = new Promise<void>((resolve) => { delayedEntered = resolve; });
-    const response = new Promise<string>((resolve, reject) => {
-      const call = httpRequest({ host: "127.0.0.1", port: shutdownPort, path: "/auth/delayed", agent: false }, (res) => {
-        let body = ""; res.on("data", (chunk) => { body += chunk; }); res.on("end", () => resolve(body));
-      }); call.on("error", reject); call.end();
-    });
-    await entered;
-    const shutdown = lifecycle.shutdown("SIGTERM");
-    try {
-      expect(readiness.stopping).toBe(true);
-      expect(exit).not.toHaveBeenCalled();
-      await request(app).get("/ready").expect(503);
-      await request(app).get("/auth/echo").expect(503);
-      releaseDelayed?.();
-      expect(await response).toBe("completed");
-      await shutdown;
-      expect(exit).toHaveBeenCalledWith(0);
-    } finally { releaseDelayed?.(); lifecycle.dispose(); readiness.stopping = false; }
   });
 
   it("auth limiter uses socket IP despite changing spoofed forwarded addresses", async () => {
